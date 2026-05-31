@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-brand-blue: hsl(var(--brand-blue));
+  --color-brand-blue-light: hsl(var(--brand-blue-light));
+  --color-brand-teal: hsl(var(--brand-teal));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 203 50% 15%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 203 50% 15%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 203 50% 15%;
+
+  /* Brand Colors from Identity */
+  --brand-blue: 203 50% 21%;   /* #1b3d52 */
+  --brand-blue-light: 203 40% 30%; 
+  --brand-teal: 174 60% 44%;   /* #2db2a5 */
+
+  --primary: 174 60% 44%;      /* Teal as primary for buttons */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 203 50% 21%;    /* Dark Blue as secondary */
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 174 60% 95%;       /* Light teal for accents/hover */
+  --accent-foreground: 174 60% 30%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 174 60% 44%;
+
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1.05); }
+  50% { transform: scale(1.1); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 20s ease-in-out infinite;
+}

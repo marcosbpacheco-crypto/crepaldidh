@@ -1,0 +1,1 @@
+﻿export default function RegisterPage() { return (<div className='flex items-center justify-center min-h-screen bg-slate-50'><div className='p-8 bg-white rounded-lg shadow-md w-96'><h1 className='text-2xl font-bold mb-4 text-center'>Cadastro</h1><p className='text-center'>Em desenvolvimento...</p></div></div>) }
