@@ -30,7 +30,7 @@ const menuItems = [
 export function Sidebar() {
   return (
     <aside className="w-64 bg-brand-blue text-slate-300 flex flex-col h-screen fixed top-0 left-0 shadow-2xl z-20">
-      <div className="h-28 flex items-center justify-center px-4 relative overflow-hidden">
+      <div className="h-20 flex items-center justify-center px-4 relative overflow-hidden">
         {/* Subtle background glow for the logo area */}
         <div className="absolute inset-0 bg-brand-teal/10 blur-2xl rounded-full scale-150 transform -translate-y-1/2"></div>
         <Link href="/" className="relative z-10 flex items-center justify-center w-full h-full p-2 hover:scale-105 transition-transform duration-300">
@@ -45,13 +45,13 @@ export function Sidebar() {
           />
         </Link>
       </div>
-      <nav className="flex-1 overflow-y-auto py-6 custom-scrollbar">
-        <ul className="space-y-1.5 px-4">
+      <nav className="flex-1 overflow-y-auto py-3 custom-scrollbar">
+        <ul className="space-y-0.5 px-4">
           {menuItems.map((item) => (
             <li key={item.name}>
               <Link 
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-brand-blue-light hover:text-white hover:shadow-lg hover:shadow-black/10 transition-all duration-300 group relative overflow-hidden"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-brand-blue-light hover:text-white hover:shadow-lg hover:shadow-black/10 transition-all duration-300 group relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-teal/0 to-brand-teal/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <item.icon className="w-5 h-5 text-brand-teal/70 group-hover:text-brand-teal transition-colors relative z-10" />
@@ -61,7 +61,7 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-4 border-t border-white/10 space-y-1">
+      <div className="p-3 border-t border-white/10 space-y-0.5">
         <Link 
           href="/settings"
           className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-brand-blue-light hover:text-white transition-all duration-300"

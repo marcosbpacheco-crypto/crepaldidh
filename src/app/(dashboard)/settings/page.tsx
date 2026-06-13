@@ -1,1 +1,526 @@
-﻿export default function SettingsPage() { return (<div><h1 className='text-2xl font-bold mb-4'>Settings</h1><p>Em desenvolvimento...</p></div>) }
+﻿'use client'
+
+import React, { useState, useMemo } from 'react'
+import { useAdmin, type ModuleName } from '../admin/context/AdminContext'
+import {
+  Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
+  Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
+  Activity, LogIn, LogOut, UserPlus, Clock, Globe, Lock, Unlock,
+  Shield, AlertTriangle
+} from 'lucide-react'
+
+const TABS = [
+  { key: 'users', label: 'Usuários', icon: <Users className="w-4 h-4" /> },
+  { key: 'permissions', label: 'Permissões', icon: <Key className="w-4 h-4" /> },
+  { key: 'audit', label: 'Auditoria', icon: <FileSearch className="w-4 h-4" /> },
+  { key: 'lgpd', label: 'LGPD', icon: <Scale className="w-4 h-4" /> },
+  { key: 'config', label: 'Configurações', icon: <Settings className="w-4 h-4" /> },
+]
+
+const MODULE_LABELS: Record<ModuleName, string> = {
+  crm: 'CRM', clients: 'Clientes', projects: 'Projetos', nr01: 'NR-01',
+  mentoring: 'Mentorias', trainings: 'Treinamentos', financial: 'Financeiro',
+  calendar: 'Agenda', portal: 'Portal', documents: 'Documentos', bi: 'BI', ai: 'IA', admin: 'Admin',
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  login: 'Login', logout: 'Logout', create: 'Criação', update: 'Alteração',
+  delete: 'Exclusão', download: 'Download', export: 'Exportação', view: 'Visualização',
+}
+
+function ActionIcon({ action }: { action: string }) {
+  const cls = 'w-4 h-4'
+  switch (action) {
+    case 'login': return <LogIn className={`${cls} text-emerald-600`} />
+    case 'logout': return <LogOut className={`${cls} text-slate-600`} />
+    case 'create': return <UserPlus className={`${cls} text-blue-600`} />
+    case 'update': return <Edit2 className={`${cls} text-amber-600`} />
+    case 'delete': return <Trash2 className={`${cls} text-red-600`} />
+    case 'download': return <Download className={`${cls} text-violet-600`} />
+    case 'export': return <Activity className={`${cls} text-cyan-600`} />
+    case 'view': return <Eye className={`${cls} text-slate-600`} />
+    default: return <Activity className={`${cls} text-slate-400`} />
+  }
+}
+
+export default function SettingsPage() {
+  const admin = useAdmin()
+  const [tab, setTab] = useState('users')
+  const [searchUser, setSearchUser] = useState('')
+  const [searchAudit, setSearchAudit] = useState('')
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [privacyForm, setPrivacyForm] = useState({ userId: '', requestType: 'access', description: '' })
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+
+  const filteredUsers = useMemo(() =>
+    admin.users.filter(u => {
+      if (searchUser) { const q = searchUser.toLowerCase(); return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.roleName.toLowerCase().includes(q) }
+      return true
+    }), [admin.users, searchUser])
+
+  const filteredAuditLogs = useMemo(() =>
+    admin.auditLogs.filter(a => {
+      if (searchAudit) { const q = searchAudit.toLowerCase(); return a.userName.toLowerCase().includes(q) || a.action.toLowerCase().includes(q) || a.entity.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) }
+      return true
+    }), [admin.auditLogs, searchAudit])
+
+  const pendingPrivacyRequests = admin.privacyRequests.filter(r => r.status === 'pending')
+
+  const handleAddUser = () => {
+    if (!newUserForm.name.trim() || !newUserForm.email.trim()) return
+    const role = admin.roles.find(r => r.id === newUserForm.roleId)
+    admin.addUser({
+      name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone,
+      avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+      roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
+      companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
+      active: true, loginAttempts: 0, mfaEnabled: false,
+    })
+    setShowAddUser(false)
+    setNewUserForm({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  }
+
+  const handlePrivacyRequest = () => {
+    const user = admin.users.find(u => u.id === privacyForm.userId)
+    admin.addPrivacyRequest({
+      userId: privacyForm.userId, userName: user?.name || 'N/A',
+      requestType: privacyForm.requestType, status: 'pending', description: privacyForm.description,
+    })
+    setShowPrivacyModal(false)
+    setPrivacyForm({ userId: '', requestType: 'access', description: '' })
+  }
+
+  return (
+    <div className="min-h-screen">
+      <div className="flex items-center gap-2 mb-6">
+        <Settings className="w-5 h-5 text-slate-600" />
+        <h1 className="text-lg font-black text-slate-800">CONFIGURAÇÕES</h1>
+        <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[9px] font-bold text-slate-500">USUÁRIOS & PERMISSÕES</span>
+      </div>
+
+      {/* Simulação de usuário */}
+      <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl px-3 py-2 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-[10px] font-semibold text-slate-600">Visualizar como:</span>
+          <select
+            value={admin.currentUserId || ''}
+            onChange={e => admin.setCurrentUserId(e.target.value || null)}
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20"
+          >
+            {admin.users.map(u => (
+              <option key={u.id} value={u.id}>{u.name} ({u.roleName}){!u.active ? ' 🔒' : ''}</option>
+            ))}
+          </select>
+        </div>
+        {admin.currentUser && (
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-brand-teal to-brand-blue flex items-center justify-center text-[8px] font-bold text-white">{admin.currentUser.avatar}</div>
+            <span className="text-[11px] font-semibold text-slate-700">{admin.currentUser.name}</span>
+            <span className="text-[9px] text-slate-400">({admin.currentUser.roleName})</span>
+          </div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-3.5 py-2 text-[11px] font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
+              tab === t.key
+                ? 'bg-brand-teal/10 border-brand-teal/30 text-brand-teal shadow-sm'
+                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}>
+            {t.icon}{t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Users */}
+      {tab === 'users' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={searchUser} onChange={e => setSearchUser(e.target.value)} placeholder="Buscar usuários..." className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+            </div>
+            <button onClick={() => setShowAddUser(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all"><Plus className="w-3.5 h-3.5" /> Novo Usuário</button>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Usuário</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Perfil</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Tipo</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Empresa</th>
+                    <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Status</th>
+                    <th className="text-center px-4 py-2.5 font-semibold text-slate-500">MFA</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-slate-500">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${u.active ? 'bg-gradient-to-br from-brand-teal to-brand-blue' : 'bg-slate-300'}`}>{u.avatar}</div>
+                          <div><p className="font-semibold text-slate-800">{u.name}</p><p className="text-[10px] text-slate-400">{u.email}</p></div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 bg-brand-teal/10 border border-brand-teal/20 rounded text-[10px] font-semibold text-brand-teal">{u.roleName}</span></td>
+                      <td className="px-4 py-3"><span className={`text-[10px] font-semibold ${u.isExternal ? 'text-amber-600' : 'text-blue-600'}`}>{u.isExternal ? 'Externo' : 'Interno'}</span></td>
+                      <td className="px-4 py-3 text-slate-600">{u.companyName || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${u.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                          {u.active ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {u.active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {u.mfaEnabled ? <Lock className="w-3.5 h-3.5 text-emerald-600 mx-auto" /> : <Unlock className="w-3.5 h-3.5 text-slate-300 mx-auto" />}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
+                            {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => admin.deleteUser(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filteredUsers.length === 0 && <div className="p-12 text-center text-slate-400 text-xs">Nenhum usuário encontrado</div>}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Total</p><p className="text-lg font-black text-slate-800">{admin.users.length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Ativos</p><p className="text-lg font-black text-emerald-600">{admin.users.filter(u => u.active).length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Externos</p><p className="text-lg font-black text-amber-600">{admin.users.filter(u => u.isExternal).length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">MFA</p><p className="text-lg font-black text-brand-teal">{admin.users.filter(u => u.mfaEnabled).length}</p></div>
+          </div>
+
+          {showAddUser && (
+            <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowAddUser(false)}>
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-sm font-black text-slate-800 mb-4">Novo Usuário</h3>
+                <div className="space-y-3">
+                  <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nome</label><input value={newUserForm.name} onChange={e => setNewUserForm(p => ({ ...p, name: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+                  <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Email</label><input value={newUserForm.email} onChange={e => setNewUserForm(p => ({ ...p, email: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+                  <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Telefone</label><input value={newUserForm.phone} onChange={e => setNewUserForm(p => ({ ...p, phone: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+                  <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Perfil</label>
+                    <select value={newUserForm.roleId} onChange={e => setNewUserForm(p => ({ ...p, roleId: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                      {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                    </select></div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={newUserForm.isExternal} onChange={e => setNewUserForm(p => ({ ...p, isExternal: e.target.checked }))} className="rounded border-slate-300" />
+                    <span className="text-[11px] text-slate-600">Usuário externo (cliente)</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                  <button onClick={handleAddUser} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Criar Usuário</button>
+                  <button onClick={() => setShowAddUser(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Permissions */}
+      {tab === 'permissions' && (
+        <PermissionsPanel admin={admin} />
+      )}
+
+      {/* Audit */}
+      {tab === 'audit' && (
+        <div className="space-y-4">
+          <div className="relative max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={searchAudit} onChange={e => setSearchAudit(e.target.value)} placeholder="Buscar nos logs..." className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="divide-y divide-slate-50">
+              {filteredAuditLogs.length === 0 && <div className="p-12 text-center text-slate-400 text-xs">Nenhum registro de auditoria</div>}
+              {filteredAuditLogs.map(a => (
+                <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                  <div className="mt-0.5"><ActionIcon action={a.action} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold text-slate-700">{ACTION_LABELS[a.action] || a.action} — <span className="text-slate-500">{a.entity}</span></p>
+                    <p className="text-[11px] text-slate-500">{a.description}</p>
+                    <div className="flex items-center gap-3 mt-1 text-[9px] text-slate-400">
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {a.userName}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(a.createdAt).toLocaleString('pt-BR')}</span>
+                      <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {a.ipAddress}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LGPD */}
+      {tab === 'lgpd' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5"><Scale className="w-4 h-4 text-slate-600" /> Consentimentos LGPD</h3>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <table className="w-full text-[11px]">
+                <thead><tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Usuário</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Tipo</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Base Legal</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Status</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-slate-500">Ações</th>
+                </tr></thead>
+                <tbody>
+                  {admin.lgpdConsents.map(c => {
+                    const user = admin.users.find(u => u.id === c.userId)
+                    return (
+                      <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-slate-700">{user?.name || 'N/A'}</td>
+                        <td className="px-4 py-3 text-slate-600">{c.consentType}</td>
+                        <td className="px-4 py-3 text-[10px] text-slate-500">{c.legalBasis}</td>
+                        <td className="px-4 py-3 text-center">
+                          {c.granted
+                            ? <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-semibold">Consentido</span>
+                            : <span className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded text-[10px] font-semibold">Revogado</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {c.granted && (
+                            <button onClick={() => admin.revokeLgpdConsent(c.id)} className="px-2 py-1 text-[9px] font-semibold text-red-600 hover:bg-red-50 rounded-lg">Revogar</button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-black text-slate-700 flex items-center gap-1.5"><FileSearch className="w-4 h-4 text-slate-600" /> Solicitações de Privacidade
+                {pendingPrivacyRequests.length > 0 && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded text-[9px] font-bold text-amber-600">{pendingPrivacyRequests.length} pendentes</span>}
+              </h3>
+              <button onClick={() => setShowPrivacyModal(true)} className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all"><Plus className="w-3 h-3" /> Nova Solicitação</button>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <table className="w-full text-[11px]">
+                <thead><tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Usuário</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Tipo</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Descrição</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Status</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-slate-500">Data</th>
+                </tr></thead>
+                <tbody>
+                  {admin.privacyRequests.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-xs">Nenhuma solicitação</td></tr>}
+                  {admin.privacyRequests.map(r => (
+                    <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-slate-700">{r.userName}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 rounded text-[10px] font-semibold text-slate-600">
+                          {r.requestType === 'access' ? 'Acesso' : r.requestType === 'deletion' ? 'Exclusão' : r.requestType === 'rectification' ? 'Retificação' : r.requestType === 'portability' ? 'Portabilidade' : r.requestType === 'anonymization' ? 'Anonimização' : 'Restrição'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-[10px] max-w-[200px] truncate">{r.description}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          r.status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                          r.status === 'processing' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                          r.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                          'bg-red-50 text-red-700 border border-red-100'
+                        }`}>
+                          {r.status === 'pending' ? 'Pendente' : r.status === 'processing' ? 'Processando' : r.status === 'completed' ? 'Concluído' : 'Rejeitado'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-[10px] text-slate-400">{new Date(r.createdAt).toLocaleDateString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {pendingPrivacyRequests.length > 0 && (
+              <div className="mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <p className="text-[10px] font-bold text-amber-700 mb-1.5">Ações Pendentes</p>
+                {pendingPrivacyRequests.map(r => (
+                  <div key={r.id} className="flex items-center justify-between py-1">
+                    <p className="text-[10px] text-amber-700">{r.userName} — {r.requestType}</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => admin.updatePrivacyRequest(r.id, { status: 'processing', processedBy: 'user-admin' })} className="px-2 py-0.5 bg-blue-500 text-white text-[9px] font-bold rounded-lg hover:bg-blue-600">Processar</button>
+                      <button onClick={() => admin.updatePrivacyRequest(r.id, { status: 'completed', processedBy: 'user-admin', responseNotes: 'Solicitação atendida.' })} className="px-2 py-0.5 bg-emerald-500 text-white text-[9px] font-bold rounded-lg hover:bg-emerald-600">Concluir</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-2xl p-4">
+            <h3 className="text-xs font-black text-slate-700 mb-2">Política de Privacidade — CrepaldiDH</h3>
+            <div className="text-[10px] text-slate-600 space-y-1">
+              <p><strong>Base Legal:</strong> LGPD Lei 13.709/2018 — Art. 7º (Consentimento), Art. 10º (Legítimo Interesse)</p>
+              <p><strong>Dados Coletados:</strong> Nome, email, telefone, empresa, cargo, histórico de interações</p>
+              <p><strong>Finalidade:</strong> Prestação de serviços de DHO, comunicação comercial, cumprimento de obrigações contratuais</p>
+              <p><strong>Compartilhamento:</strong> Dados não são compartilhados com terceiros sem consentimento explícito</p>
+              <p><strong>Retenção:</strong> 5 anos para registros de auditoria, 2 anos para consentimentos após revogação</p>
+              <p><strong>Direitos do Titular:</strong> Acesso, retificação, exclusão, portabilidade, anonimização, revogação de consentimento</p>
+              <p><strong>Encarregado (DPO):</strong> Marcos Crepaldi — dpo@crepaldidh.com.br</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Config */}
+      {tab === 'config' && (
+        <div className="space-y-6 max-w-2xl">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h3 className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5"><Shield className="w-4 h-4 text-slate-600" /> Segurança</h3>
+            <div className="space-y-3">
+              {[
+                { title: 'Bloqueio por Tentativas', desc: 'Bloquear após 5 tentativas de login inválidas', status: 'Ativo', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                { title: 'MFA Obrigatório', desc: 'Exigir autenticação de dois fatores para admins', status: 'Parcial', color: 'text-amber-600 bg-amber-50 border-amber-100' },
+                { title: 'Sessão', desc: 'Expirar sessão após 8 horas de inatividade', status: '8h', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                { title: 'Reset de Senha', desc: 'Link de reset expira em 30 minutos', status: '30 min', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+              ].map(item => (
+                <div key={item.title} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div><p className="text-[12px] font-semibold text-slate-700">{item.title}</p><p className="text-[10px] text-slate-400">{item.desc}</p></div>
+                  <span className={`px-2 py-0.5 ${item.color} rounded text-[10px] font-semibold`}>{item.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h3 className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600" /> Retenção de Dados</h3>
+            <div className="space-y-2">
+              {[
+                { label: 'Logs de auditoria', value: '5 anos' },
+                { label: 'Sessões de usuário', value: '90 dias' },
+                { label: 'Consentimentos LGPD', value: '20 anos' },
+                { label: 'Usuários inativos', value: '1 ano' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <span className="text-[11px] text-slate-600">{item.label}</span>
+                  <span className="text-[10px] font-semibold text-slate-700">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h3 className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1.5"><Users className="w-4 h-4 text-slate-600" /> Sessões Ativas</h3>
+            <div className="space-y-2">
+              {admin.users.filter(u => u.lastLogin && new Date(u.lastLogin).getTime() > Date.now() - 86400000).slice(0, 5).map(u => (
+                <div key={u.id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-brand-teal to-brand-blue flex items-center justify-center text-[8px] font-bold text-white">{u.avatar}</div>
+                    <div><p className="text-[11px] font-semibold text-slate-700">{u.name}</p><p className="text-[9px] text-slate-400">{u.roleName}</p></div>
+                  </div>
+                  <span className="text-[9px] text-emerald-600 font-semibold">Online</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-4">
+            <h3 className="text-xs font-black text-amber-800 mb-1">Segurança do Sistema</h3>
+            <p className="text-[10px] text-amber-700">Todas as operações são registradas em logs de auditoria. Consulte o módulo de BI para relatórios completos de segurança. Em caso de incidente, contate o DPO: dpo@crepaldidh.com.br</p>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Request Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowPrivacyModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 mb-4">Nova Solicitação de Privacidade</h3>
+            <div className="space-y-3">
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Usuário</label>
+                <select value={privacyForm.userId} onChange={e => setPrivacyForm(p => ({ ...p, userId: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                  <option value="">Selecione...</option>
+                  {admin.users.filter(u => u.isExternal).map(u => <option key={u.id} value={u.id}>{u.name} — {u.companyName}</option>)}
+                </select></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Tipo</label>
+                <select value={privacyForm.requestType} onChange={e => setPrivacyForm(p => ({ ...p, requestType: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                  <option value="access">Acesso aos dados</option>
+                  <option value="rectification">Retificação de dados</option>
+                  <option value="deletion">Exclusão de dados</option>
+                  <option value="portability">Portabilidade</option>
+                  <option value="anonymization">Anonimização</option>
+                  <option value="restriction">Restrição de tratamento</option>
+                </select></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Descrição</label>
+                <textarea value={privacyForm.description} onChange={e => setPrivacyForm(p => ({ ...p, description: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-brand-teal/20 resize-none" /></div>
+            </div>
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+              <button onClick={handlePrivacyRequest} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Registrar</button>
+              <button onClick={() => setShowPrivacyModal(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Permissions Panel (separated for readability) ──
+function PermissionsPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
+  const [selectedRole, setSelectedRole] = useState('role-admin')
+  const rolePerms = admin.getPermissionsForRole(selectedRole)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <label className="text-[9px] font-semibold text-slate-400 uppercase">Perfil:</label>
+        <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}
+          className="text-[11px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+          {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Módulo</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Visualizar</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Criar</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Editar</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Excluir</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Exportar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rolePerms.map(p => (
+                <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-2.5 font-semibold text-slate-700">{MODULE_LABELS[p.module] || p.module}</td>
+                  {(['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport'] as const).map(field => (
+                    <td key={field} className="px-4 py-2.5 text-center">
+                      <button onClick={() => admin.updatePermission(p.id, field, !p[field])}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                          p[field] ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-300 border border-slate-100 hover:border-slate-200'
+                        } cursor-pointer`}>
+                        {p[field] ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                      </button>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}

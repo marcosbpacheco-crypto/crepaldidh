@@ -12,6 +12,7 @@ import { BiProvider } from './bi/context/BiContext'
 import { AiProvider } from './ai/context/AiContext'
 import { AdminProvider } from './admin/context/AdminContext'
 import { TenantProvider } from './admin/context/TenantContext'
+import { ClientsProvider } from './clients/context/ClientsContext'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -27,7 +28,9 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                   <AiProvider>
                     <AdminProvider>
                       <TenantProvider>
-                        {children}
+                        <ClientsProvider>
+                          {children}
+                        </ClientsProvider>
                       </TenantProvider>
                     </AdminProvider>
                   </AiProvider>
