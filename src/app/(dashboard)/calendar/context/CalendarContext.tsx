@@ -40,6 +40,7 @@ export interface CalendarEvent {
   description?: string
   companyId?: string
   companyName?: string
+  clientId?: string
   projectId?: string
   projectName?: string
   contractId?: string
@@ -163,6 +164,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-1', title: 'Reunião Comercial - BR Distribuidora', type: 'commercial_meeting',
       companyId: 'comp-1', companyName: 'BR Distribuidora',
+      clientId: 'cli-1',
       description: 'Apresentação de proposta de DHO Corporativo',
       responsible: 'Equipe Comercial', location: 'Escritório Central',
       eventDate: fmtDate(d(0)), startTime: '09:00', endTime: '10:30',
@@ -172,6 +174,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-2', title: 'Mentoria - Vale S.A.', type: 'mentoring',
       companyId: 'comp-2', companyName: 'Vale S.A.',
+      clientId: 'cli-2',
       contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale',
       description: 'Sessão de mentoria com lideranças regionais',
       responsible: 'Facilitador Sênior', link: 'https://meet.google.com/abc-defg-hij',
@@ -182,6 +185,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-3', title: 'Treinamento - NR01 Básico', type: 'training',
       companyId: 'comp-3', companyName: 'Banco Itaú',
+      clientId: 'cli-3',
       description: 'Treinamento introdutório de NR01 para novos colaboradores',
       responsible: 'Instrutor Técnico', location: 'Auditório Itaú - Andar 12',
       eventDate: fmtDate(d(1)), startTime: '08:00', endTime: '12:00',
@@ -191,6 +195,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-4', title: 'Entrevista NR01 - Gerdau', type: 'nr01_interview',
       companyId: 'comp-4', companyName: 'Gerdau',
+      clientId: 'cli-4',
       description: 'Entrevista de levantamento de riscos psicossociais',
       responsible: 'Psicóloga do Trabalho', link: 'https://zoom.us/j/123456789',
       eventDate: fmtDate(d(1)), startTime: '14:30', endTime: '15:30',
@@ -200,6 +205,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-5', title: 'Palestra - Segurança Psicológica', type: 'lecture',
       companyId: 'comp-1', companyName: 'BR Distribuidora',
+      clientId: 'cli-1',
       description: 'Palestra sobre segurança psicológica no trabalho',
       responsible: 'Palestrante Convidado', location: 'Auditório BR Distribuidora',
       eventDate: fmtDate(d(2)), startTime: '10:00', endTime: '11:30',
@@ -209,6 +215,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-6', title: 'SIPAT - Semestre 2026.1', type: 'sipat',
       companyId: 'comp-2', companyName: 'Vale S.A.',
+      clientId: 'cli-2',
       description: 'Semana Interna de Prevenção de Acidentes - Abertura',
       responsible: 'Comissão SIPAT', location: 'Centro de Convenções Vale',
       eventDate: fmtDate(d(3)), startTime: '08:00', endTime: '17:00',
@@ -235,6 +242,7 @@ function generateSeedEvents(): CalendarEvent[] {
     {
       id: 'cal-9', title: 'Reunião com Cliente - Vale (Acompanhamento)', type: 'client_meeting',
       companyId: 'comp-2', companyName: 'Vale S.A.',
+      clientId: 'cli-2',
       contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale',
       description: 'Acompanhamento mensal do contrato de mentoria',
       responsible: 'Gerente de Contas', link: 'https://zoom.us/j/987654321',

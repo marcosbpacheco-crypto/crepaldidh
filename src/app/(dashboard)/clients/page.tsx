@@ -1,16 +1,18 @@
 ﻿'use client'
 
 import React, { useState } from 'react'
-import { ClientsProvider, useClients, Client } from './context/ClientsContext'
+import { ClientsProvider, useClients, Client, ClientService, ContractType } from './context/ClientsContext'
+import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import {
-  Search, Plus, Building2, ChevronRight, Phone, Mail, MapPin,
+  Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
-  Star, Activity, MoreHorizontal, Edit3, Trash2, X, Clock,
-  CheckCircle, AlertCircle, PauseCircle
+  Star, Activity, Trash2, X, Clock,
+  CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw
 } from 'lucide-react'
 
 function ClientsMainContent() {
   const { clients, contacts, interactions, documents, feedbacks, addClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
+  const calendar = useCalendar()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -26,7 +28,7 @@ function ClientsMainContent() {
 
   const selected = clients.find(c => c.id === selectedId)
 
-  const statusIcon = (s: Client['status']) => {
+  const clientStatusIcon = (s: Client['status']) => {
     switch (s) {
       case 'active': return <CheckCircle className="w-4 h-4 text-emerald-500" />
       case 'suspended': return <PauseCircle className="w-4 h-4 text-amber-500" />
@@ -34,13 +36,33 @@ function ClientsMainContent() {
     }
   }
 
+  const serviceStatusIcon = (s: ClientService['status']) => {
+    switch (s) {
+      case 'not_started': return <Play className="w-3 h-3 text-slate-400" />
+      case 'in_progress': return <RotateCcw className="w-3 h-3 text-blue-500" />
+      case 'completed': return <CheckCircle className="w-3 h-3 text-emerald-500" />
+      case 'delayed': return <AlertCircle className="w-3 h-3 text-red-500" />
+    }
+  }
+
+  const serviceStatusLabel = (s: ClientService['status']) => {
+    switch (s) {
+      case 'not_started': return 'Não iniciado'
+      case 'in_progress': return 'Em andamento'
+      case 'completed': return 'Concluído'
+      case 'delayed': return 'Atrasado'
+    }
+  }
+
   const statusLabel: Record<Client['status'], string> = { active: 'Ativo', suspended: 'Suspenso', churned: 'Cancelado' }
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
+  const getClientCalendarEvents = (clientId: string) =>
+    calendar.events.filter(e => e.clientId === clientId || (e.companyName && clients.find(c => c.id === clientId && (c.companyName === e.companyName || c.companyTradeName === e.companyName))))
+
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -59,9 +81,7 @@ function ClientsMainContent() {
       </div>
 
       <div className="flex gap-6">
-        {/* List panel */}
         <div className={`${selectedId ? 'w-[420px]' : 'flex-1'} transition-all duration-300 flex-shrink-0`}>
-          {/* Search & Filters */}
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -91,7 +111,6 @@ function ClientsMainContent() {
             ))}
           </div>
 
-          {/* Client list */}
           <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
             {filtered.map(c => {
               const isSelected = selectedId === c.id
@@ -109,7 +128,7 @@ function ClientsMainContent() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-sm text-slate-800 truncate">{c.companyTradeName}</h3>
-                        {statusIcon(c.status)}
+                        {clientStatusIcon(c.status)}
                       </div>
                       <p className="text-xs text-slate-400 truncate mt-0.5">{c.companyName}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
@@ -117,12 +136,15 @@ function ClientsMainContent() {
                         <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{formatCurrency(c.monthlyValue)}/m</span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1 max-w-[140px] justify-end">
+                    <div className="flex flex-col gap-1 max-w-[160px] items-end">
                       {c.services.slice(0, 2).map(s => (
-                        <span key={s} className="px-2 py-0.5 bg-brand-blue/10 text-brand-blue rounded-md text-[10px] font-semibold truncate max-w-full">{s}</span>
+                        <span key={s.name} className="flex items-center gap-1 px-2 py-0.5 bg-brand-blue/10 text-brand-blue rounded-md text-[10px] font-semibold truncate max-w-full">
+                          {serviceStatusIcon(s.status)}
+                          {s.name}
+                        </span>
                       ))}
                       {c.services.length > 2 && (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px] font-semibold">+{c.services.length - 2}</span>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px] font-semibold">+{c.services.length - 2} serviços</span>
                       )}
                     </div>
                   </div>
@@ -135,7 +157,6 @@ function ClientsMainContent() {
           </div>
         </div>
 
-        {/* Detail panel */}
         {selected && (
           <ClientDetail
             client={selected}
@@ -143,6 +164,7 @@ function ClientsMainContent() {
             interactions={interactions.filter(i => i.clientId === selected.id)}
             documents={documents.filter(d => d.clientId === selected.id)}
             feedbacks={feedbacks.filter(f => f.clientId === selected.id)}
+            calendarEvents={getClientCalendarEvents(selected.id)}
             onClose={() => setSelectedId(null)}
             onDelete={deleteClient}
             onAddContact={addContact}
@@ -151,11 +173,12 @@ function ClientsMainContent() {
             showNewContact={showNewContact}
             setShowNewContact={setShowNewContact}
             formatCurrency={formatCurrency}
+            serviceStatusIcon={serviceStatusIcon}
+            serviceStatusLabel={serviceStatusLabel}
           />
         )}
       </div>
 
-      {/* New Client Modal */}
       {showNewForm && (
         <NewClientModal
           onSave={addClient}
@@ -172,15 +195,16 @@ function ClientsMainContent() {
 // ==========================================
 
 function ClientDetail({
-  client, contacts, interactions, documents, feedbacks,
+  client, contacts, interactions, documents, feedbacks, calendarEvents,
   onClose, onDelete, onAddContact, onAddInteraction, onAddFeedback,
-  showNewContact, setShowNewContact, formatCurrency
+  showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel
 }: {
   client: Client
   contacts: any[]
   interactions: any[]
   documents: any[]
   feedbacks: any[]
+  calendarEvents: any[]
   onClose: () => void
   onDelete: (id: string) => void
   onAddContact: (c: any) => void
@@ -189,6 +213,8 @@ function ClientDetail({
   showNewContact: boolean
   setShowNewContact: (v: boolean) => void
   formatCurrency: (v: number) => string
+  serviceStatusIcon: (s: ClientService['status']) => React.ReactNode
+  serviceStatusLabel: (s: ClientService['status']) => string
 }) {
   const [tab, setTab] = useState<'info' | 'contacts' | 'interactions' | 'documents' | 'feedbacks'>('info')
   const [newContactName, setNewContactName] = useState('')
@@ -239,7 +265,6 @@ function ClientDetail({
 
   return (
     <div className="flex-1 bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden">
-      {/* Detail header */}
       <div className="p-6 border-b border-slate-100">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
@@ -269,7 +294,6 @@ function ClientDetail({
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 px-6 pt-4 border-b border-slate-100">
         {[
           { id: 'info', label: 'Informações', icon: <Building2 className="w-3.5 h-3.5" /> },
@@ -292,49 +316,121 @@ function ClientDetail({
         ))}
       </div>
 
-      {/* Tab content */}
       <div className="p-6 overflow-y-auto max-h-[calc(100vh-280px)]">
-        {/* Info Tab */}
         {tab === 'info' && (
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Serviços Contratados</h4>
-              <div className="flex flex-wrap gap-2">
-                {client.services.map(s => (
-                  <span key={s} className="px-3 py-1.5 bg-brand-blue/10 text-brand-blue rounded-lg text-xs font-semibold">{s}</span>
-                ))}
+          <div className="space-y-6">
+            {/* Services with schedule */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Serviços Contratados</h4>
+              <div className="space-y-3">
+                {client.services.map(s => {
+                  const daysTotal = Math.ceil((new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24))
+                  const daysElapsed = Math.ceil((Date.now() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24))
+                  const calcProgress = s.status === 'not_started' ? 0 : s.status === 'completed' ? 100 : Math.min(100, Math.round((daysElapsed / daysTotal) * 100))
+                  const barProgress = s.progress > 0 ? s.progress : calcProgress
+                  return (
+                    <div key={s.name} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {serviceStatusIcon(s.status)}
+                          <span className="font-bold text-sm text-slate-800">{s.name}</span>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${
+                          s.status === 'not_started' ? 'bg-slate-200 text-slate-600' :
+                          s.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                          s.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {serviceStatusLabel(s.status)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-slate-400 mb-2">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(s.startDate).toLocaleDateString('pt-BR')}</span>
+                        <span className="text-slate-300">→</span>
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(s.endDate).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${
+                            s.status === 'completed' ? 'bg-emerald-500' :
+                            s.status === 'delayed' ? 'bg-red-500' :
+                            s.status === 'not_started' ? 'bg-slate-300' :
+                            'bg-blue-500'
+                          }`} style={{ width: `${barProgress}%` }} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 w-8 text-right">{barProgress}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Responsável Interno</h4>
-              <p className="text-sm text-slate-700 font-medium">{client.internalResponsible || 'Não definido'}</p>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Observações</h4>
-              <p className="text-sm text-slate-600 leading-relaxed">{client.notes || 'Sem observações.'}</p>
             </div>
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Período do Contrato</h4>
-              <div className="flex items-center gap-2 text-sm text-slate-700">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span>{new Date(client.startDate).toLocaleDateString('pt-BR')}</span>
-                <span className="text-slate-300">→</span>
-                <span>{new Date(client.endDate).toLocaleDateString('pt-BR')}</span>
-              </div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Valores</h4>
-              <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Valor Mensal</span>
-                  <span className="font-bold text-slate-800">{formatCurrency(client.monthlyValue)}</span>
+
+            {/* Contract type & timeline */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tipo de Contrato</h4>
+                <div className="flex items-center gap-2">
+                  {client.contractType === 'first' ? (
+                    <>
+                      <div className="w-8 h-8 rounded-xl bg-brand-teal/10 flex items-center justify-center">
+                        <Star className="w-4 h-4 text-brand-teal" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Primeiro Contrato</p>
+                        <p className="text-[10px] text-slate-400">Cliente novo na carteira</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                        <RotateCcw className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Renovação</p>
+                        <p className="text-[10px] text-slate-400">Cliente recorrente</p>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
-                  <span className="text-slate-400">Valor Total</span>
-                  <span className="font-bold text-brand-teal">{formatCurrency(client.totalValue)}</span>
-                </div>
+
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Responsável Interno</h4>
+                <p className="text-sm text-slate-700 font-medium">{client.internalResponsible || 'Não definido'}</p>
               </div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Segmento</h4>
-              <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold inline-block">{client.segment}</span>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vigência do Contrato</h4>
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <span>{new Date(client.startDate).toLocaleDateString('pt-BR')}</span>
+                  <span className="text-slate-300">→</span>
+                  <span>{new Date(client.endDate).toLocaleDateString('pt-BR')}</span>
+                </div>
+
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Valores</h4>
+                <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Valor Mensal</span>
+                    <span className="font-bold text-slate-800">{formatCurrency(client.monthlyValue)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
+                    <span className="text-slate-400">Valor Total</span>
+                    <span className="font-bold text-brand-teal">{formatCurrency(client.totalValue)}</span>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">Segmento</h4>
+                <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold inline-block">{client.segment}</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Observações</h4>
+              <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-2xl p-3">{client.notes || 'Sem observações.'}</p>
             </div>
           </div>
         )}
 
-        {/* Contacts Tab */}
         {tab === 'contacts' && (
           <div className="space-y-3">
             {contacts.map(c => (
@@ -373,28 +469,73 @@ function ClientDetail({
           </div>
         )}
 
-        {/* Interactions Tab */}
         {tab === 'interactions' && (
           <div className="space-y-3">
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {interactions.map(i => (
-                <div key={i.id} className="p-4 bg-slate-50 rounded-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-brand-teal" />
-                      <span className="font-bold text-sm text-slate-800">{i.title}</span>
+            {/* Calendar events */}
+            {calendarEvents.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" /> Agenda
+                </h4>
+                <div className="space-y-2">
+                  {calendarEvents.map(ev => (
+                    <div key={ev.id} className="p-3 bg-violet-50 rounded-2xl border border-violet-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ev.color || '#8b5cf6' }} />
+                          <span className="font-bold text-sm text-slate-800">{ev.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            ev.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                            ev.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                            ev.status === 'completed' ? 'bg-slate-200 text-slate-500' :
+                            ev.status === 'canceled' ? 'bg-red-100 text-red-400' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {ev.status === 'scheduled' ? 'Agendado' : ev.status === 'confirmed' ? 'Confirmado' : ev.status === 'completed' ? 'Realizado' : ev.status === 'canceled' ? 'Cancelado' : 'Reagendado'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(ev.eventDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ev.startTime.slice(0, 5)} - {ev.endTime.slice(0, 5)}</span>
+                        {ev.responsible && <span className="flex items-center gap-1"><User className="w-3 h-3" />{ev.responsible}</span>}
+                      </div>
+                      {ev.description && <p className="text-xs text-slate-500 mt-1">{ev.description}</p>}
                     </div>
-                    <span className="text-[10px] text-slate-400">{new Date(i.date).toLocaleDateString('pt-BR')}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 ml-6">{i.description}</p>
-                  <div className="flex items-center gap-2 mt-1.5 ml-6">
-                    <span className="px-2 py-0.5 bg-slate-200 text-slate-500 rounded-md text-[10px] font-semibold">{i.type}</span>
-                    <span className="text-[10px] text-slate-400">por {i.author}</span>
-                  </div>
+                  ))}
                 </div>
-              ))}
-              {interactions.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Nenhuma interação registrada.</p>}
+              </div>
+            )}
+
+            {/* Manual interactions */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5" /> Registros Manuais
+              </h4>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {interactions.map(i => (
+                  <div key={i.id} className="p-4 bg-slate-50 rounded-2xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-brand-teal" />
+                        <span className="font-bold text-sm text-slate-800">{i.title}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{new Date(i.date).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1 ml-6">{i.description}</p>
+                    <div className="flex items-center gap-2 mt-1.5 ml-6">
+                      <span className="px-2 py-0.5 bg-slate-200 text-slate-500 rounded-md text-[10px] font-semibold">{i.type}</span>
+                      <span className="text-[10px] text-slate-400">por {i.author}</span>
+                    </div>
+                  </div>
+                ))}
+                {interactions.length === 0 && <p className="text-xs text-slate-400 text-center py-2">Nenhum registro manual.</p>}
+              </div>
             </div>
+
+            {/* Add interaction form */}
             <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
               <div className="flex gap-2">
                 <input value={newIntTitle} onChange={e => setNewIntTitle(e.target.value)} placeholder="Título da interação *" className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
@@ -413,7 +554,6 @@ function ClientDetail({
           </div>
         )}
 
-        {/* Documents Tab */}
         {tab === 'documents' && (
           <div className="space-y-2">
             {documents.map(d => (
@@ -432,7 +572,6 @@ function ClientDetail({
           </div>
         )}
 
-        {/* Feedbacks Tab */}
         {tab === 'feedbacks' && (
           <div className="space-y-3">
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -487,6 +626,7 @@ function NewClientModal({ onSave, onClose, formatCurrency }: {
     city: '',
     state: '',
     services: [] as string[],
+    contractType: 'first' as ContractType,
     internalResponsible: '',
     status: 'active' as Client['status'],
     startDate: '',
@@ -512,7 +652,17 @@ function NewClientModal({ onSave, onClose, formatCurrency }: {
 
   const handleSave = () => {
     if (!form.companyName.trim() || !form.companyTradeName.trim()) return
-    const client = onSave(form)
+    const clientData = {
+      ...form,
+      services: form.services.map(name => ({
+        name,
+        status: 'not_started' as const,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        progress: 0
+      }))
+    }
+    const client = onSave(clientData)
     if (client) onClose()
   }
 
@@ -550,6 +700,13 @@ function NewClientModal({ onSave, onClose, formatCurrency }: {
                 <label className="text-xs font-bold text-slate-400 mb-1 block">UF</label>
                 <input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" maxLength={2} />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 mb-1 block">Tipo de Contrato</label>
+              <select value={form.contractType} onChange={e => setForm(f => ({ ...f, contractType: e.target.value as ContractType }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20 bg-white">
+                <option value="first">Primeiro Contrato</option>
+                <option value="renewal">Renovação</option>
+              </select>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">Responsável Interno</label>

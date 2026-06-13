@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useCalendar, CalendarEvent, CalendarView, EventType } from './context/CalendarContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
+import { useClients } from '@/app/(dashboard)/clients/context/ClientsContext'
 import {
   ChevronLeft, ChevronRight, Plus, X, CalendarDays, CalendarRange,
   Clock, MapPin, Link2, Users, Bell, Trash2, CheckCircle, XCircle,
@@ -39,6 +40,7 @@ function getDuration(start: string, end: string) {
 export default function CalendarPage() {
   const cal = useCalendar()
   const { companies } = useCrm()
+  const { clients } = useClients()
 
   // View state
   const [search, setSearch] = useState('')
@@ -109,9 +111,12 @@ export default function CalendarPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const companyName = form.companyId ? companies.find(c => c.id === form.companyId)?.name : undefined
+    const matchedClient = form.companyId ? clients.find(c => c.companyName === companyName || c.companyTradeName === companyName) : undefined
     const data = {
       title: form.title, type: form.type, description: form.description || undefined,
-      companyId: form.companyId || undefined, companyName: form.companyId ? companies.find(c => c.id === form.companyId)?.name : undefined,
+      companyId: form.companyId || undefined, companyName,
+      clientId: matchedClient?.id,
       projectId: form.projectId || undefined, contractId: form.contractId || undefined,
       responsible: form.responsible, location: form.location || undefined, link: form.link || undefined,
       eventDate: form.eventDate, startTime: form.startTime, endTime: form.endTime,
@@ -547,7 +552,11 @@ export default function CalendarPage() {
           {viewEvent.companyName && (
             <div className="flex items-center gap-2 text-xs text-slate-600 p-3 bg-blue-50 rounded-xl border border-blue-100">
               <Building2 className="w-4 h-4 text-blue-500" />
-              <span><span className="font-bold">Cliente:</span> {viewEvent.companyName}</span>
+              <span><span className="font-bold">Cliente:</span>{' '}
+                {viewEvent.clientId && clients.find(c => c.id === viewEvent.clientId) ? (
+                  <a href="/clients" className="text-violet-600 underline font-semibold hover:text-violet-800">{viewEvent.companyName}</a>
+                ) : viewEvent.companyName}
+              </span>
             </div>
           )}
 

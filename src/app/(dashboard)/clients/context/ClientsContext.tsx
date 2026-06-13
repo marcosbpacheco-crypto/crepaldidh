@@ -8,6 +8,16 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 
 export type ClientStatus = 'active' | 'suspended' | 'churned'
 export type InteractionType = 'call' | 'meeting' | 'whatsapp' | 'email' | 'visit' | 'support'
+export type ServiceStatusType = 'not_started' | 'in_progress' | 'completed' | 'delayed'
+export type ContractType = 'first' | 'renewal'
+
+export interface ClientService {
+  name: string
+  status: ServiceStatusType
+  startDate: string
+  endDate: string
+  progress: number
+}
 
 export interface Client {
   id: string
@@ -18,7 +28,8 @@ export interface Client {
   segment: string
   city: string
   state: string
-  services: string[]
+  services: ClientService[]
+  contractType: ContractType
   internalResponsible: string
   status: ClientStatus
   startDate: string
@@ -95,7 +106,12 @@ const INITIAL_CLIENTS: Client[] = [
     segment: 'Energia / Combustíveis',
     city: 'Rio de Janeiro',
     state: 'RJ',
-    services: ['Diagnóstico Psicossocial', 'NR01', 'Treinamentos CIPA'],
+    services: [
+      { name: 'Diagnóstico Psicossocial', status: 'in_progress', startDate: '2026-02-01', endDate: '2026-05-30', progress: 65 },
+      { name: 'NR01', status: 'in_progress', startDate: '2026-03-01', endDate: '2026-08-30', progress: 40 },
+      { name: 'Treinamentos CIPA', status: 'not_started', startDate: '2026-07-01', endDate: '2026-12-15', progress: 0 },
+    ],
+    contractType: 'renewal',
     internalResponsible: 'Bruno Crepaldi',
     status: 'active',
     startDate: '2026-01-15',
@@ -114,7 +130,11 @@ const INITIAL_CLIENTS: Client[] = [
     segment: 'Mineração',
     city: 'Belo Horizonte',
     state: 'MG',
-    services: ['Mentorias Executivas', 'PDI'],
+    services: [
+      { name: 'Mentorias Executivas', status: 'in_progress', startDate: '2026-04-01', endDate: '2026-10-01', progress: 45 },
+      { name: 'PDI', status: 'not_started', startDate: '2026-08-01', endDate: '2026-10-01', progress: 0 },
+    ],
+    contractType: 'first',
     internalResponsible: 'Ana Beatriz',
     status: 'active',
     startDate: '2026-04-01',
@@ -133,7 +153,10 @@ const INITIAL_CLIENTS: Client[] = [
     segment: 'Financeiro',
     city: 'São Paulo',
     state: 'SP',
-    services: ['Desenvolvimento de Lideranças'],
+    services: [
+      { name: 'Desenvolvimento de Lideranças', status: 'in_progress', startDate: '2026-05-01', endDate: '2026-11-01', progress: 25 },
+    ],
+    contractType: 'first',
     internalResponsible: 'Carlos Eduardo',
     status: 'active',
     startDate: '2026-05-01',
@@ -152,7 +175,11 @@ const INITIAL_CLIENTS: Client[] = [
     segment: 'Indústria / Metalurgia',
     city: 'Porto Alegre',
     state: 'RS',
-    services: ['Palestras', 'SIPAT'],
+    services: [
+      { name: 'Palestras', status: 'completed', startDate: '2025-03-01', endDate: '2025-06-01', progress: 100 },
+      { name: 'SIPAT', status: 'completed', startDate: '2025-09-01', endDate: '2025-12-01', progress: 100 },
+    ],
+    contractType: 'renewal',
     internalResponsible: '',
     status: 'suspended',
     startDate: '2025-03-01',
@@ -171,7 +198,12 @@ const INITIAL_CLIENTS: Client[] = [
     segment: 'Bebidas',
     city: 'São Paulo',
     state: 'SP',
-    services: ['NR01', 'Diagnóstico Psicossocial', 'Treinamentos'],
+    services: [
+      { name: 'NR01', status: 'in_progress', startDate: '2026-02-01', endDate: '2026-09-30', progress: 55 },
+      { name: 'Diagnóstico Psicossocial', status: 'completed', startDate: '2026-02-01', endDate: '2026-04-30', progress: 100 },
+      { name: 'Treinamentos', status: 'not_started', startDate: '2026-07-01', endDate: '2027-01-31', progress: 0 },
+    ],
+    contractType: 'first',
     internalResponsible: 'Bruno Crepaldi',
     status: 'active',
     startDate: '2026-02-01',
