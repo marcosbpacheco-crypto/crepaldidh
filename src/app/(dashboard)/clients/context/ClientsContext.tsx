@@ -288,6 +288,36 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
     const newClient: Client = { ...c, id: `cli-${Date.now()}`, createdAt: new Date().toISOString() }
     syncClients([newClient, ...clients])
+
+    // Cross-sync to CRM companies so it appears in Dashboard, Projects, and CRM
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('crm_companies')
+        const crmCompanies = stored ? JSON.parse(stored) : []
+        const newCompany = {
+          id: `comp-${Date.now()}`,
+          name: newClient.companyName,
+          tradeName: newClient.companyTradeName || newClient.companyName,
+          cnpj: newClient.cnpj,
+          segment: newClient.segment || '',
+          employees: 0,
+          city: newClient.city || '',
+          state: newClient.state || '',
+          website: '',
+          instagram: '',
+          respPrincipal: newClient.internalResponsible || '',
+          respRH: '',
+          respFinanceiro: '',
+          phone: '',
+          email: '',
+          notes: newClient.notes || '',
+          status: 'active' as const,
+          createdAt: newClient.createdAt,
+        }
+        localStorage.setItem('crm_companies', JSON.stringify([newCompany, ...crmCompanies]))
+      } catch { /* ignore cross-sync errors */ }
+    }
+
     return newClient
   }
 

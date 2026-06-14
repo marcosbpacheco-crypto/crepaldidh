@@ -875,6 +875,35 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = [newCompany, ...companies]
     updateCompaniesState(updated)
 
+    // Cross-sync to Clients module so it appears there too
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('clients_data')
+        const clientsData = stored ? JSON.parse(stored) : []
+        const newClient = {
+          id: `cli-${Date.now()}`,
+          companyId: `cli-comp-${Date.now()}`,
+          companyName: newCompany.name,
+          companyTradeName: newCompany.tradeName || newCompany.name,
+          cnpj: newCompany.cnpj,
+          segment: newCompany.segment || '',
+          city: newCompany.city || '',
+          state: newCompany.state || '',
+          services: [],
+          contractType: 'first' as const,
+          internalResponsible: newCompany.respPrincipal || '',
+          status: (newCompany.status === 'active' ? 'active' : 'suspended') as 'active' | 'suspended' | 'churned',
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: '',
+          monthlyValue: 0,
+          totalValue: 0,
+          notes: newCompany.notes || '',
+          createdAt: newCompany.createdAt,
+        }
+        localStorage.setItem('clients_data', JSON.stringify([newClient, ...clientsData]))
+      } catch { /* ignore cross-sync errors */ }
+    }
+
     // Log Activity
     addActivity({
       companyId: newCompany.id,
