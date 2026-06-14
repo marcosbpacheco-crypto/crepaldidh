@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 
-export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin'
+export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'cadastros' | 'tasks' | 'alerts' | 'import'
 
 export interface Role {
   id: string
@@ -109,7 +109,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined)
 
 function gid(): string { return 'adm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6) }
 
-const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin']
+const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'cadastros', 'tasks', 'alerts', 'import']
 
 const SEED_ROLES: Role[] = [
   { id: 'role-admin', name: 'admin', label: 'Administrador', description: 'Acesso total ao sistema', isExternal: false },
@@ -129,34 +129,27 @@ function buildSeedPermissions(): Permission[] {
   const result: Permission[] = []
   let id = 0
   SEED_ROLES.forEach(role => {
+    const isAdmin = role.name === 'admin'
+    const isDirector = role.name === 'director'
+    const isConsultant = role.name === 'consultant'
+    const isCommercial = role.name === 'commercial'
+    const isFinance = role.name === 'finance'
+    const isRh = role.name === 'rh'
+    const isOperational = role.name === 'operational'
+    const isExternal = role.isExternal
     MODULES.forEach(mod => {
-      const isAdmin = role.name === 'admin'
-      const isDirector = role.name === 'director'
-      const isConsultant = role.name === 'consultant'
-      const isCommercial = role.name === 'commercial'
-      const isFinance = role.name === 'finance'
-      const isRh = role.name === 'rh'
-      const isOperational = role.name === 'operational'
-      const isExternal = role.isExternal
-
       const canView = isAdmin || isDirector || (isConsultant && ['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents'].includes(mod)) || (isCommercial && ['crm', 'clients'].includes(mod)) || (isFinance && ['crm', 'financial'].includes(mod)) || (isRh && ['trainings', 'calendar', 'documents'].includes(mod)) || (isOperational && ['projects', 'nr01', 'documents'].includes(mod)) || (isExternal && ['portal'].includes(mod))
       const canCreate = isAdmin || (['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents'].includes(mod) && (isAdmin || isDirector || isConsultant || (isCommercial && mod === 'crm') || (isFinance && mod === 'financial') || (isRh && ['trainings', 'calendar'].includes(mod))))
-      const canEdit = canCreate
-      const canDelete = isAdmin
-      const canExport = isAdmin || isDirector || isFinance
-
-      if (canView || isAdmin) {
-        result.push({
-          id: `perm-${id++}`,
-          roleId: role.id,
-          module: mod,
-          canView: true,
-          canCreate: canCreate || isAdmin,
-          canEdit: canEdit || isAdmin,
-          canDelete: isAdmin || (isDirector && false),
-          canExport: canExport || isAdmin,
-        })
-      }
+      result.push({
+        id: `perm-${id++}`,
+        roleId: role.id,
+        module: mod,
+        canView: canView || isAdmin,
+        canCreate: canCreate || isAdmin,
+        canEdit: canCreate || isAdmin,
+        canDelete: isAdmin,
+        canExport: isAdmin || isDirector || isFinance,
+      })
     })
   })
   return result
