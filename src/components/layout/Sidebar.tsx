@@ -10,7 +10,11 @@ import {
   CalendarDays, 
   FileText,
   Settings,
-  Brain
+  Brain,
+  Database,
+  CheckSquare,
+  Bell,
+  Upload
 } from "lucide-react"
 import { LogoutButton } from "./LogoutButton"
 
@@ -19,12 +23,16 @@ const menuItems = [
   { name: "Gestão de Pessoas", href: "/crm", icon: Users },
   { name: "Clientes", href: "/clients", icon: Users },
   { name: "Projetos", href: "/projects", icon: Briefcase },
-  { name: "Saúde Ocupacional", href: "/nr01", icon: ShieldAlert },
+  { name: "Cadastros Base", href: "/cadastros", icon: Database },
+  { name: "Tarefas", href: "/tasks", icon: CheckSquare },
+  { name: "Alertas", href: "/alerts", icon: Bell },
+  { name: "Saúde Ocupacional", href: "/occupational", icon: ShieldAlert },
   { name: "Treinamentos", href: "/trainings", icon: GraduationCap },
   { name: "Mentorias & PDI", href: "/mentoring", icon: Brain },
   { name: "Financeiro", href: "/financial", icon: CircleDollarSign },
   { name: "Agenda", href: "/calendar", icon: CalendarDays },
   { name: "Documentos", href: "/documents", icon: FileText },
+  { name: "Importação", href: "/import", icon: Upload },
 ]
 
 export function Sidebar() {

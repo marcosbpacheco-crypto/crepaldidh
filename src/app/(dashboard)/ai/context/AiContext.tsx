@@ -236,7 +236,15 @@ function generateAIResponse(assistantType: AiAssistantType, userMessage: string,
     if (msg.includes('rentabilidade') || msg.includes('análise')) {
       return `📊 **Análise de Rentabilidade**\n\n**Geral**\n• Margem: ${fin.dre.profitMargin.toFixed(1)}%\n• ${fin.dre.profitMargin > 20 ? '✅ Saudável' : fin.dre.profitMargin > 0 ? '⚠️ Atenção' : '🔴 Prejuízo'}\n\n**Por Cliente**\n${fin.revenueByClient.slice(0, 3).map(c => `• ${c.companyName}: ${fmt(c.total)}`).join('\n')}\n\n**Recomendações**\n1. Focar em serviços de maior margem (mentorias e diagnósticos)\n2. Reduzir inadimplência — ${fmt(fin.totalOverdue)} em risco\n3. Revisar despesas recorrentes abaixo do esperado`
     }
-    return '💰 **Assistente Financeiro**\n\nComandos:\n• **resumo** — resumo financeiro do mês\n• **inadimplência** — contas vencidas e cobranças\n• **projeção** — projeção de receita futura\n• **rentabilidade** — análise de rentabilidade'
+    if (msg.includes('nota fiscal') || msg.includes('nf-e') || msg.includes('nota')) {
+      const totalInvoices = fin.invoices.length
+      const recent = fin.invoices.slice(-3)
+      return `📄 **Notas Fiscais de Entrada**\n\n**Total registradas**: ${totalInvoices}\n\n${recent.length ? `**Últimas notas:**\n${recent.map(inv => {
+        const rec = fin.receivables.find(r => r.id === inv.receivableId)
+        return `• **${inv.invoiceNumber}** — ${rec ? rec.companyName : 'N/A'} — ${rec ? fmt(rec.amount) : 'N/A'} — ${new Date(inv.issueDate).toLocaleDateString('pt-BR')} (${inv.status})`
+      }).join('\n')}` : 'Nenhuma nota fiscal registrada ainda.'}\n\n💡 Para **cadastrar uma nova nota**, digite algo como:\n> "Cadastrar nota fiscal para BR Distribuidora, valor R$ 8.500, vencimento 20/07/2026"\n\nFormato: **Cliente, valor, vencimento** (e opcional: serviço, número da nota)`
+    }
+    return '💰 **Assistente Financeiro**\n\nComandos:\n• **resumo** — resumo financeiro do mês\n• **inadimplência** — contas vencidas e cobranças\n• **projeção** — projeção de receita futura\n• **rentabilidade** — análise de rentabilidade\n• **nota fiscal** — consultar ou cadastrar notas fiscais de entrada'
   }
 
   return '🤖 **IA CrepaldiDH**\n\nPosso ajudar com informações sobre clientes, projetos, finanças, treinamentos, mentorias, NR-01, agenda e documentos. Pergunte sobre qualquer tema!'
@@ -333,7 +341,71 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     await new Promise(r => setTimeout(r, 800 + Math.random() * 1200))
 
-    const response = generateAIResponse(assistantType, content, crm, fin, trn, men, cal, doc)
+    // ── Detect invoice creation intent ──────────────
+    const isInvoiceCreate = /(cadastr|criar|emitir|registrar|lançar|nova|novo)\s.*(nota\s*fiscal|nf-e|nf)/i.test(content)
+    let response: string
+
+    if (isInvoiceCreate && fin) {
+      // Try to extract company name from CRM companies
+      const matchedCompany = crm.companies.find(c =>
+        content.toLowerCase().includes(c.name.toLowerCase().substring(0, 6)) ||
+        content.toLowerCase().includes((c.tradeName || '').toLowerCase().substring(0, 6))
+      )
+
+      // Extract amount via regex
+      const amountMatch = content.match(/(?:R\$\s*)?([\d.,]+)/)
+      const parsedAmount = amountMatch ? parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.')) : 0
+
+      // Extract due date via regex (dd/mm or dd/mm/yyyy)
+      const dateMatch = content.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/)
+      const today = new Date()
+      let dueDate = ''
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1]), month = parseInt(dateMatch[2]) - 1
+        const year = dateMatch[3] ? parseInt(dateMatch[3]) : (month < today.getMonth() ? today.getFullYear() + 1 : today.getFullYear())
+        const d = new Date(year, month, day)
+        dueDate = d.toISOString().split('T')[0]
+      } else {
+        // Default: 30 days from now
+        const d = new Date()
+        d.setDate(d.getDate() + 30)
+        dueDate = d.toISOString().split('T')[0]
+      }
+
+      if (matchedCompany && parsedAmount > 0) {
+        const invoiceNumber = `NF-e-${Date.now().toString().slice(-6)}`
+        const serviceName = 'Serviços DHO'
+
+        const rec = fin.addReceivable({
+          companyId: matchedCompany.id,
+          companyName: matchedCompany.tradeName || matchedCompany.name,
+          serviceName,
+          amount: parsedAmount,
+          dueDate,
+          status: 'pending',
+          notes: `Criado via IA — ${content.substring(0, 80)}`,
+        })
+
+        fin.addInvoice({
+          receivableId: rec.id,
+          invoiceNumber,
+          issueDate: new Date().toISOString().split('T')[0],
+          status: 'draft',
+        })
+
+        response = `✅ **Nota Fiscal cadastrada com sucesso!**\n\n📄 **${invoiceNumber}**\n🏢 Cliente: **${matchedCompany.tradeName || matchedCompany.name}**\n💰 Valor: **${fmt(parsedAmount)}**\n📅 Vencimento: **${new Date(dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}**\n📋 Serviço: ${serviceName}\n📌 Status: Rascunho\n\nA nota foi vinculada à conta a receber **${rec.id}**. Para faturar, acesse o módulo **Financeiro > Contas a Receber** e emita o documento fiscal oficial.`
+      } else if (!matchedCompany && parsedAmount > 0) {
+        const clientList = crm.companies.filter(c => c.status === 'active').slice(0, 8)
+        response = `⚠️ **Não identifiquei o cliente.** Encontrei estes clientes ativos:\n\n${clientList.map(c => `• **${c.tradeName || c.name}**`).join('\n')}\n\n💡 *Tente novamente incluindo o nome do cliente, por exemplo:*\n> "Cadastrar nota fiscal para **${clientList[0]?.tradeName || 'Cliente'}**, valor R$ 10.000, vencimento 15/07/2026"`
+      } else if (parsedAmount === 0) {
+        response = `⚠️ **Não identifiquei o valor da nota.** Inclua o valor no formato:\n\n> "Cadastrar nota fiscal para [cliente], valor **R$ 8.500**, vencimento 20/07/2026"`
+      } else {
+        response = `⚠️ **Não foi possível cadastrar a nota.** Verifique os dados e tente novamente no formato:\n\n> "Cadastrar nota fiscal para NOME DO CLIENTE, valor R$ X.XXX, vencimento DD/MM/AAAA"`
+      }
+    } else {
+      response = generateAIResponse(assistantType, content, crm, fin, trn, men, cal, doc)
+    }
+
     const assistantMsg: AiMessage = { id: generateId(), role: 'assistant', content: response, timestamp: new Date().toISOString() }
 
     setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [...c.messages, assistantMsg], title: c.messages.length === 0 ? content.substring(0, 40) : c.title, updatedAt: new Date().toISOString() } : c))

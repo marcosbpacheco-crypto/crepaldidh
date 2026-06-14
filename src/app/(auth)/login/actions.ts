@@ -31,14 +31,16 @@ export async function login(formData: FormData) {
   }
 
   // Fallback de desenvolvimento local se o Supabase estiver inativo ou indisponível
-  if (email === 'admin@crepaldidh.com.br' && password === 'admin') {
+  const mockEmail = process.env.MOCK_LOGIN_EMAIL || 'admin@crepaldidh.com.br'
+  const mockPass = process.env.MOCK_LOGIN_PASSWORD || 'admin'
+  if (email === mockEmail && password === mockPass) {
     const cookieStore = await cookies()
     cookieStore.set('sb-mock-session', 'true', { path: '/' })
     revalidatePath('/', 'layout')
     redirect('/')
   }
 
-  return { error: 'Credenciais inválidas. Para desenvolvimento local offline, use: admin@crepaldidh.com.br / admin' }
+  return { error: 'Credenciais inválidas.' }
 }
 
 export async function logout() {

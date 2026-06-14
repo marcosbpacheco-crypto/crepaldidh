@@ -13,6 +13,9 @@ import { AiProvider } from './ai/context/AiContext'
 import { AdminProvider } from './admin/context/AdminContext'
 import { TenantProvider } from './admin/context/TenantContext'
 import { ClientsProvider } from './clients/context/ClientsContext'
+import { OccupationalProvider } from './occupational/context/OccupationalHealthContext'
+import { CadastrosProvider } from './cadastros/context/CadastrosContext'
+import { AlertsProvider } from './alerts/context/AlertsContext'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -28,9 +31,15 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                   <AiProvider>
                     <AdminProvider>
                       <TenantProvider>
-                        <ClientsProvider>
-                          {children}
-                        </ClientsProvider>
+                        <OccupationalProvider>
+                          <ClientsProvider>
+                            <CadastrosProvider>
+                              <AlertsProvider>
+                                {children}
+                              </AlertsProvider>
+                            </CadastrosProvider>
+                          </ClientsProvider>
+                        </OccupationalProvider>
                       </TenantProvider>
                     </AdminProvider>
                   </AiProvider>

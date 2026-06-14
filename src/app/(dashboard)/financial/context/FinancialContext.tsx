@@ -255,6 +255,11 @@ interface FinancialContextType {
   deletePayable: (id: string) => void
   markPayableAsPaid: (id: string, paymentDate: string) => void
 
+  // Mutators - Invoices
+  addInvoice: (inv: Omit<FinancialInvoice, 'id' | 'createdAt'>) => FinancialInvoice
+  updateInvoice: (id: string, updates: Partial<FinancialInvoice>) => void
+  deleteInvoice: (id: string) => void
+
   // Mutators - Recurring Rules
   addRecurringRule: (r: Omit<RecurringRule, 'id' | 'createdAt'>) => RecurringRule
   updateRecurringRule: (id: string, updates: Partial<RecurringRule>) => void
@@ -456,7 +461,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const setReceivablesS = setAndSync(setReceivables, 'fin_receivables', 'financial_accounts_receivable')
   const setPayablesS = setAndSync(setPayables, 'fin_payables', 'financial_accounts_payable')
   const setTransactionsS = setAndSync(setTransactions, 'fin_transactions', 'financial_transactions')
-  const _setInvoicesS = setAndSync(setInvoices, 'fin_invoices', 'financial_invoices')
+  const setInvoicesS = setAndSync(setInvoices, 'fin_invoices', 'financial_invoices')
   const setRecurringRulesS = setAndSync(setRecurringRules, 'fin_recurring_rules', 'financial_recurring_rules')
   const setBankTransactionsS = setAndSync(setBankTransactions, 'fin_bank_transactions', 'financial_bank_transactions')
 
@@ -933,6 +938,27 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   // ==========================================
+  // MUTATORS - Invoices
+  // ==========================================
+
+  const addInvoice = (inv: Omit<FinancialInvoice, 'id' | 'createdAt'>): FinancialInvoice => {
+    const ni: FinancialInvoice = { ...inv, id: `finv-${Date.now()}`, createdAt: new Date().toISOString() }
+    setInvoicesS([ni, ...invoices])
+    supabase.from('financial_invoices').insert(ni).then(({ error }) => error && console.warn(error))
+    return ni
+  }
+
+  const updateInvoice = (id: string, updates: Partial<FinancialInvoice>) => {
+    setInvoicesS(invoices.map(inv => inv.id === id ? { ...inv, ...updates } : inv))
+    supabase.from('financial_invoices').update(updates).eq('id', id).then(({ error }) => error && console.warn(error))
+  }
+
+  const deleteInvoice = (id: string) => {
+    setInvoicesS(invoices.filter(inv => inv.id !== id))
+    supabase.from('financial_invoices').delete().eq('id', id).then()
+  }
+
+  // ==========================================
   // AI HELPERS
   // ==========================================
 
@@ -1002,6 +1028,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       addReceivable, updateReceivable, deleteReceivable, markAsPaid, createReceivableFromContract,
       addPayable, updatePayable, deletePayable, markPayableAsPaid,
       addRecurringRule, updateRecurringRule, cancelRecurringRule,
+      addInvoice, updateInvoice, deleteInvoice,
       generateFinancialSummary, identifyOverdueClients, suggestCollections, generateCashFlowForecast, generateExecutiveReport,
     }}>
       {children}
