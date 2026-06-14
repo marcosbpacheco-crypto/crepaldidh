@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
-import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2 } from 'lucide-react'
+import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2, Edit2 } from 'lucide-react'
 
 interface Project {
   id: string
@@ -78,26 +78,66 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>(stored)
   const [selected, setSelected] = useState<Project | null>(projects[0] || null)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado' as const, budget: 0 })
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [form, setForm] = useState<{ name: string; companyId: string; description: string; startDate: string; endDate: string; status: Project['status']; budget: number }>({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
+
+  const resetForm = () => setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
 
   const saveProjects = (list: Project[]) => {
     setProjects(list)
     if (typeof window !== 'undefined') localStorage.setItem('erp_projects', JSON.stringify(list))
   }
 
+  const openEdit = (p: Project) => {
+    setEditingProject(p)
+    setForm({
+      name: p.name,
+      companyId: p.companyId,
+      description: p.description,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      status: p.status,
+      budget: p.budget,
+    })
+    setShowForm(true)
+  }
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     const comp = companies.find(c => c.id === form.companyId)
-    const np: Project = {
-      ...form,
-      id: `proj-${Date.now()}`,
-      companyName: comp?.name || form.companyId,
+    if (editingProject) {
+      const updated = projects.map(p => p.id === editingProject.id ? {
+        ...p,
+        name: form.name,
+        companyId: form.companyId,
+        companyName: comp?.name || form.companyId,
+        description: form.description,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        status: form.status,
+        budget: form.budget,
+      } : p)
+      saveProjects(updated)
+      setSelected(updated.find(p => p.id === editingProject.id) || null)
+    } else {
+      const np: Project = {
+        ...form,
+        id: `proj-${Date.now()}`,
+        companyName: comp?.name || form.companyId,
+      }
+      const updated = [np, ...projects]
+      saveProjects(updated)
+      setSelected(np)
     }
-    const updated = [np, ...projects]
-    saveProjects(updated)
-    setSelected(np)
     setShowForm(false)
-    setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
+    setEditingProject(null)
+    resetForm()
+  }
+
+  const openNewForm = () => {
+    setEditingProject(null)
+    resetForm()
+    setShowForm(true)
   }
 
   const projectEvents = selected ? events.filter(e => e.projectId === selected.id || e.companyId === selected.companyId) : []
@@ -114,7 +154,7 @@ export default function ProjectsPage() {
           <p className="text-slate-500 text-sm mt-0.5">Projetos e contratos corporativos vinculados a clientes ativos</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={openNewForm}
           className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md shadow-violet-100 hover:opacity-90 transition-all"
         >
           <Plus className="w-4 h-4" /> Novo Projeto
@@ -189,6 +229,13 @@ export default function ProjectsPage() {
                       <p className="text-slate-400 text-xs">🏢 {selected.companyName}</p>
                       <p className="text-slate-300 text-xs leading-relaxed">{selected.description}</p>
                     </div>
+                    <button
+                      onClick={() => openEdit(selected)}
+                      className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                      title="Editar projeto"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 mt-5">
@@ -261,16 +308,16 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* CREATE FORM MODAL */}
+      {/* PROJECT FORM MODAL (create / edit) */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowForm(false); setEditingProject(null) }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Novo Projeto</h2>
-                <p className="text-sm text-slate-500">Vincule a um cliente ativo da carteira</p>
+                <h2 className="text-lg font-bold text-slate-800">{editingProject ? 'Editar Projeto' : 'Novo Projeto'}</h2>
+                <p className="text-sm text-slate-500">{editingProject ? 'Altere os dados do projeto' : 'Vincule a um cliente ativo da carteira'}</p>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl transition-colors">
+              <button onClick={() => { setShowForm(false); setEditingProject(null) }} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -324,13 +371,13 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-2 border-t border-slate-100">
-                <button type="button" onClick={() => setShowForm(false)}
+                <button type="button" onClick={() => { setShowForm(false); setEditingProject(null) }}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50">
                   Cancelar
                 </button>
                 <button type="submit"
                   className="flex-1 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-xs font-bold shadow-md hover:opacity-90">
-                  Criar Projeto
+                  {editingProject ? 'Salvar Alterações' : 'Criar Projeto'}
                 </button>
               </div>
             </form>

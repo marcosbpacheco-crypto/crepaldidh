@@ -5,7 +5,7 @@ import { useTrainings } from '../context/TrainingsContext'
 import { useCrm } from '../../crm/context/CrmContext'
 import type { TrainingEvent, TrainingParticipant } from '../context/TrainingsContext'
 import {
-  Calendar, Users, Plus, Trash2, Edit3, Compass,
+  Calendar, Users, Plus, Trash2, Edit2, Edit3, Compass,
   ArrowRight, Search, FileText, CheckCircle, XCircle,
   HelpCircle, Check, Play, UserPlus, FileSpreadsheet
 } from 'lucide-react'
@@ -33,6 +33,7 @@ export default function EventsPage() {
   const [showEventModal, setShowEventModal] = useState(false)
   const [showParticipantModal, setShowParticipantModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<TrainingEvent | null>(null)
 
   // Event form state
   const [eventForm, setEventForm] = useState({
@@ -161,6 +162,66 @@ export default function EventsPage() {
     setImportText('')
   }
 
+  const openEditEvent = (ev: TrainingEvent) => {
+    setEditingEvent(ev)
+    setEventForm({
+      companyId: ev.companyId,
+      projectId: ev.projectId || '',
+      projectName: ev.projectName || '',
+      type: ev.type,
+      name: ev.name,
+      theme: ev.theme,
+      objective: ev.objective || '',
+      targetAudience: ev.targetAudience || '',
+      facilitator: ev.facilitator,
+      modality: ev.modality,
+      location: ev.location || '',
+      eventDate: ev.eventDate,
+      startTime: ev.startTime,
+      endTime: ev.endTime,
+      hoursDuration: ev.hoursDuration,
+      expectedParticipants: ev.expectedParticipants,
+      cost: ev.cost,
+      status: ev.status,
+      notes: ev.notes || ''
+    })
+    setShowEventModal(true)
+  }
+
+  const handleUpdateEvent = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingEvent) return
+    const selectedComp = companies.find(c => c.id === eventForm.companyId)
+    updateEvent(editingEvent.id, {
+      ...eventForm,
+      companyName: selectedComp ? selectedComp.name : 'Cliente Geral',
+    })
+    setShowEventModal(false)
+    setEditingEvent(null)
+    setSelectedEvent(events.find(ev => ev.id === editingEvent.id) || null)
+    setEventForm({
+      companyId: '',
+      projectId: '',
+      projectName: '',
+      type: 'Treinamento',
+      name: '',
+      theme: '',
+      objective: '',
+      targetAudience: '',
+      facilitator: 'Bruno Crepaldi',
+      modality: 'presencial',
+      location: '',
+      eventDate: '',
+      startTime: '',
+      endTime: '',
+      hoursDuration: 2.0,
+      expectedParticipants: 30,
+      cost: 5000,
+      status: 'agendado',
+      notes: ''
+    })
+  }
+
   // Filter participants of the selected event
   const eventParticipants = participants.filter(p => p.eventId === selectedEvent?.id)
 
@@ -233,18 +294,27 @@ export default function EventsPage() {
                   <p className="text-sm text-slate-500">Tema central: {selectedEvent.theme}</p>
                 </div>
                 
-                <button
-                  onClick={() => {
-                    if (confirm('Deseja realmente excluir este evento?')) {
-                      deleteEvent(selectedEvent.id)
-                      setSelectedEvent(events.find(e => e.id !== selectedEvent.id) || null)
-                    }
-                  }}
-                  className="p-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-colors self-start"
-                  title="Excluir Evento"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEditEvent(selectedEvent)}
+                    className="p-2 bg-slate-50 hover:bg-violet-50 text-slate-400 hover:text-violet-600 rounded-xl transition-colors self-start"
+                    title="Editar Evento"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Deseja realmente excluir este evento?')) {
+                        deleteEvent(selectedEvent.id)
+                        setSelectedEvent(events.find(e => e.id !== selectedEvent.id) || null)
+                      }
+                    }}
+                    className="p-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-colors self-start"
+                    title="Excluir Evento"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Event technical specifications */}
@@ -383,16 +453,16 @@ export default function EventsPage() {
 
       </div>
 
-      {/* CREATE EVENT MODAL */}
+      {/* EVENT MODAL (create / edit) */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowEventModal(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowEventModal(false); setEditingEvent(null) }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl font-sans max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-800">Agendar Novo Evento / Capacitação</h2>
-              <p className="text-sm text-slate-500">Preencha os campos para programar na agenda corporativa</p>
+              <h2 className="text-lg font-bold text-slate-800">{editingEvent ? 'Editar Evento / Capacitação' : 'Agendar Novo Evento / Capacitação'}</h2>
+              <p className="text-sm text-slate-500">{editingEvent ? 'Altere os dados do evento' : 'Preencha os campos para programar na agenda corporativa'}</p>
             </div>
             
-            <form onSubmit={handleCreateEvent} className="p-6 space-y-4">
+            <form onSubmit={editingEvent ? handleUpdateEvent : handleCreateEvent} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 <div>
@@ -493,13 +563,13 @@ export default function EventsPage() {
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setShowEventModal(false)}
+                <button type="button" onClick={() => { setShowEventModal(false); setEditingEvent(null) }}
                   className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition-colors">
                   Cancelar
                 </button>
                 <button type="submit"
                   className="flex-1 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-xs font-bold shadow-md hover:opacity-90 transition-opacity">
-                  Criar Evento
+                  {editingEvent ? 'Salvar Alterações' : 'Criar Evento'}
                 </button>
               </div>
             </form>

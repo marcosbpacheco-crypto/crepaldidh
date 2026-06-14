@@ -6,18 +6,19 @@ import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
-  Star, Activity, Trash2, X, Clock,
+  Star, Activity, Trash2, X, Clock, Edit2,
   CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw
 } from 'lucide-react'
 
 function ClientsMainContent() {
-  const { clients, contacts, interactions, documents, feedbacks, addClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
+  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
   const [showNewContact, setShowNewContact] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
 
   const filtered = clients.filter(c => {
     const q = search.toLowerCase()
@@ -167,6 +168,7 @@ function ClientsMainContent() {
             calendarEvents={getClientCalendarEvents(selected.id)}
             onClose={() => setSelectedId(null)}
             onDelete={deleteClient}
+            onEdit={() => setEditingClient(selected)}
             onAddContact={addContact}
             onAddInteraction={addInteraction}
             onAddFeedback={addFeedback}
@@ -179,10 +181,18 @@ function ClientsMainContent() {
         )}
       </div>
 
-      {showNewForm && (
+      {showNewForm && !editingClient && (
         <NewClientModal
           onSave={addClient}
           onClose={() => setShowNewForm(false)}
+          formatCurrency={formatCurrency}
+        />
+      )}
+      {editingClient && (
+        <NewClientModal
+          editData={editingClient}
+          onUpdate={updateClient}
+          onClose={() => setEditingClient(null)}
           formatCurrency={formatCurrency}
         />
       )}
@@ -196,7 +206,7 @@ function ClientsMainContent() {
 
 function ClientDetail({
   client, contacts, interactions, documents, feedbacks, calendarEvents,
-  onClose, onDelete, onAddContact, onAddInteraction, onAddFeedback,
+  onClose, onDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
   showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel
 }: {
   client: Client
@@ -207,6 +217,7 @@ function ClientDetail({
   calendarEvents: any[]
   onClose: () => void
   onDelete: (id: string) => void
+  onEdit: () => void
   onAddContact: (c: any) => void
   onAddInteraction: (i: any) => void
   onAddFeedback: (f: any) => void
@@ -284,6 +295,9 @@ function ClientDetail({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={onEdit} className="p-2 rounded-xl hover:bg-brand-teal/10 text-brand-teal transition-all" title="Editar cliente">
+              <Edit2 className="w-4 h-4" />
+            </button>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-all">
               <X className="w-4 h-4" />
             </button>
@@ -612,12 +626,32 @@ function ClientDetail({
 // New Client Modal
 // ==========================================
 
-function NewClientModal({ onSave, onClose, formatCurrency }: {
-  onSave: (c: any) => any
+function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData }: {
+  onSave?: (c: any) => any
+  onUpdate?: (id: string, updates: Partial<Client>) => void
   onClose: () => void
   formatCurrency: (v: number) => string
+  editData?: Client
 }) {
-  const [form, setForm] = useState({
+  const isEdit = !!editData
+  const initialForm = isEdit ? {
+    companyId: editData.companyId,
+    companyName: editData.companyName,
+    companyTradeName: editData.companyTradeName,
+    cnpj: editData.cnpj,
+    segment: editData.segment,
+    city: editData.city,
+    state: editData.state,
+    services: editData.services.map(s => s.name),
+    contractType: editData.contractType,
+    internalResponsible: editData.internalResponsible,
+    status: editData.status,
+    startDate: editData.startDate,
+    endDate: editData.endDate,
+    monthlyValue: editData.monthlyValue,
+    totalValue: editData.totalValue,
+    notes: editData.notes
+  } : {
     companyId: `cli-comp-${Date.now()}`,
     companyName: '',
     companyTradeName: '',
@@ -634,7 +668,8 @@ function NewClientModal({ onSave, onClose, formatCurrency }: {
     monthlyValue: 0,
     totalValue: 0,
     notes: ''
-  })
+  }
+  const [form, setForm] = useState(initialForm)
 
   const serviceOptions = ['Diagnóstico Psicossocial', 'NR01', 'Palestras', 'Treinamentos', 'SIPAT', 'Mentorias', 'Desenvolvimento de Lideranças', 'Cultura Organizacional', 'PDI', 'Consultoria Estratégica']
 
@@ -652,25 +687,36 @@ function NewClientModal({ onSave, onClose, formatCurrency }: {
 
   const handleSave = () => {
     if (!form.companyName.trim() || !form.companyTradeName.trim()) return
-    const clientData = {
-      ...form,
-      services: form.services.map(name => ({
-        name,
-        status: 'not_started' as const,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        progress: 0
-      }))
+    if (isEdit && onUpdate && editData) {
+      onUpdate(editData.id, {
+        ...form,
+        services: form.services.map(name => {
+          const existing = editData.services.find(s => s.name === name)
+          return existing || { name, status: 'not_started' as const, startDate: form.startDate, endDate: form.endDate, progress: 0 }
+        })
+      })
+      onClose()
+    } else if (onSave) {
+      const clientData = {
+        ...form,
+        services: form.services.map(name => ({
+          name,
+          status: 'not_started' as const,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          progress: 0
+        }))
+      }
+      const client = onSave(clientData)
+      if (client) onClose()
     }
-    const client = onSave(clientData)
-    if (client) onClose()
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-lg font-black text-slate-800">Novo Cliente</h2>
+          <h2 className="text-lg font-black text-slate-800">{isEdit ? 'Editar Cliente' : 'Novo Cliente'}</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
