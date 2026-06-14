@@ -275,6 +275,67 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFeedbacks(get('clients_feedbacks', INITIAL_FEEDBACKS))
   }, [])
 
+  // Backfill: when Clients module mounts, ensure any companies from CRM are also in clients_data
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const crmRaw = localStorage.getItem('crm_companies')
+      if (!crmRaw) return
+      const crmCompanies = JSON.parse(crmRaw) as Array<{
+        name: string; tradeName?: string; cnpj: string; segment?: string
+        city?: string; state?: string; respPrincipal?: string; notes?: string; status: string
+        createdAt: string
+      }>
+      const clientsRaw = localStorage.getItem('clients_data')
+      const clientsData = clientsRaw ? JSON.parse(clientsRaw) : []
+      const clientNames = new Set(clientsData.map((c: any) => c.companyName))
+      let changed = false
+      for (const comp of crmCompanies) {
+        if (!clientNames.has(comp.name)) {
+          clientsData.unshift({
+            id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            companyId: `cli-comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            companyName: comp.name,
+            companyTradeName: comp.tradeName || comp.name,
+            cnpj: comp.cnpj || '',
+            segment: comp.segment || '',
+            city: comp.city || '',
+            state: comp.state || '',
+            services: [],
+            contractType: 'first',
+            internalResponsible: comp.respPrincipal || '',
+            status: comp.status === 'active' ? 'active' : 'suspended',
+            startDate: '',
+            endDate: '',
+            monthlyValue: 0,
+            totalValue: 0,
+            notes: comp.notes || '',
+            createdAt: comp.createdAt || new Date().toISOString(),
+          })
+          clientNames.add(comp.name)
+          changed = true
+        }
+      }
+      if (changed) {
+        localStorage.setItem('clients_data', JSON.stringify(clientsData))
+        setClients(clientsData)
+      }
+    } catch { /* ignore backfill errors */ }
+  }, [])
+
+  // Listen for cross-sync from CRM module
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => {
+      try {
+        const stored = localStorage.getItem('clients_data')
+        if (stored) setClients(JSON.parse(stored))
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('clients:sync-data', handler)
+    return () => window.removeEventListener('clients:sync-data', handler)
+  }, [])
+
   const sync = (key: string, value: any) => {
     if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
   }
@@ -315,6 +376,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           createdAt: newClient.createdAt,
         }
         localStorage.setItem('crm_companies', JSON.stringify([newCompany, ...crmCompanies]))
+        window.dispatchEvent(new CustomEvent('crm:sync-companies'))
       } catch { /* ignore cross-sync errors */ }
     }
 

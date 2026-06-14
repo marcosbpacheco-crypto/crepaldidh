@@ -637,6 +637,67 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [])
 
+  // Backfill: when CRM mounts, ensure any clients from Clients module are also in crm_companies
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const clientsRaw = localStorage.getItem('clients_data')
+      if (!clientsRaw) return
+      const clientsData = JSON.parse(clientsRaw) as Array<{
+        companyName: string; companyTradeName?: string; cnpj: string; segment?: string
+        city?: string; state?: string; internalResponsible?: string; notes?: string
+        createdAt: string
+      }>
+      const companiesRaw = localStorage.getItem('crm_companies')
+      const crmCompanies = companiesRaw ? JSON.parse(companiesRaw) : []
+      const crmNames = new Set(crmCompanies.map((c: any) => c.name))
+      let changed = false
+      for (const cli of clientsData) {
+        if (!crmNames.has(cli.companyName)) {
+          crmCompanies.unshift({
+            id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: cli.companyName,
+            tradeName: cli.companyTradeName || cli.companyName,
+            cnpj: cli.cnpj || '',
+            segment: cli.segment || '',
+            employees: 0,
+            city: cli.city || '',
+            state: cli.state || '',
+            website: '',
+            instagram: '',
+            respPrincipal: cli.internalResponsible || '',
+            respRH: '',
+            respFinanceiro: '',
+            phone: '',
+            email: '',
+            notes: cli.notes || '',
+            status: 'active',
+            createdAt: cli.createdAt || new Date().toISOString(),
+          })
+          crmNames.add(cli.companyName)
+          changed = true
+        }
+      }
+      if (changed) {
+        localStorage.setItem('crm_companies', JSON.stringify(crmCompanies))
+        setCompanies(crmCompanies)
+      }
+    } catch { /* ignore backfill errors */ }
+  }, [])
+
+  // Listen for cross-sync from Clients module
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => {
+      try {
+        const stored = localStorage.getItem('crm_companies')
+        if (stored) setCompanies(JSON.parse(stored))
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('crm:sync-companies', handler)
+    return () => window.removeEventListener('crm:sync-companies', handler)
+  }, [])
+
   // Sync to local storage
   const syncStorage = (key: string, value: any) => {
     if (typeof window !== 'undefined') {
@@ -901,6 +962,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: newCompany.createdAt,
         }
         localStorage.setItem('clients_data', JSON.stringify([newClient, ...clientsData]))
+        window.dispatchEvent(new CustomEvent('clients:sync-data'))
       } catch { /* ignore cross-sync errors */ }
     }
 
