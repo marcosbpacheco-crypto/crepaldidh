@@ -49,9 +49,31 @@ export default function SettingsPage() {
   const [searchUser, setSearchUser] = useState('')
   const [searchAudit, setSearchAudit] = useState('')
   const [showAddUser, setShowAddUser] = useState(false)
+  const [showEditUser, setShowEditUser] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [privacyForm, setPrivacyForm] = useState({ userId: '', requestType: 'access', description: '' })
   const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '', roleId: '', isExternal: false, companyId: '', companyName: '' })
+
+  const openEditUser = (u: typeof admin.users[0]) => {
+    setEditingUserId(u.id)
+    setEditUserForm({ name: u.name, email: u.email, phone: u.phone, roleId: u.roleId, isExternal: u.isExternal, companyId: u.companyId || '', companyName: u.companyName || '' })
+    setShowEditUser(true)
+  }
+
+  const handleEditUser = () => {
+    if (!editingUserId || !editUserForm.name.trim() || !editUserForm.email.trim()) return
+    const role = admin.roles.find(r => r.id === editUserForm.roleId)
+    admin.updateUser(editingUserId, {
+      name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
+      avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+      roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
+      companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
+    })
+    setShowEditUser(false)
+    setEditingUserId(null)
+  }
 
   const filteredUsers = useMemo(() =>
     admin.users.filter(u => {
@@ -184,6 +206,7 @@ export default function SettingsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
                             {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                           </button>
@@ -229,6 +252,37 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditUser && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => { setShowEditUser(false); setEditingUserId(null) }}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 mb-4">Editar Usuário</h3>
+            <div className="space-y-3">
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nome</label>
+                <input value={editUserForm.name} onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Email</label>
+                <input value={editUserForm.email} onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Telefone</label>
+                <input value={editUserForm.phone} onChange={e => setEditUserForm(p => ({ ...p, phone: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Perfil</label>
+                <select value={editUserForm.roleId} onChange={e => setEditUserForm(p => ({ ...p, roleId: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                  {admin.roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Empresa</label>
+                <input value={editUserForm.companyName} onChange={e => setEditUserForm(p => ({ ...p, companyName: e.target.value }))} placeholder="Ex: BR Distribuidora" className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={editUserForm.isExternal} onChange={e => setEditUserForm(p => ({ ...p, isExternal: e.target.checked }))} className="rounded border-slate-300" />
+                <span className="text-[11px] text-slate-600">Usuário externo (cliente)</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+              <button onClick={handleEditUser} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Salvar Alterações</button>
+              <button onClick={() => { setShowEditUser(false); setEditingUserId(null) }} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
 
