@@ -1,13 +1,16 @@
 ﻿'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useAdmin, type ModuleName } from '../admin/context/AdminContext'
 import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
   Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
   Activity, LogIn, LogOut, UserPlus, Clock, Globe, Lock, Unlock,
-  Shield, AlertTriangle
+  Shield, AlertTriangle, KeyRound
 } from 'lucide-react'
+
+// Only admin and director roles can access settings
+const ALLOWED_ROLES = ['Administrador', 'Diretor']
 
 const TABS = [
   { key: 'users', label: 'Usuários', icon: <Users className="w-4 h-4" /> },
@@ -46,6 +49,7 @@ function ActionIcon({ action }: { action: string }) {
 
 export default function SettingsPage() {
   const admin = useAdmin()
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [tab, setTab] = useState('users')
   const [searchUser, setSearchUser] = useState('')
   const [searchAudit, setSearchAudit] = useState('')
@@ -56,6 +60,22 @@ export default function SettingsPage() {
   const [privacyForm, setPrivacyForm] = useState({ userId: '', requestType: 'access', description: '' })
   const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
   const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '', roleId: '', isExternal: false, companyId: '', companyName: '' })
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [passwordTargetUser, setPasswordTargetUser] = useState<typeof admin.users[0] | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('current_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        setCurrentRole(u.roleName)
+      }
+    } catch {}
+  }, [])
+
+  const hasAccess = currentRole && ALLOWED_ROLES.includes(currentRole)
 
   const openEditUser = (u: typeof admin.users[0]) => {
     setEditingUserId(u.id)
@@ -98,10 +118,25 @@ export default function SettingsPage() {
       avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
       roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
       companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
-      active: true, loginAttempts: 0, mfaEnabled: false,
+      active: true, password: '123456', loginAttempts: 0, mfaEnabled: false,
     })
     setShowAddUser(false)
     setNewUserForm({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  }
+
+  const handlePasswordChange = () => {
+    if (!passwordTargetUser || !newPassword || newPassword !== confirmPassword) return
+    admin.updateUser(passwordTargetUser.id, { password: newPassword })
+    setShowPasswordModal(false)
+    setPasswordTargetUser(null)
+    setNewPassword('')
+    setConfirmPassword('')
+    admin.addAuditLog({
+      userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
+      action: 'update', entity: 'user_password', entityId: passwordTargetUser.id,
+      description: `Alterou a senha do usuário: ${passwordTargetUser.name}`,
+      ipAddress: '127.0.0.1',
+    })
   }
 
   const handlePrivacyRequest = () => {
@@ -112,6 +147,18 @@ export default function SettingsPage() {
     })
     setShowPrivacyModal(false)
     setPrivacyForm({ userId: '', requestType: 'access', description: '' })
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-red-300 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-slate-800 mb-2">Acesso Restrito</h1>
+          <p className="text-sm text-slate-500">Apenas administradores e diretores podem acessar as configurações do sistema.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -208,6 +255,7 @@ export default function SettingsPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setPasswordTargetUser(u); setNewPassword(''); setConfirmPassword(''); setShowPasswordModal(true) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600" title="Alterar senha"><KeyRound className="w-3.5 h-3.5" /></button>
                           <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
                             {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                           </button>
@@ -282,6 +330,31 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
               <button onClick={handleEditUser} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Salvar Alterações</button>
               <button onClick={() => { setShowEditUser(false); setEditingUserId(null) }} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {showPasswordModal && passwordTargetUser && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowPasswordModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 mb-4">Alterar Senha</h3>
+            <p className="text-[11px] text-slate-500 mb-4">Usuário: <strong className="text-slate-700">{passwordTargetUser.name}</strong></p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nova Senha</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Confirmar Senha</label>
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={`w-full text-[12px] border ${confirmPassword && newPassword !== confirmPassword ? 'border-red-300' : 'border-slate-200'} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20`} />
+                {confirmPassword && newPassword !== confirmPassword && <p className="text-[10px] text-red-500 mt-1">Senhas não conferem</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+              <button onClick={handlePasswordChange} disabled={!newPassword || newPassword !== confirmPassword} className="flex-1 px-3 py-2 bg-amber-500 text-white text-[11px] font-bold rounded-xl hover:bg-amber-600 transition-all disabled:opacity-40">Alterar Senha</button>
+              <button onClick={() => { setShowPasswordModal(false); setPasswordTargetUser(null) }} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>
         </div>

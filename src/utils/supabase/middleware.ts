@@ -48,8 +48,17 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Verifica o cookie de bypass local para desenvolvimento
-  const isMockDev = request.cookies.get('sb-mock-session')?.value === 'true'
-  const finalUser = user || (isMockDev ? { id: 'mock-user-id', email: 'admin@crepaldidh.com.br' } : null)
+  const mockCookie = request.cookies.get('sb-mock-session')?.value
+  let mockUser = null
+  if (mockCookie) {
+    try {
+      const parsed = JSON.parse(mockCookie)
+      if (parsed.userId) mockUser = { id: parsed.userId, email: parsed.userName || 'user', name: parsed.userName }
+    } catch {
+      if (mockCookie === 'true') mockUser = { id: 'mock-user-id', email: 'admin@crepaldidh.com.br' }
+    }
+  }
+  const finalUser = user || mockUser
 
   // Define protected routes that require authentication
   // Any route that isn't login or register is considered protected for now

@@ -79,7 +79,7 @@ export default function AdminPage() {
       name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone, avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
       roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
       companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
-      active: true, loginAttempts: 0, mfaEnabled: false,
+      active: true, password: '123456', loginAttempts: 0, mfaEnabled: false,
     })
     setShowAddUser(false); setNewUserForm({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
   }

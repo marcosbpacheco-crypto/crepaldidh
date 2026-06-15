@@ -30,17 +30,14 @@ export async function login(formData: FormData) {
     console.log('Tentativa de login via Supabase falhou (provavelmente offline):', err.message)
   }
 
-  // Fallback de desenvolvimento local se o Supabase estiver inativo ou indisponível
-  const mockEmail = process.env.MOCK_LOGIN_EMAIL || 'admin@crepaldidh.com.br'
-  const mockPass = process.env.MOCK_LOGIN_PASSWORD || 'admin'
-  if (email === mockEmail && password === mockPass) {
-    const cookieStore = await cookies()
-    cookieStore.set('sb-mock-session', 'true', { path: '/' })
-    revalidatePath('/', 'layout')
-    redirect('/')
-  }
-
   return { error: 'Credenciais inválidas.' }
+}
+
+export async function localLogin(userId: string, userName: string, userRole: string) {
+  const cookieStore = await cookies()
+  cookieStore.set('sb-mock-session', JSON.stringify({ userId, userName, userRole }), { path: '/' })
+  revalidatePath('/', 'layout')
+  redirect('/')
 }
 
 export async function logout() {
@@ -54,4 +51,3 @@ export async function logout() {
   cookieStore.delete('sb-mock-session')
   redirect('/login')
 }
-
