@@ -14,7 +14,6 @@ import { AdminProvider } from './admin/context/AdminContext'
 import { TenantProvider } from './admin/context/TenantContext'
 import { ClientsProvider } from './clients/context/ClientsContext'
 import { OccupationalProvider } from './occupational/context/OccupationalHealthContext'
-import { CadastrosProvider } from './cadastros/context/CadastrosContext'
 import { AlertsProvider } from './alerts/context/AlertsContext'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
@@ -33,11 +32,9 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                       <TenantProvider>
                         <OccupationalProvider>
                           <ClientsProvider>
-                            <CadastrosProvider>
                               <AlertsProvider>
                                 {children}
                               </AlertsProvider>
-                            </CadastrosProvider>
                           </ClientsProvider>
                         </OccupationalProvider>
                       </TenantProvider>

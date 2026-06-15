@@ -3,21 +3,16 @@
 import { useState, useRef } from 'react'
 import { Upload, FileSpreadsheet, Download, CheckCircle, AlertCircle, X, ChevronDown, Loader2 } from 'lucide-react'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
-import { useCadastros } from '@/app/(dashboard)/cadastros/context/CadastrosContext'
 
-type ImportTarget = 'companies' | 'collaborators' | 'sectors' | 'roles' | 'training_participants'
+type ImportTarget = 'companies' | 'training_participants'
 
 const TARGETS: { key: ImportTarget; label: string; description: string; columns: string[] }[] = [
   { key: 'companies', label: 'Clientes / Empresas', description: 'Importar empresas com nome, CNPJ, segmento, contato', columns: ['name', 'tradeName', 'cnpj', 'segment', 'city', 'state', 'phone', 'email', 'respPrincipal'] },
-  { key: 'collaborators', label: 'Colaboradores', description: 'Importar colaboradores com dados pessoais e vínculo', columns: ['name', 'email', 'phone', 'document', 'companyName', 'roleName', 'sectorName', 'startDate'] },
-  { key: 'sectors', label: 'Setores', description: 'Importar setores vinculados a unidades', columns: ['name', 'unitName', 'description'] },
-  { key: 'roles', label: 'Cargos', description: 'Importar cargos com departamento e nível', columns: ['name', 'department', 'level', 'description'] },
   { key: 'training_participants', label: 'Participantes de Treinamento', description: 'Importar participantes para eventos de treinamento', columns: ['name', 'email', 'companyName', 'eventName', 'status'] },
 ]
 
 export default function ImportPage() {
   const { companies, addCompany } = useCrm()
-  const { addCollaborator, addSector, addJobRole } = useCadastros()
   const [target, setTarget] = useState<ImportTarget>('companies')
   const [csvData, setCsvData] = useState<string[][]>([])
   const [headers, setHeaders] = useState<string[]>([])
@@ -83,32 +78,6 @@ export default function ImportPage() {
             email: record.email || '', notes: '', status: 'active',
           })
           success++
-        } else if (target === 'collaborators') {
-          if (!record.name) { errors.push(`Linha ${rowIdx + 2}: nome do colaborador é obrigatório`); continue }
-          addCollaborator({
-            name: record.name, email: record.email || '', phone: record.phone || '',
-            document: record.document || '', birthDate: '',
-            roleId: '', roleName: record.roleName || '',
-            sectorId: '', sectorName: record.sectorName || '',
-            companyId: '', companyName: record.companyName || '',
-            status: 'active', startDate: record.startDate || new Date().toISOString().split('T')[0], endDate: '',
-          })
-          success++
-        } else if (target === 'sectors') {
-          if (!record.name) { errors.push(`Linha ${rowIdx + 2}: nome do setor é obrigatório`); continue }
-          addSector({
-            unitId: '', unitName: record.unitName || '',
-            name: record.name, description: record.description || '', status: 'active',
-          })
-          success++
-        } else if (target === 'roles') {
-          if (!record.name) { errors.push(`Linha ${rowIdx + 2}: nome do cargo é obrigatório`); continue }
-          addJobRole({
-            name: record.name, department: record.department || '',
-            level: (record.level as any) || 'pleno', description: record.description || '',
-            status: 'active',
-          })
-          success++
         } else if (target === 'training_participants') {
           if (!record.name) { errors.push(`Linha ${rowIdx + 2}: nome é obrigatório`); continue }
           success++
@@ -152,7 +121,7 @@ export default function ImportPage() {
       </div>
 
       {/* Target Selection */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {TARGETS.map(t => (
           <button key={t.key} onClick={() => { setTarget(t.key); setCsvData([]); setResults(null) }}
             className={`p-4 bg-white rounded-2xl border text-left transition-all ${target === t.key ? 'border-violet-400 ring-2 ring-violet-50' : 'border-slate-100 hover:border-slate-200'}`}>

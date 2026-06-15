@@ -11,7 +11,6 @@ import {
   FileText,
   Settings,
   Brain,
-  Database,
   CheckSquare,
   Bell,
   Upload
@@ -23,7 +22,6 @@ const menuItems = [
   { name: "Gestão de Pessoas", href: "/crm", icon: Users },
   { name: "Clientes", href: "/clients", icon: Users },
   { name: "Projetos", href: "/projects", icon: Briefcase },
-  { name: "Cadastros Base", href: "/cadastros", icon: Database },
   { name: "Tarefas", href: "/tasks", icon: CheckSquare },
   { name: "Alertas", href: "/alerts", icon: Bell },
   { name: "Saúde Ocupacional", href: "/occupational", icon: ShieldAlert },
