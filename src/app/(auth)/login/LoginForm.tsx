@@ -34,16 +34,8 @@ export function LoginForm() {
     setError('')
     setPending(true)
 
-    // Load users from localStorage (fallback to seed)
-    let users: User[] = []
-    try {
-      const stored = localStorage.getItem('admin_users')
-      if (stored) { users = JSON.parse(stored) }
-    } catch {}
-    // Always ensure seed users are present
-    for (const seed of SEED_USERS) {
-      if (!users.find(u => u.id === seed.id)) users.push(seed)
-    }
+    // Use only seed users for login validation
+    const users: User[] = SEED_USERS
     try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
 
     const emailNorm = email.trim().toLowerCase()
@@ -75,16 +67,8 @@ export function LoginForm() {
     window.location.href = '/'
   }
 
-    const handleForgotPassword = () => {
-    let users: User[] = []
-    try {
-      const stored = localStorage.getItem('admin_users')
-      if (stored) { users = JSON.parse(stored) }
-    } catch {}
-    for (const seed of SEED_USERS) {
-      if (!users.find(u => u.id === seed.id)) users.push(seed)
-    }
-    try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
+  const handleForgotPassword = () => {
+    const users: User[] = SEED_USERS
 
     const targetUser = users.find(u => u.email === email)
     if (!targetUser) {

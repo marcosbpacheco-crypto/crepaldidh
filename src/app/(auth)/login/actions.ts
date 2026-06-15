@@ -37,6 +37,7 @@ export async function localLogin(userId: string, userName: string, userRole: str
   const cookieStore = await cookies()
   cookieStore.set('sb-mock-session', JSON.stringify({ userId, userName, userRole }), { path: '/' })
   revalidatePath('/', 'layout')
+  redirect('/')
 }
 
 export async function logout() {
