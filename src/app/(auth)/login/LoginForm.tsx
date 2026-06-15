@@ -6,6 +6,21 @@ import { Mail, Lock, ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 import type { User } from '@/app/(dashboard)/admin/context/AdminContext'
 
+const DEFAULT_PASS = '123456'
+const SEED_USERS: User[] = [
+  { id: 'user-admin', name: 'Marcos Crepaldi', email: 'marcos@crepaldidh.com.br', phone: '(11) 99999-0001', avatar: 'MC', roleId: 'role-admin', roleName: 'Administrador', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: true, createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-dir', name: 'Ana Oliveira', email: 'ana@crepaldidh.com.br', phone: '(11) 99999-0002', avatar: 'AO', roleId: 'role-director', roleName: 'Diretor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-02-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-cons', name: 'Carlos Souza', email: 'carlos@crepaldidh.com.br', phone: '(11) 99999-0003', avatar: 'CS', roleId: 'role-consultant', roleName: 'Consultor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-comm', name: 'Bruno Crepaldi', email: 'bruno@crepaldidh.com.br', phone: '(11) 99999-0004', avatar: 'BC', roleId: 'role-commercial', roleName: 'Comercial', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-01-15T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-fin', name: 'Cláudio Santos', email: 'claudio@crepaldidh.com.br', phone: '(11) 99999-0005', avatar: 'CS', roleId: 'role-finance', roleName: 'Financeiro', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-04-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-rh', name: 'Mariana Souza', email: 'mariana@crepaldidh.com.br', phone: '(11) 99999-0006', avatar: 'MS', roleId: 'role-rh', roleName: 'RH', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-05-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-op', name: 'Ricardo Lima', email: 'ricardo@crepaldidh.com.br', phone: '(11) 99999-0007', avatar: 'RL', roleId: 'role-operational', roleName: 'Operacional', isExternal: false, active: false, password: DEFAULT_PASS, loginAttempts: 3, mfaEnabled: false, createdAt: '2025-06-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-client-rh', name: 'Mariana Souza (Cliente)', email: 'mariana@br.com.br', phone: '(21) 99999-1001', avatar: 'MS', roleId: 'role-client-rh', roleName: 'Cliente - RH', isExternal: true, companyId: 'comp-1', companyName: 'BR Distribuidora', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-01T00:00:00Z', tenantId: 'tnt-br' },
+  { id: 'user-client-dir', name: 'Roberto Santos (Cliente)', email: 'roberto@vale.com', phone: '(31) 99999-1002', avatar: 'RS', roleId: 'role-client-director', roleName: 'Cliente - Diretoria', isExternal: true, companyId: 'comp-2', companyName: 'Vale S.A.', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-15T00:00:00Z', tenantId: 'tnt-vale' },
+  { id: 'user-client-gest', name: 'Patrícia Lima (Cliente)', email: 'patricia@itau.com.br', phone: '(11) 99999-1003', avatar: 'PL', roleId: 'role-client-manager', roleName: 'Cliente - Gestor', isExternal: true, companyId: 'comp-3', companyName: 'Banco Itaú', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-01T00:00:00Z', tenantId: 'tnt-itau' },
+  { id: 'user-client-fin', name: 'Eduardo Silveira (Cliente)', email: 'eduardo@gerdau.com', phone: '(51) 99999-1004', avatar: 'ES', roleId: 'role-client-finance', roleName: 'Cliente - Financeiro', isExternal: true, companyId: 'comp-4', companyName: 'Gerdau', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-15T00:00:00Z', tenantId: 'tnt-gerdau' },
+]
+
 export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,14 +34,21 @@ export function LoginForm() {
     setError('')
     setPending(true)
 
-    // Load users from localStorage
+    // Load users from localStorage (fallback to seed)
     let users: User[] = []
     try {
       const stored = localStorage.getItem('admin_users')
-      if (stored) users = JSON.parse(stored)
+      if (stored) { users = JSON.parse(stored) }
     } catch {}
+    // Always ensure seed users are present
+    for (const seed of SEED_USERS) {
+      if (!users.find(u => u.id === seed.id)) users.push(seed)
+    }
+    try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
 
-    const user = users.find(u => u.email === email && u.password === password)
+    const emailNorm = email.trim().toLowerCase()
+    const passNorm = password.trim()
+    const user = users.find(u => u.email.trim().toLowerCase() === emailNorm && u.password === passNorm)
 
     if (!user) {
       setError('E-mail ou senha inválidos.')
@@ -47,21 +69,22 @@ export function LoginForm() {
     // Store current user info for the app to use
     localStorage.setItem('current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, roleId: user.roleId, roleName: user.roleName }))
 
-    // Call server action to set session cookie
-    try {
-      await localLogin(user.id, user.name, user.roleName)
-    } catch {
-      // If server action fails (e.g., in dev), redirect manually
-      window.location.href = '/'
-    }
+    // Call server action to set session cookie and redirect
+    await localLogin(user.id, user.name, user.roleName)
+    // Fallback redirect (in case server action doesn't redirect)
+    window.location.href = '/'
   }
 
-  const handleForgotPassword = () => {
+    const handleForgotPassword = () => {
     let users: User[] = []
     try {
       const stored = localStorage.getItem('admin_users')
-      if (stored) users = JSON.parse(stored)
+      if (stored) { users = JSON.parse(stored) }
     } catch {}
+    for (const seed of SEED_USERS) {
+      if (!users.find(u => u.id === seed.id)) users.push(seed)
+    }
+    try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
 
     const targetUser = users.find(u => u.email === email)
     if (!targetUser) {
