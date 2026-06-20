@@ -3,14 +3,20 @@
 import React, { useState } from 'react'
 import { ClientsProvider, useClients, Client, ClientService, ContractType } from './context/ClientsContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
   Star, Activity, Trash2, X, Clock, Edit2,
-  CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw
+  CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw, Lock
 } from 'lucide-react'
 
+const NoAccess = () => (
+  <span className="flex items-center gap-1 text-slate-300 font-bold"><Lock className="w-3 h-3" />---</span>
+)
+
 function ClientsMainContent() {
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
   const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
   const [search, setSearch] = useState('')
@@ -134,7 +140,7 @@ function ClientsMainContent() {
                       <p className="text-xs text-slate-400 truncate mt-0.5">{c.companyName}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{c.city}/{c.state}</span>
-                        <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{formatCurrency(c.monthlyValue)}/m</span>
+                        <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{hasFinancialAccess ? `${formatCurrency(c.monthlyValue)}/m` : <NoAccess />}</span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 max-w-[160px] items-end">
@@ -177,6 +183,7 @@ function ClientsMainContent() {
             formatCurrency={formatCurrency}
             serviceStatusIcon={serviceStatusIcon}
             serviceStatusLabel={serviceStatusLabel}
+            hasFinancialAccess={hasFinancialAccess}
           />
         )}
       </div>
@@ -186,6 +193,7 @@ function ClientsMainContent() {
           onSave={addClient}
           onClose={() => setShowNewForm(false)}
           formatCurrency={formatCurrency}
+          hasFinancialAccess={hasFinancialAccess}
         />
       )}
       {editingClient && (
@@ -194,6 +202,7 @@ function ClientsMainContent() {
           onUpdate={updateClient}
           onClose={() => setEditingClient(null)}
           formatCurrency={formatCurrency}
+          hasFinancialAccess={hasFinancialAccess}
         />
       )}
     </div>
@@ -207,8 +216,10 @@ function ClientsMainContent() {
 function ClientDetail({
   client, contacts, interactions, documents, feedbacks, calendarEvents,
   onClose, onDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
-  showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel
+  showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel,
+  hasFinancialAccess
 }: {
+  hasFinancialAccess: boolean
   client: Client
   contacts: any[]
   interactions: any[]
@@ -425,11 +436,11 @@ function ClientDetail({
                 <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-400">Valor Mensal</span>
-                    <span className="font-bold text-slate-800">{formatCurrency(client.monthlyValue)}</span>
+                    <span className="font-bold text-slate-800">{hasFinancialAccess ? formatCurrency(client.monthlyValue) : <NoAccess />}</span>
                   </div>
                   <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
                     <span className="text-slate-400">Valor Total</span>
-                    <span className="font-bold text-brand-teal">{formatCurrency(client.totalValue)}</span>
+                    <span className="font-bold text-brand-teal">{hasFinancialAccess ? formatCurrency(client.totalValue) : <NoAccess />}</span>
                   </div>
                 </div>
 
@@ -626,12 +637,13 @@ function ClientDetail({
 // New Client Modal
 // ==========================================
 
-function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData }: {
+function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, hasFinancialAccess }: {
   onSave?: (c: any) => any
   onUpdate?: (id: string, updates: Partial<Client>) => void
   onClose: () => void
   formatCurrency: (v: number) => string
   editData?: Client
+  hasFinancialAccess?: boolean
 }) {
   const isEdit = !!editData
   const initialForm = isEdit ? {
@@ -786,14 +798,18 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData }:
               <label className="text-xs font-bold text-slate-400 mb-1 block">Data Fim</label>
               <input type="date" value={form.endDate} onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); calcTotal() }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1 block">Valor Mensal</label>
-              <input type="number" value={form.monthlyValue || ''} onChange={e => { setForm(f => ({ ...f, monthlyValue: Number(e.target.value) })); calcTotal() }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1 block">Valor Total</label>
-              <input type="number" value={form.totalValue || ''} onChange={e => setForm(f => ({ ...f, totalValue: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
-            </div>
+            {hasFinancialAccess && (
+              <div>
+                <label className="text-xs font-bold text-slate-400 mb-1 block">Valor Mensal</label>
+                <input type="number" value={form.monthlyValue || ''} onChange={e => { setForm(f => ({ ...f, monthlyValue: Number(e.target.value) })); calcTotal() }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+              </div>
+            )}
+            {hasFinancialAccess && (
+              <div>
+                <label className="text-xs font-bold text-slate-400 mb-1 block">Valor Total</label>
+                <input type="number" value={form.totalValue || ''} onChange={e => setForm(f => ({ ...f, totalValue: Number(e.target.value) }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+              </div>
+            )}
           </div>
 
           <div>

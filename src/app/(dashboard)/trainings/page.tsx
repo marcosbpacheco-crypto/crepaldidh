@@ -2,14 +2,20 @@
 
 import { useState } from 'react'
 import { useTrainings } from './context/TrainingsContext'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import Link from 'next/link'
 import {
   Calendar, Users, Award, Landmark, TrendingUp,
   Compass, Plus, Search, Filter, BookOpen, Clock,
-  ChevronRight, Sparkles, Star, RefreshCw
+  ChevronRight, Sparkles, Star, RefreshCw, Lock
 } from 'lucide-react'
 
+const NoAccess = () => (
+  <span className="flex items-center gap-1 text-slate-300 font-bold"><Lock className="w-3 h-3" />---</span>
+)
+
 export default function TrainingsDashboardPage() {
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
   const {
     events,
     sipatPrograms,
@@ -129,7 +135,7 @@ export default function TrainingsDashboardPage() {
       <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-1 text-center md:text-left">
           <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded uppercase tracking-wider">Receita Acumulada</span>
-          <h2 className="text-3xl font-black mt-1">R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+          <h2 className="text-3xl font-black mt-1">{hasFinancialAccess ? `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : <NoAccess />}</h2>
           <p className="text-slate-400 text-xs font-normal">Soma dos valores contratados por eventos ativos e concluídos</p>
         </div>
         

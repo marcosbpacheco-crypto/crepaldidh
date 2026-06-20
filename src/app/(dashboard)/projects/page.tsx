@@ -3,7 +3,12 @@
 import { useState, useRef, useCallback } from 'react'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
-import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2, Edit2 } from 'lucide-react'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
+import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2, Edit2, Lock } from 'lucide-react'
+
+const NoAccess = () => (
+  <span className="flex items-center gap-1 text-slate-300 font-bold"><Lock className="w-3 h-3" />---</span>
+)
 
 interface Project {
   id: string
@@ -70,6 +75,7 @@ const SEED_PROJECTS: Project[] = [
 export default function ProjectsPage() {
   const { events } = useTrainings()
   const { companies } = useCrm()
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
 
   const stored = typeof window !== 'undefined'
     ? (() => { try { const s = localStorage.getItem('erp_projects'); return s ? JSON.parse(s) : SEED_PROJECTS } catch { return SEED_PROJECTS } })()
@@ -167,7 +173,7 @@ export default function ProjectsPage() {
           { label: 'Total de Projetos', value: projects.length, icon: Briefcase, color: 'violet' },
           { label: 'Em Andamento', value: projects.filter(p => p.status === 'em_andamento').length, icon: Clock, color: 'blue' },
           { label: 'Concluídos', value: projects.filter(p => p.status === 'concluido').length, icon: CheckCircle, color: 'emerald' },
-          { label: 'Receita Total', value: `R$ ${projects.reduce((acc, p) => acc + p.budget, 0).toLocaleString('pt-BR')}`, icon: DollarSign, color: 'amber' },
+          { label: 'Receita Total', value: hasFinancialAccess ? `R$ ${projects.reduce((acc, p) => acc + p.budget, 0).toLocaleString('pt-BR')}` : <NoAccess />, icon: DollarSign, color: 'amber' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3">
             <div className={`p-2.5 rounded-xl bg-${kpi.color}-50 text-${kpi.color}-600`}>
@@ -204,7 +210,7 @@ export default function ProjectsPage() {
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-[10px] text-violet-600 font-semibold">
-                  R$ {p.budget.toLocaleString('pt-BR')}
+                  {hasFinancialAccess ? `R$ ${p.budget.toLocaleString('pt-BR')}` : <NoAccess />}
                 </p>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
               </div>
@@ -249,7 +255,7 @@ export default function ProjectsPage() {
                     </div>
                     <div className="bg-white/5 rounded-xl p-3 border border-white/10">
                       <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Orçamento</p>
-                      <p className="text-sm font-bold mt-0.5">R$ {selected.budget.toLocaleString('pt-BR')}</p>
+                      <p className="text-sm font-bold mt-0.5">{hasFinancialAccess ? `R$ ${selected.budget.toLocaleString('pt-BR')}` : <NoAccess />}</p>
                     </div>
                   </div>
                 </div>
@@ -264,7 +270,7 @@ export default function ProjectsPage() {
                   </h3>
                   <div className="flex gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> {completedEvents} concluídos</span>
-                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-amber-500" /> R$ {totalEventRevenue.toLocaleString('pt-BR')}</span>
+                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-amber-500" /> {hasFinancialAccess ? `R$ ${totalEventRevenue.toLocaleString('pt-BR')}` : <NoAccess />}</span>
                   </div>
                 </div>
 
@@ -291,7 +297,7 @@ export default function ProjectsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-700">R$ {evt.cost.toLocaleString('pt-BR')}</p>
+                        <p className="text-sm font-bold text-slate-700">{hasFinancialAccess ? `R$ ${evt.cost.toLocaleString('pt-BR')}` : <NoAccess />}</p>
                         <p className="text-[10px] text-slate-400">{evt.hoursDuration}h</p>
                       </div>
                     </div>
@@ -364,11 +370,13 @@ export default function ProjectsPage() {
                     <option value="pausado">Pausado</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Orçamento (R$)</label>
-                  <input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: Number(e.target.value) })}
-                    placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
-                </div>
+                {hasFinancialAccess && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Orçamento (R$)</label>
+                    <input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: Number(e.target.value) })}
+                      placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-2 border-t border-slate-100">
                 <button type="button" onClick={() => { setShowForm(false); setEditingProject(null) }}
