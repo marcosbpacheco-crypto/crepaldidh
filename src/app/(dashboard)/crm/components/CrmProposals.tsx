@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { useCrm, Proposal, Contract } from '../context/CrmContext'
+import { useAdmin } from '../../admin/context/AdminContext'
 import { 
   FileText, Award, DollarSign, Calendar, Plus, Printer, 
   Trash2, X, Eye, CheckCircle2, AlertTriangle, RefreshCw, Paperclip,
@@ -164,6 +165,8 @@ export const CrmProposals: React.FC = () => {
     proposals, contracts, companies, services,
     addProposal, updateProposalStatus, addContract
   } = useCrm()
+  const admin = useAdmin()
+  const hasFinancialAccess = admin.checkPermission('financial', 'view')
 
   // 1. Tab State: 'proposals' | 'contracts'
   const [activeTab, setActiveTab] = useState<'proposals' | 'contracts'>('proposals')
@@ -264,15 +267,17 @@ export const CrmProposals: React.FC = () => {
             <FileText className="w-4 h-4" />
             Propostas
           </button>
-          <button
-            onClick={() => setActiveTab('contracts')}
-            className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'contracts' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            Contratos
-          </button>
+          {hasFinancialAccess && (
+            <button
+              onClick={() => setActiveTab('contracts')}
+              className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'contracts' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              Contratos
+            </button>
+          )}
         </div>
 
         {/* Action Button */}
@@ -293,7 +298,7 @@ export const CrmProposals: React.FC = () => {
               Gerar Proposta com IA
             </button>
           </div>
-        ) : (
+        ) : hasFinancialAccess ? (
           <button
             onClick={() => { setShowAiGenerator(true); setAiGeneratedContract(''); setAiProposalId(''); setAiService(''); setAiValue(0); setAiDuration('12 meses') }}
             className="w-full sm:w-auto bg-gradient-to-r from-brand-teal to-brand-blue hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
@@ -301,7 +306,7 @@ export const CrmProposals: React.FC = () => {
             <Brain className="w-4 h-4" />
             Gerar Contrato com IA
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Main Grid Content */}
@@ -335,7 +340,7 @@ export const CrmProposals: React.FC = () => {
                       <td className="p-4">{prop.service}</td>
                       <td className="p-4">{prop.duration}</td>
                       <td className="p-4 font-bold text-brand-blue">
-                        R$ {prop.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {hasFinancialAccess ? `R$ ${prop.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'}
                       </td>
                       <td className="p-4 text-slate-400">
                         {new Date(prop.createdAt).toLocaleDateString('pt-BR')}
@@ -697,7 +702,7 @@ export const CrmProposals: React.FC = () => {
                           <td className="p-3">{previewProposal.service} - Execução Geral</td>
                           <td className="p-3">{previewProposal.duration}</td>
                           <td className="p-3 text-right font-bold text-slate-900">
-                            R$ {previewProposal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {hasFinancialAccess ? `R$ ${previewProposal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'}
                           </td>
                         </tr>
                       </tbody>

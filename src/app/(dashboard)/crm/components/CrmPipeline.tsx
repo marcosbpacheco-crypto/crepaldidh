@@ -2,16 +2,25 @@
 
 import React, { useState, useMemo } from 'react'
 import { useCrm, Deal } from '../context/CrmContext'
+import { useAdmin } from '../../admin/context/AdminContext'
 import { 
   Plus, Search, Filter, DollarSign, Calendar, User, 
-  ChevronRight, Trash2, Edit2, X, AlertCircle 
+  ChevronRight, Trash2, Edit2, X, AlertCircle, Lock
 } from 'lucide-react'
+
+const NoAccess = () => (
+  <span className="flex items-center gap-1 text-slate-300 font-bold">
+    <Lock className="w-3 h-3" />
+    ---
+  </span>
+)
 
 export const CrmPipeline: React.FC = () => {
   const { 
     deals, companies, sellers, services, pipelineStages, 
     addDeal, updateDeal, moveDeal, deleteDeal 
   } = useCrm()
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
 
   // 1. Filter States
   const [searchTerm, setSearchTerm] = useState('')
@@ -239,7 +248,7 @@ export const CrmPipeline: React.FC = () => {
                     </span>
                   </h5>
                   <span className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5 block">
-                    R$ {stageSum.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                    {hasFinancialAccess ? `R$ ${stageSum.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : <NoAccess />}
                   </span>
                 </div>
               </div>
@@ -304,7 +313,11 @@ export const CrmPipeline: React.FC = () => {
                         <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-2 text-[10px]">
                           <div className="flex items-center gap-1 text-slate-700 font-bold">
                             <DollarSign className="w-3.5 h-3.5 text-brand-teal flex-shrink-0" />
-                            <span>{deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            {hasFinancialAccess ? (
+                              <span>{deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            ) : (
+                              <NoAccess />
+                            )}
                           </div>
 
                           <div className="flex items-center gap-1.5">

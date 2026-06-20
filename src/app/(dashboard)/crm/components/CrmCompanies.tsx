@@ -2,13 +2,22 @@
 
 import React, { useState, useMemo } from 'react'
 import { useCrm, Company, Contact } from '../context/CrmContext'
+import { useAdmin } from '../../admin/context/AdminContext'
 import { 
   Building2, Users, Search, Plus, Mail, Phone, MapPin, 
   Globe, Link2, Edit2, Trash2, X, PlusCircle, Check,
-  AlertCircle, FileText
+  AlertCircle, FileText, Lock
 } from 'lucide-react'
 
+const NoAccess = () => (
+  <span className="flex items-center gap-1 text-slate-300 font-bold">
+    <Lock className="w-3 h-3" />
+    ---
+  </span>
+)
+
 export const CrmCompanies: React.FC = () => {
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
   const { 
     companies, contacts, deals, activities,
     addCompany, updateCompany, deleteCompany,
@@ -495,7 +504,7 @@ export const CrmCompanies: React.FC = () => {
                           <tr key={deal.id} className="hover:bg-slate-50/40">
                             <td className="p-3 font-bold text-slate-700">{deal.title}</td>
                             <td className="p-3 text-slate-600">{deal.service}</td>
-                            <td className="p-3 font-bold text-brand-blue">R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td className="p-3 font-bold text-brand-blue">{hasFinancialAccess ? `R$ ${deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : <NoAccess />}</td>
                             <td className="p-3">
                               <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full text-[9px]">
                                 {deal.stage}

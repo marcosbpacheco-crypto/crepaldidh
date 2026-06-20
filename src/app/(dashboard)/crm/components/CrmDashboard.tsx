@@ -2,13 +2,22 @@
 
 import React, { useMemo } from 'react'
 import { useCrm } from '../context/CrmContext'
+import { useAdmin } from '../../admin/context/AdminContext'
 import { 
   Building2, Users, FileText, CheckCircle, TrendingUp, DollarSign, 
-  Calendar, AlertCircle, ArrowUpRight, Award, ChevronRight, Briefcase
+  Calendar, AlertCircle, ArrowUpRight, Award, ChevronRight, Briefcase, Lock
 } from 'lucide-react'
+
+const NoAccess = () => (
+  <div className="flex items-center gap-1 text-slate-300 font-bold">
+    <Lock className="w-3.5 h-3.5" />
+    ---
+  </div>
+)
 
 export const CrmDashboard: React.FC = () => {
   const { companies, deals, proposals, contracts, tasks, sellers } = useCrm()
+  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
 
   // 1. Calculate Stats
   const stats = useMemo(() => {
@@ -205,7 +214,7 @@ export const CrmDashboard: React.FC = () => {
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Receita Prevista (Funil)</span>
             <h3 className="text-2xl font-black text-slate-800 mt-1">
-              R$ {stats.predictedRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+              {hasFinancialAccess ? `R$ ${stats.predictedRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : <NoAccess />}
             </h3>
             <div className="flex items-center gap-1 mt-2 text-slate-400 text-xs font-medium">
               <Briefcase className="w-3.5 h-3.5 text-brand-teal" />
@@ -222,7 +231,7 @@ export const CrmDashboard: React.FC = () => {
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Receita Fechada (Contratos)</span>
             <h3 className="text-2xl font-black text-brand-teal mt-1">
-              R$ {stats.closedRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+              {hasFinancialAccess ? `R$ ${stats.closedRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : <NoAccess />}
             </h3>
             <div className="flex items-center gap-1 mt-2 text-brand-teal text-xs font-bold">
               <CheckCircle className="w-3.5 h-3.5" />
@@ -374,7 +383,7 @@ export const CrmDashboard: React.FC = () => {
                     </div>
                   </div>
                   <span className="text-xs font-black text-brand-blue">
-                    R$ {cust.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                    {hasFinancialAccess ? `R$ ${cust.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : <NoAccess />}
                   </span>
                 </div>
               ))
@@ -404,7 +413,7 @@ export const CrmDashboard: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-black text-brand-teal block">
-                    R$ {seller.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                    {hasFinancialAccess ? `R$ ${seller.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : <NoAccess />}
                   </span>
                   <span className="text-[9px] text-slate-400 font-semibold uppercase">Fechado</span>
                 </div>
