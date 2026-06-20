@@ -83,6 +83,12 @@ export default function FinancialPage() {
   const [showBtForm, setShowBtForm] = useState(false)
   const [btSearch, setBtSearch] = useState('')
 
+  // Invoice upload/view
+  const [invoiceTarget, setInvoiceTarget] = useState<{ type: 'receivable' | 'payable'; id: string } | null>(null)
+  const [viewInvoiceTarget, setViewInvoiceTarget] = useState<{ type: 'receivable' | 'payable'; id: string } | null>(null)
+  const [invoiceFileData, setInvoiceFileData] = useState('')
+  const [invoiceForm, setInvoiceForm] = useState({ number: '', issuer: '', amount: 0, issueDate: '' })
+
   const [recForm, setRecForm] = useState({ companyId: '', contractId: '', serviceName: '', amount: 0, dueDate: '', notes: '', paymentMethodId: '' })
   const [payForm, setPayForm] = useState({ supplier: '', categoryId: '', description: '', amount: 0, dueDate: '', notes: '' })
   const [rrForm, setRrForm] = useState({ contractId: '', frequency: 'monthly' as RecurringRule['frequency'], amount: 0, nextBillingDate: '', readjustmentRate: 0, serviceName: '' })
@@ -551,6 +557,11 @@ export default function FinancialPage() {
                         <div className="flex items-center justify-center gap-1">
                           {(r.status === 'pending' || r.status === 'overdue') && <button onClick={() => setShowPayModal(r)} className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Receber"><DollarSign className="w-3.5 h-3.5" /></button>}
                           <button onClick={() => runAi(() => fin.suggestCollections(r.id))} className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600" title="Cobrança IA"><Brain className="w-3.5 h-3.5" /></button>
+                          {r.invoiceFileUrl ? (
+                            <button onClick={() => setViewInvoiceTarget({ type: 'receivable', id: r.id })} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600" title="Ver NF"><Receipt className="w-3.5 h-3.5" /></button>
+                          ) : (
+                            <button onClick={() => { setInvoiceTarget({ type: 'receivable', id: r.id }); setInvoiceFileData(''); setInvoiceForm({ number: '', issuer: r.companyName, amount: r.amount, issueDate: r.dueDate }) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600" title="Upload NF"><Upload className="w-3.5 h-3.5" /></button>
+                          )}
                           <button onClick={() => handleDelRec(r.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -601,6 +612,11 @@ export default function FinancialPage() {
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
                           {p.status !== 'paid' && p.status !== 'canceled' && <button onClick={() => fin.markPayableAsPaid(p.id, new Date().toISOString().split('T')[0])} className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Pagar"><CheckCircle className="w-3.5 h-3.5" /></button>}
+                          {p.invoiceFileUrl ? (
+                            <button onClick={() => setViewInvoiceTarget({ type: 'payable', id: p.id })} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600" title="Ver NF"><Receipt className="w-3.5 h-3.5" /></button>
+                          ) : (
+                            <button onClick={() => { setInvoiceTarget({ type: 'payable', id: p.id }); setInvoiceFileData(''); setInvoiceForm({ number: '', issuer: p.supplier, amount: p.amount, issueDate: p.dueDate }) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600" title="Upload NF"><Upload className="w-3.5 h-3.5" /></button>
+                          )}
                           <button onClick={() => handleDelPay(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -1258,6 +1274,147 @@ export default function FinancialPage() {
     </div>
   )
 
+  // ========== INVOICE UPLOAD MODAL ==========
+  const invoiceUploadModal = invoiceTarget && (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setInvoiceTarget(null)}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <h2 className="text-sm font-black text-slate-800 flex items-center gap-2"><Receipt className="w-4 h-4 text-amber-600" /> Upload de Nota Fiscal</h2>
+          <button onClick={() => setInvoiceTarget(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {/* File upload area */}
+          <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-brand-teal transition-colors cursor-pointer"
+            onClick={() => document.getElementById('nf-file-input')?.click()}>
+            {invoiceFileData ? (
+              <div className="space-y-2">
+                <img src={invoiceFileData} alt="Preview NF" className="max-h-40 mx-auto rounded-lg border border-slate-200" />
+                <p className="text-[10px] text-emerald-600 font-semibold">Imagem carregada. Clique para trocar.</p>
+              </div>
+            ) : (
+              <div className="text-slate-400">
+                <Upload className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-xs font-semibold">Clique para selecionar a imagem da NF</p>
+                <p className="text-[10px] mt-1">Formatos: PNG, JPG, JPEG, PDF</p>
+              </div>
+            )}
+          </div>
+          <input id="nf-file-input" type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = (ev) => {
+              const dataUrl = ev.target?.result as string
+              setInvoiceFileData(dataUrl)
+              setInvoiceForm(f => ({
+                ...f,
+                number: f.number || `NF-${String(Date.now()).slice(-8)}`,
+                issueDate: f.issueDate || new Date().toISOString().split('T')[0],
+              }))
+            }
+            reader.readAsDataURL(file)
+          }} />
+
+          {/* Extracted fields */}
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Brain className="w-3 h-3" /> Dados Extraídos</h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] font-semibold text-slate-400 block mb-1">Número da NF</label>
+                  <input value={invoiceForm.number} onChange={e => setInvoiceForm(f => ({ ...f, number: e.target.value }))}
+                    className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 bg-white" placeholder="NF-00000001" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-semibold text-slate-400 block mb-1">Data de Emissão</label>
+                  <input type="date" value={invoiceForm.issueDate} onChange={e => setInvoiceForm(f => ({ ...f, issueDate: e.target.value }))}
+                    className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 bg-white" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 block mb-1">Emitente (Razão Social / CNPJ)</label>
+                <input value={invoiceForm.issuer} onChange={e => setInvoiceForm(f => ({ ...f, issuer: e.target.value }))}
+                  className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 bg-white" placeholder="Nome do emitente" />
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 block mb-1">Valor (R$)</label>
+                <input type="number" value={invoiceForm.amount || ''} onChange={e => setInvoiceForm(f => ({ ...f, amount: Number(e.target.value) }))}
+                  className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20 bg-white" />
+              </div>
+            </div>
+          </div>
+
+          {!invoiceFileData && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-[10px] text-amber-700 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Faça o upload da imagem da Nota Fiscal para visualização futura.</p>
+            </div>
+          )}
+        </div>
+        <div className="p-5 border-t border-slate-100 flex items-center gap-3 shrink-0">
+          <button onClick={() => setInvoiceTarget(null)} className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50">Cancelar</button>
+          <button onClick={() => {
+            if (!invoiceTarget) return
+            const ups = { invoiceFileUrl: invoiceFileData || undefined, invoiceNumber: invoiceForm.number || undefined, invoiceIssuer: invoiceForm.issuer || undefined }
+            if (invoiceTarget.type === 'receivable') fin.updateReceivable(invoiceTarget.id, ups)
+            else fin.updatePayable(invoiceTarget.id, ups)
+            setInvoiceTarget(null)
+          }} disabled={!invoiceFileData}
+            className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-40">
+            <CheckCircle className="w-4 h-4" /> Salvar NF
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ========== INVOICE VIEW MODAL ==========
+  const invoiceViewModal = viewInvoiceTarget && (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setViewInvoiceTarget(null)}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <h2 className="text-sm font-black text-slate-800 flex items-center gap-2"><Receipt className="w-4 h-4 text-blue-600" /> Nota Fiscal</h2>
+          <button onClick={() => setViewInvoiceTarget(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {(() => {
+            const item = viewInvoiceTarget.type === 'receivable'
+              ? fin.receivables.find(r => r.id === viewInvoiceTarget.id)
+              : fin.payables.find(p => p.id === viewInvoiceTarget.id)
+            if (!item?.invoiceFileUrl) return <p className="text-xs text-slate-400 text-center py-8">Nenhuma nota fiscal anexada.</p>
+            return (
+              <>
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <img src={item.invoiceFileUrl} alt="Nota Fiscal" className="w-full rounded-lg border border-slate-200" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] text-slate-400 font-semibold uppercase">Número</p>
+                    <p className="font-bold text-slate-800 mt-0.5">{item.invoiceNumber || '—'}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-[9px] text-slate-400 font-semibold uppercase">Emitente</p>
+                    <p className="font-bold text-slate-800 mt-0.5">{item.invoiceIssuer || '—'}</p>
+                  </div>
+                </div>
+                <button onClick={() => {
+                  const a = document.createElement('a')
+                  a.href = item.invoiceFileUrl!
+                  a.download = `nf_${item.invoiceNumber || 'documento'}.jpg`
+                  a.click()
+                }} className="w-full py-2.5 bg-brand-teal text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-brand-teal/90">
+                  <Download className="w-4 h-4" /> Baixar Imagem da NF
+                </button>
+              </>
+            )
+          })()}
+        </div>
+        <div className="p-5 border-t border-slate-100 shrink-0">
+          <button onClick={() => setViewInvoiceTarget(null)} className="w-full py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50">Fechar</button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ========== MAIN RENDER ==========
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1303,6 +1460,8 @@ export default function FinancialPage() {
       {modalRrForm}
       {modalPay}
       {modalBtForm}
+      {invoiceUploadModal}
+      {invoiceViewModal}
     </div>
   )
 }

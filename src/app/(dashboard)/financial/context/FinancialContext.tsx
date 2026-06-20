@@ -44,6 +44,9 @@ export interface AccountReceivable {
   paymentMethodName?: string
   notes: string
   createdAt: string
+  invoiceFileUrl?: string
+  invoiceNumber?: string
+  invoiceIssuer?: string
 }
 
 export interface AccountPayable {
@@ -59,6 +62,9 @@ export interface AccountPayable {
   attachmentUrl?: string
   notes: string
   createdAt: string
+  invoiceFileUrl?: string
+  invoiceNumber?: string
+  invoiceIssuer?: string
 }
 
 export interface FinancialTransaction {
@@ -469,21 +475,21 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // COMPUTED KPIs
   // ==========================================
 
-  const totalReceivable = receivables.reduce((acc, r) => acc + r.amount, 0)
+  const totalReceivable = receivables.filter(r => r.status !== 'canceled').reduce((acc, r) => acc + r.amount, 0)
   const totalReceived = receivables.filter(r => r.status === 'paid').reduce((acc, r) => acc + r.amount, 0)
   const totalOverdue = receivables.filter(r => r.status === 'overdue').reduce((acc, r) => acc + r.amount, 0)
   const totalPendingReceivable = receivables.filter(r => r.status === 'pending').reduce((acc, r) => acc + r.amount, 0)
 
-  const totalPayable = payables.reduce((acc, p) => acc + p.amount, 0)
+  const totalPayable = payables.filter(p => p.status !== 'canceled').reduce((acc, p) => acc + p.amount, 0)
   const totalPaidPayable = payables.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0)
-  const totalPendingPayable = payables.filter(p => p.status !== 'paid').reduce((acc, p) => acc + p.amount, 0)
+  const totalPendingPayable = payables.filter(p => p.status === 'pending' || p.status === 'overdue').reduce((acc, p) => acc + p.amount, 0)
 
   const grossRevenue = totalReceivable
   const receivedRevenue = totalReceived
   const pendingRevenue = totalPendingReceivable
   const operatingExpenses = totalPayable
   const paidExpenses = totalPaidPayable
-  const estimatedTaxes = Math.round(grossRevenue * 0.115)
+  const estimatedTaxes = Math.round(receivedRevenue * 0.115)
   const netProfit = receivedRevenue - paidExpenses - estimatedTaxes
   const profitMargin = receivedRevenue > 0 ? Math.round((netProfit / receivedRevenue) * 100) : 0
 
@@ -491,7 +497,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Revenue by client
   const revenueByClient = Object.values(
-    receivables.reduce((acc, r) => {
+    receivables.filter(r => r.status !== 'canceled').reduce((acc, r) => {
       if (!acc[r.companyName]) acc[r.companyName] = { companyName: r.companyName, total: 0 }
       acc[r.companyName].total += r.amount
       return acc
@@ -500,7 +506,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Revenue by service
   const revenueByService = Object.values(
-    receivables.reduce((acc, r) => {
+    receivables.filter(r => r.status !== 'canceled').reduce((acc, r) => {
       if (!acc[r.serviceName]) acc[r.serviceName] = { serviceName: r.serviceName, total: 0 }
       acc[r.serviceName].total += r.amount
       return acc
@@ -509,7 +515,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Revenue by project
   const revenueByProject = Object.values(
-    receivables.filter(r => r.projectName).reduce((acc, r) => {
+    receivables.filter(r => r.projectName && r.status !== 'canceled').reduce((acc, r) => {
       const k = r.projectName || 'Sem projeto'
       if (!acc[k]) acc[k] = { projectName: k, total: 0 }
       acc[k].total += r.amount
@@ -532,8 +538,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const key = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
       months[key] = 0
     }
-    receivables.forEach(r => {
-      const d = new Date(r.createdAt)
+    receivables.filter(r => r.status !== 'canceled').forEach(r => {
+      const d = new Date(r.dueDate)
       const key = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
       if (months[key] !== undefined) months[key] += r.amount
     })
@@ -570,7 +576,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Revenue by consultant (from receivables, grouped by service name as proxy)
   // Real consultant data comes from CRM deals; here we use service grouping as approximation
   const revenueByConsultant: ConsultantRevenue[] = Object.entries(
-    receivables.reduce((acc, r) => {
+    receivables.filter(r => r.status !== 'canceled').reduce((acc, r) => {
       const c = r.serviceName
       if (!acc[c]) acc[c] = { consultantName: c, totalRevenue: 0, dealCount: 0 }
       acc[c].totalRevenue += r.amount
@@ -587,14 +593,14 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
   const revenueByBusinessUnit: BusinessUnitRevenue[] = Object.entries(businessUnits).map(([unitName, services]) => {
     const total = receivables
-      .filter(r => services.includes(r.serviceName))
+      .filter(r => services.includes(r.serviceName) && r.status !== 'canceled')
       .reduce((acc, r) => acc + r.amount, 0)
     return { unitName, totalRevenue: total, percentage: totalReceivable > 0 ? Math.round((total / totalReceivable) * 100) : 0 }
   }).sort((a, b) => b.totalRevenue - a.totalRevenue)
 
   // Clientes mais rentáveis
   const clientesMaisRentaveis: ClientProfitability[] = Object.entries(
-    receivables.reduce((acc, r) => {
+    receivables.filter(r => r.status !== 'canceled').reduce((acc, r) => {
       if (!acc[r.companyId]) {
         acc[r.companyId] = { companyId: r.companyId, companyName: r.companyName, totalRevenue: 0, totalPaid: 0, overdueAmount: 0, margin: 0, projectCount: 0, serviceCount: 0 }
       }
@@ -730,7 +736,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Expenses by category
   const expensesByCategory = (() => {
     const grouped: Record<string, number> = {}
-    payables.filter(p => p.categoryName).forEach(p => {
+    payables.filter(p => p.categoryName && p.status !== 'canceled').forEach(p => {
       grouped[p.categoryName!] = (grouped[p.categoryName!] || 0) + p.amount
     })
     const totalExpenses = Object.values(grouped).reduce((a, b) => a + b, 0)

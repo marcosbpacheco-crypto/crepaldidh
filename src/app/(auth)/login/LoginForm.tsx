@@ -14,6 +14,7 @@ const SEED_USERS: User[] = [
   { id: 'user-comm', name: 'Bruno Crepaldi', email: 'bruno@crepaldidh.com.br', phone: '(11) 99999-0004', avatar: 'BC', roleId: 'role-commercial', roleName: 'Comercial', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-01-15T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-fin', name: 'Cláudio Santos', email: 'claudio@crepaldidh.com.br', phone: '(11) 99999-0005', avatar: 'CS', roleId: 'role-finance', roleName: 'Financeiro', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-04-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-rh', name: 'Mariana Souza', email: 'mariana@crepaldidh.com.br', phone: '(11) 99999-0006', avatar: 'MS', roleId: 'role-rh', roleName: 'RH', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-05-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-dho', name: 'Juliana Costa', email: 'juliana@crepaldidh.com.br', phone: '(11) 99999-0008', avatar: 'JC', roleId: 'role-dho', roleName: 'Analista de DHO', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-op', name: 'Ricardo Lima', email: 'ricardo@crepaldidh.com.br', phone: '(11) 99999-0007', avatar: 'RL', roleId: 'role-operational', roleName: 'Operacional', isExternal: false, active: false, password: DEFAULT_PASS, loginAttempts: 3, mfaEnabled: false, createdAt: '2025-06-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-client-rh', name: 'Mariana Souza (Cliente)', email: 'mariana@br.com.br', phone: '(21) 99999-1001', avatar: 'MS', roleId: 'role-client-rh', roleName: 'Cliente - RH', isExternal: true, companyId: 'comp-1', companyName: 'BR Distribuidora', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-01T00:00:00Z', tenantId: 'tnt-br' },
   { id: 'user-client-dir', name: 'Roberto Santos (Cliente)', email: 'roberto@vale.com', phone: '(31) 99999-1002', avatar: 'RS', roleId: 'role-client-director', roleName: 'Cliente - Diretoria', isExternal: true, companyId: 'comp-2', companyName: 'Vale S.A.', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-15T00:00:00Z', tenantId: 'tnt-vale' },
@@ -34,9 +35,12 @@ export function LoginForm() {
     setError('')
     setPending(true)
 
-    // Use only seed users for login validation
-    const users: User[] = SEED_USERS
-    try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
+    // Use localStorage users (saved by AdminContext) with fallback to seed users
+    let users: User[] = SEED_USERS
+    try {
+      const stored = localStorage.getItem('admin_users')
+      if (stored) users = JSON.parse(stored)
+    } catch {}
 
     const emailNorm = email.trim().toLowerCase()
     const passNorm = password.trim()
@@ -68,7 +72,11 @@ export function LoginForm() {
   }
 
   const handleForgotPassword = () => {
-    const users: User[] = SEED_USERS
+    let users: User[] = SEED_USERS
+    try {
+      const stored = localStorage.getItem('admin_users')
+      if (stored) users = JSON.parse(stored)
+    } catch {}
 
     const targetUser = users.find(u => u.email === email)
     if (!targetUser) {
@@ -104,27 +112,27 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
       {error && (
-        <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
+        <div className="p-2.5 sm:p-3 bg-red-50 text-red-600 rounded-lg text-xs sm:text-sm font-medium border border-red-100">
           {error}
         </div>
       )}
 
       {recoverySent && (
-        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-medium border border-emerald-100">
+        <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-600 rounded-lg text-xs sm:text-sm font-medium border border-emerald-100">
           Solicitação enviada! Administradores e diretores foram notificados para redefinir sua senha.
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-3.5">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5" htmlFor="email">
+          <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1" htmlFor="email">
             E-mail Corporativo
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-slate-400" />
+              <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
             </div>
             <input
               id="email"
@@ -133,27 +141,27 @@ export function LoginForm() {
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal transition-all text-sm"
+              className="block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal transition-all text-xs sm:text-sm"
               placeholder="seu.nome@empresa.com"
             />
           </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="password">
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-slate-700" htmlFor="password">
               Senha
             </label>
             {!recoverySent && (
               <button type="button" onClick={() => setShowForgot(!showForgot)}
-                className="text-xs font-semibold text-brand-teal hover:text-brand-teal/80 transition-colors">
+                className="text-[10px] sm:text-xs font-semibold text-brand-teal hover:text-brand-teal/80 transition-colors">
                 Esqueceu a senha?
               </button>
             )}
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400" />
+              <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
             </div>
             <input
               id="password"
@@ -162,7 +170,7 @@ export function LoginForm() {
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal transition-all text-sm"
+              className="block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal transition-all text-xs sm:text-sm"
               placeholder="••••••••"
             />
           </div>
@@ -170,17 +178,17 @@ export function LoginForm() {
       </div>
 
       {showForgot && (
-        <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-          <p className="text-xs text-amber-800 font-medium mb-2">
+        <div className="p-3 sm:p-4 bg-amber-50 border border-amber-100 rounded-xl">
+          <p className="text-[10px] sm:text-xs text-amber-800 font-medium mb-1.5 sm:mb-2">
             Sua solicitação será enviada para administradores e diretores do sistema, que poderão redefinir sua senha.
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={handleForgotPassword}
-              className="flex-1 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors">
+              className="flex-1 py-1.5 sm:py-2 bg-amber-600 text-white text-[10px] sm:text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors">
               Solicitar Redefinição
             </button>
             <button type="button" onClick={() => setShowForgot(false)}
-              className="px-3 py-2 border border-amber-200 text-xs font-semibold rounded-xl hover:bg-amber-100 transition-colors">
+              className="px-3 py-1.5 sm:py-2 border border-amber-200 text-[10px] sm:text-xs font-semibold rounded-xl hover:bg-amber-100 transition-colors">
               Cancelar
             </button>
           </div>
@@ -190,17 +198,17 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full flex justify-center items-center py-3 px-6 border border-transparent rounded-full shadow-md shadow-brand-teal/25 text-sm font-bold text-white bg-brand-teal hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal disabled:opacity-70 transition-all duration-300 group hover:shadow-lg hover:-translate-y-0.5"
+        className="w-full flex justify-center items-center py-2.5 sm:py-3 px-5 sm:px-6 border border-transparent rounded-full shadow-md shadow-brand-teal/25 text-xs sm:text-sm font-bold text-white bg-brand-teal hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal disabled:opacity-70 transition-all duration-300 group hover:shadow-lg hover:-translate-y-0.5"
       >
         {pending ? (
-          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
         ) : (
           <>
             Entrar no Sistema
-            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="ml-1.5 sm:ml-2 w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
           </>
         )}
       </button>

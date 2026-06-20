@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 
-export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import'
+export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
 export interface Role {
   id: string
@@ -99,6 +99,7 @@ interface AdminContextType {
   getPermissionsForUser: (userId: string) => Permission[]
   checkPermission: (module: ModuleName, action: 'view' | 'create' | 'edit' | 'delete' | 'export', userId?: string) => boolean
   updatePermission: (id: string, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => void
+  setUserPermission: (userId: string, module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => void
   addAuditLog: (entry: Omit<AuditLog, 'id' | 'createdAt'>) => void
   addLgpdConsent: (c: Omit<LgpdConsent, 'id' | 'grantedAt' | 'revokedAt'>) => void
   revokeLgpdConsent: (id: string) => void
@@ -110,7 +111,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined)
 
 function gid(): string { return 'adm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6) }
 
-const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import']
+const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
 
 const SEED_ROLES: Role[] = [
   { id: 'role-admin', name: 'admin', label: 'Administrador', description: 'Acesso total ao sistema', isExternal: false },
@@ -119,6 +120,7 @@ const SEED_ROLES: Role[] = [
   { id: 'role-commercial', name: 'commercial', label: 'Comercial', description: 'Acesso a CRM, propostas, pipeline comercial', isExternal: false },
   { id: 'role-finance', name: 'finance', label: 'Financeiro', description: 'Acesso a financeiro, cobranças, relatórios', isExternal: false },
   { id: 'role-rh', name: 'rh', label: 'RH', description: 'Acesso a treinamentos, agenda, documentos de RH', isExternal: false },
+  { id: 'role-dho', name: 'dho', label: 'Analista de DHO', description: 'Acesso a CRM, mentorias, treinamentos, calendário, documentos, tarefas', isExternal: false },
   { id: 'role-operational', name: 'operational', label: 'Operacional', description: 'Acesso a projetos, NR01, documentos técnicos', isExternal: false },
   { id: 'role-client-rh', name: 'client_rh', label: 'Cliente - RH', description: 'Portal do cliente - perfil RH', isExternal: true },
   { id: 'role-client-director', name: 'client_director', label: 'Cliente - Diretoria', description: 'Portal do cliente - perfil Diretoria', isExternal: true },
@@ -137,10 +139,13 @@ function buildSeedPermissions(): Permission[] {
     const isFinance = role.name === 'finance'
     const isRh = role.name === 'rh'
     const isOperational = role.name === 'operational'
+    const isDho = role.name === 'dho'
     const isExternal = role.isExternal
     MODULES.forEach(mod => {
-      const canView = isAdmin || isDirector || (isConsultant && ['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents'].includes(mod)) || (isCommercial && ['crm', 'clients'].includes(mod)) || (isFinance && ['crm', 'financial'].includes(mod)) || (isRh && ['trainings', 'calendar', 'documents'].includes(mod)) || (isOperational && ['projects', 'nr01', 'documents'].includes(mod)) || (isExternal && ['portal'].includes(mod))
-      const canCreate = isAdmin || (['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents'].includes(mod) && (isAdmin || isDirector || isConsultant || (isCommercial && mod === 'crm') || (isFinance && mod === 'financial') || (isRh && ['trainings', 'calendar'].includes(mod))))
+      const assessoriaModules = ['crm', 'projects', 'mentoring', 'trainings', 'calendar', 'documents', 'tasks', 'alerts', 'portal', 'nr01', 'assessoria']
+      const coreModules = ['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents', 'assessoria']
+      const canView = isAdmin || isDirector || (isConsultant && coreModules.includes(mod)) || (isCommercial && ['crm', 'clients'].includes(mod)) || (isFinance && ['crm', 'financial'].includes(mod)) || (isRh && ['trainings', 'calendar', 'documents'].includes(mod)) || (isOperational && ['projects', 'nr01', 'documents'].includes(mod)) || (isDho && assessoriaModules.includes(mod)) || (isExternal && ['portal'].includes(mod))
+      const canCreate = isAdmin || (coreModules.includes(mod) && (isAdmin || isDirector || isConsultant || isDho || (isCommercial && mod === 'crm') || (isFinance && mod === 'financial') || (isRh && ['trainings', 'calendar'].includes(mod))))
       result.push({
         id: `perm-${id++}`,
         roleId: role.id,
@@ -164,6 +169,7 @@ const SEED_USERS: User[] = [
   { id: 'user-comm', name: 'Bruno Crepaldi', email: 'bruno@crepaldidh.com.br', phone: '(11) 99999-0004', avatar: 'BC', roleId: 'role-commercial', roleName: 'Comercial', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-01-15T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-fin', name: 'Cláudio Santos', email: 'claudio@crepaldidh.com.br', phone: '(11) 99999-0005', avatar: 'CS', roleId: 'role-finance', roleName: 'Financeiro', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-04-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-rh', name: 'Mariana Souza', email: 'mariana@crepaldidh.com.br', phone: '(11) 99999-0006', avatar: 'MS', roleId: 'role-rh', roleName: 'RH', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-05-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
+  { id: 'user-dho', name: 'Juliana Costa', email: 'juliana@crepaldidh.com.br', phone: '(11) 99999-0008', avatar: 'JC', roleId: 'role-dho', roleName: 'Analista de DHO', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-op', name: 'Ricardo Lima', email: 'ricardo@crepaldidh.com.br', phone: '(11) 99999-0007', avatar: 'RL', roleId: 'role-operational', roleName: 'Operacional', isExternal: false, active: false, password: DEFAULT_PASS, loginAttempts: 3, mfaEnabled: false, createdAt: '2025-06-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
   { id: 'user-client-rh', name: 'Mariana Souza (Cliente)', email: 'mariana@br.com.br', phone: '(21) 99999-1001', avatar: 'MS', roleId: 'role-client-rh', roleName: 'Cliente - RH', isExternal: true, companyId: 'comp-1', companyName: 'BR Distribuidora', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-01T00:00:00Z', tenantId: 'tnt-br' },
   { id: 'user-client-dir', name: 'Roberto Santos (Cliente)', email: 'roberto@vale.com', phone: '(31) 99999-1002', avatar: 'RS', roleId: 'role-client-director', roleName: 'Cliente - Diretoria', isExternal: true, companyId: 'comp-2', companyName: 'Vale S.A.', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-15T00:00:00Z', tenantId: 'tnt-vale' },
@@ -278,6 +284,27 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     return allPerms.some(p => p[field])
   }, [currentUserId, users, getPermissionsForRole, getPermissionsForUser])
 
+  const setUserPermission = useCallback((userId: string, module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => {
+    setPermissions(prev => {
+      const existing = prev.find(p => p.userId === userId && p.module === module)
+      if (existing) {
+        return prev.map(p => p.id === existing.id ? { ...p, [field]: value } : p)
+      }
+      const user = users.find(u => u.id === userId)
+      const rolePerms = prev.filter(p => p.roleId === user?.roleId && p.module === module)
+      const defaults = { canView: false, canCreate: false, canEdit: false, canDelete: false, canExport: false }
+      if (rolePerms.length > 0) {
+        const rp = rolePerms[0]
+        defaults.canView = rp.canView; defaults.canCreate = rp.canCreate
+        defaults.canEdit = rp.canEdit; defaults.canDelete = rp.canDelete
+        defaults.canExport = rp.canExport
+      }
+      return [...prev, { id: gid(), userId, module, ...defaults, [field]: value }]
+    })
+    const perm = permissions.find(p => p.userId === userId && p.module === module)
+    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'user_permission', entityId: userId, description: 'Permissão ' + field + ' em ' + module + ' alterada para ' + (value ? 'concedido' : 'negado') + ' (usuário)', ipAddress: '127.0.0.1' })
+  }, [currentUserId, users, permissions])
+
   const updatePermission = useCallback((id: string, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => {
     setPermissions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
     const perm = permissions.find(p => p.id === id)
@@ -323,7 +350,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       users, roles, permissions, auditLogs, lgpdConsents, privacyRequests,
       currentUserId, setCurrentUserId, currentUser,
       addUser, updateUser, deleteUser, toggleUserActive,
-      getPermissionsForRole, getPermissionsForUser, checkPermission, updatePermission,
+      getPermissionsForRole, getPermissionsForUser, checkPermission, updatePermission, setUserPermission,
       addAuditLog, addLgpdConsent, revokeLgpdConsent, addPrivacyRequest, updatePrivacyRequest,
     }}>
       {children}

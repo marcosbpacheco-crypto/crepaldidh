@@ -1,30 +1,31 @@
 ﻿'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { useAdmin, type ModuleName } from '../admin/context/AdminContext'
+import { useAdmin, type ModuleName, type Permission } from '../admin/context/AdminContext'
 import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
   Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
   Activity, LogIn, LogOut, UserPlus, Clock, Globe, Lock, Unlock,
-  Shield, AlertTriangle, KeyRound
+  Shield, AlertTriangle, KeyRound, Trash, Database
 } from 'lucide-react'
 
 // Only admin and director roles can access settings
 const ALLOWED_ROLES = ['Administrador', 'Diretor']
 
-const TABS = [
-  { key: 'users', label: 'Usuários', icon: <Users className="w-4 h-4" /> },
-  { key: 'permissions', label: 'Permissões', icon: <Key className="w-4 h-4" /> },
-  { key: 'audit', label: 'Auditoria', icon: <FileSearch className="w-4 h-4" /> },
-  { key: 'lgpd', label: 'LGPD', icon: <Scale className="w-4 h-4" /> },
-  { key: 'config', label: 'Configurações', icon: <Settings className="w-4 h-4" /> },
+const ALL_TABS = [
+  { key: 'users', label: 'Usuários', icon: <Users className="w-4 h-4" />, adminOnly: false },
+  { key: 'permissions', label: 'Permissões', icon: <Key className="w-4 h-4" />, adminOnly: false },
+  { key: 'profile-view', label: 'Visualizar Perfil', icon: <Eye className="w-4 h-4" />, adminOnly: true },
+  { key: 'audit', label: 'Auditoria', icon: <FileSearch className="w-4 h-4" />, adminOnly: false },
+  { key: 'lgpd', label: 'LGPD', icon: <Scale className="w-4 h-4" />, adminOnly: false },
+  { key: 'config', label: 'Configurações', icon: <Settings className="w-4 h-4" />, adminOnly: false },
 ]
 
 const MODULE_LABELS: Record<ModuleName, string> = {
   crm: 'CRM', clients: 'Clientes', projects: 'Projetos', nr01: 'NR-01',
   mentoring: 'Mentorias', trainings: 'Treinamentos', financial: 'Financeiro',
   calendar: 'Agenda', portal: 'Portal', documents: 'Documentos', bi: 'BI', ai: 'IA', admin: 'Admin',
-  tasks: 'Tarefas', alerts: 'Alertas', import: 'Importação',
+  tasks: 'Tarefas', alerts: 'Alertas', import: 'Importação', assessoria: 'Assessoria Empresarial',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -64,6 +65,8 @@ export default function SettingsPage() {
   const [passwordTargetUser, setPasswordTargetUser] = useState<typeof admin.users[0] | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
 
   useEffect(() => {
     try {
@@ -86,11 +89,18 @@ export default function SettingsPage() {
   const handleEditUser = () => {
     if (!editingUserId || !editUserForm.name.trim() || !editUserForm.email.trim()) return
     const role = admin.roles.find(r => r.id === editUserForm.roleId)
+    const originalUser = admin.users.find(u => u.id === editingUserId)
     admin.updateUser(editingUserId, {
       name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
       avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
       roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
       companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
+    })
+    admin.addAuditLog({
+      userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
+      action: 'update', entity: 'user', entityId: editingUserId,
+      description: `Editou usuário: ${originalUser?.name || 'N/A'}`,
+      ipAddress: '127.0.0.1',
     })
     setShowEditUser(false)
     setEditingUserId(null)
@@ -157,9 +167,66 @@ export default function SettingsPage() {
           <h1 className="text-xl font-bold text-slate-800 mb-2">Acesso Restrito</h1>
           <p className="text-sm text-slate-500">Apenas administradores e diretores podem acessar as configurações do sistema.</p>
         </div>
+    </div>
+  )
+}
+
+// ── Profile View Panel (admin only — preview what a role sees) ──
+function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
+  const [selectedRoleId, setSelectedRoleId] = useState('role-consultant')
+
+  const selectedRole = admin.roles.find(r => r.id === selectedRoleId)
+  const rolePerms = admin.permissions.filter(p => p.roleId === selectedRoleId)
+
+  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <label className="text-[9px] font-semibold text-slate-400 uppercase">Perfil:</label>
+        <select value={selectedRoleId} onChange={e => setSelectedRoleId(e.target.value)}
+          className="text-[11px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+          {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
+        {selectedRole && (
+          <span className="text-[10px] text-slate-400">{selectedRole.description}</span>
+        )}
       </div>
-    )
-  }
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {moduleList.map(mod => {
+          const perm = rolePerms.find(p => p.module === mod)
+          const canView = perm?.canView ?? false
+          const canCreate = perm?.canCreate ?? false
+          const canEdit = perm?.canEdit ?? false
+          const canDelete = perm?.canDelete ?? false
+          const canExport = perm?.canExport ?? false
+          return (
+            <div key={mod} className={`bg-white rounded-xl border p-3 shadow-sm transition-colors ${canView ? 'border-slate-200' : 'border-slate-100 opacity-50'}`}>
+              <p className="text-[11px] font-bold text-slate-700 mb-2">{MODULE_LABELS[mod] || mod}</p>
+              <div className="space-y-1">
+                {[
+                  { label: 'Visualizar', value: canView },
+                  { label: 'Criar', value: canCreate },
+                  { label: 'Editar', value: canEdit },
+                  { label: 'Excluir', value: canDelete },
+                  { label: 'Exportar', value: canExport },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center justify-between">
+                    <span className="text-[9px] text-slate-500">{item.label}</span>
+                    {item.value
+                      ? <Check className="w-3 h-3 text-emerald-600" />
+                      : <X className="w-3 h-3 text-slate-300" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
   return (
     <div className="min-h-screen">
@@ -195,7 +262,7 @@ export default function SettingsPage() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {TABS.map(t => (
+        {ALL_TABS.filter(t => !t.adminOnly || currentRole === 'Administrador').map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-3.5 py-2 text-[11px] font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
               tab === t.key
@@ -363,6 +430,11 @@ export default function SettingsPage() {
       {/* Permissions */}
       {tab === 'permissions' && (
         <PermissionsPanel admin={admin} />
+      )}
+
+      {/* Profile View (admin only) */}
+      {tab === 'profile-view' && (
+        <ProfileViewPanel admin={admin} />
       )}
 
       {/* Audit */}
@@ -560,6 +632,17 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {currentRole === 'Administrador' && (
+            <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 rounded-2xl p-4">
+              <h3 className="text-xs font-black text-red-800 mb-1 flex items-center gap-1.5"><Database className="w-4 h-4 text-red-600" /> Gerenciar Dados</h3>
+              <p className="text-[10px] text-red-700 mb-3">Remova todos os dados fictícios e deixe o sistema pronto para começar do zero. Usuários, permissões e categorias financeiras serão mantidos.</p>
+              <button onClick={() => setShowResetModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-all">
+                <Trash className="w-3.5 h-3.5" /> Limpar Sistema
+              </button>
+            </div>
+          )}
+
           <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-4">
             <h3 className="text-xs font-black text-amber-800 mb-1">Segurança do Sistema</h3>
             <p className="text-[10px] text-amber-700">Todas as operações são registradas em logs de auditoria. Consulte o módulo de BI para relatórios completos de segurança. Em caso de incidente, contate o DPO: dpo@crepaldidh.com.br</p>
@@ -597,58 +680,142 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Reset System Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center p-4" onClick={() => { setShowResetModal(false); setResetConfirmText('') }}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><Trash className="w-4 h-4 text-red-500" /> Limpar Sistema</h3>
+            <p className="text-[11px] text-slate-600 mb-3">Esta ação removerá <strong>todos os dados fictícios</strong> do sistema, mantendo apenas:</p>
+            <ul className="text-[11px] text-slate-600 mb-4 space-y-1 ml-4 list-disc">
+              <li>Usuários e permissões</li>
+              <li>Categorias financeiras e métodos de pagamento</li>
+              <li>Competências e ferramentas de mentoria</li>
+            </ul>
+            <p className="text-[10px] text-red-600 font-semibold mb-3">Digite <strong>LIMPAR</strong> para confirmar:</p>
+            <input value={resetConfirmText} onChange={e => setResetConfirmText(e.target.value)}
+              placeholder="Digite LIMPAR" maxLength={6}
+              className="w-full text-[12px] border border-red-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200 mb-4" />
+            <div className="flex items-center gap-2">
+              <button onClick={() => {
+                if (resetConfirmText !== 'LIMPAR') return
+                const { resetSystem } = require('@/utils/resetSystem')
+                resetSystem()
+                setShowResetModal(false)
+                setResetConfirmText('')
+                window.location.reload()
+              }} disabled={resetConfirmText !== 'LIMPAR'}
+                className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40">
+                Confirmar Limpeza
+              </button>
+              <button onClick={() => { setShowResetModal(false); setResetConfirmText('') }}
+                className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Permissions Panel (separated for readability) ──
+// ── Permissions Panel ──
 function PermissionsPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
-  const [selectedRole, setSelectedRole] = useState('role-admin')
-  const rolePerms = admin.getPermissionsForRole(selectedRole)
+  const [selectedUserId, setSelectedUserId] = useState('')
+
+  const selectedUser = admin.users.find(u => u.id === selectedUserId)
+  const isAdminUser = selectedUser?.roleName === 'Administrador'
+  const canEdit = admin.currentUser?.roleName === 'Administrador' || admin.currentUser?.roleName === 'Diretor'
+
+  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+
+  function getEffectivePerm(module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>): boolean {
+    if (!selectedUser) return false
+    const userPerm = admin.permissions.find(p => p.userId === selectedUser.id && p.module === module)
+    if (userPerm) return userPerm[field]
+    const rolePerm = admin.permissions.find(p => p.roleId === selectedUser.roleId && p.module === module)
+    return rolePerm ? rolePerm[field] : false
+  }
+
+  function handleToggle(module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>) {
+    if (!selectedUser || !canEdit) return
+    const newValue = !getEffectivePerm(module, field)
+    admin.setUserPermission(selectedUser.id, module, field, newValue)
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <label className="text-[9px] font-semibold text-slate-400 uppercase">Perfil:</label>
-        <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}
+        <label className="text-[9px] font-semibold text-slate-400 uppercase">Usuário:</label>
+        <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
           className="text-[11px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
-          {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+          <option value="">Selecione um usuário...</option>
+          {admin.users.filter(u => u.active).map(u => <option key={u.id} value={u.id}>{u.name} — {u.roleName}</option>)}
         </select>
+        {selectedUser && (
+          <span className="text-[10px] text-slate-400 ml-1">
+            {isAdminUser ? 'Acesso total (Administrador)' : `Perfil base: ${selectedUser.roleName}`}
+          </span>
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Módulo</th>
-                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Visualizar</th>
-                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Criar</th>
-                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Editar</th>
-                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Excluir</th>
-                <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Exportar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rolePerms.map(p => (
-                <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-2.5 font-semibold text-slate-700">{MODULE_LABELS[p.module] || p.module}</td>
-                  {(['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport'] as const).map(field => (
-                    <td key={field} className="px-4 py-2.5 text-center">
-                      <button onClick={() => admin.updatePermission(p.id, field, !p[field])}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                          p[field] ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-300 border border-slate-100 hover:border-slate-200'
-                        } cursor-pointer`}>
-                        {p[field] ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                      </button>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {!selectedUser ? (
+        <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100 shadow-sm">
+          Selecione um usuário para configurar as permissões.
         </div>
-      </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Módulo</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Visualizar</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Criar</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Editar</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Excluir</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Exportar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moduleList.map(mod => (
+                  <tr key={mod} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-slate-700">{MODULE_LABELS[mod] || mod}</td>
+                    {(['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport'] as const).map(field => {
+                      const hasPerm = getEffectivePerm(mod, field)
+                      const hasOverride = admin.permissions.some(p => p.userId === selectedUser.id && p.module === mod)
+                      return (
+                        <td key={field} className="px-4 py-2.5 text-center">
+                          {isAdminUser ? (
+                            <span className="inline-flex w-6 h-6 rounded-lg items-center justify-center bg-brand-teal/10 text-brand-teal border border-brand-teal/20">
+                              <Check className="w-3.5 h-3.5" />
+                            </span>
+                          ) : (
+                            <button onClick={() => handleToggle(mod, field)}
+                              disabled={!canEdit}
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                                hasPerm
+                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                  : 'bg-slate-50 text-slate-300 border border-slate-100'
+                              } ${canEdit ? 'cursor-pointer hover:border-slate-300' : 'cursor-default opacity-60'}`}
+                              title={hasOverride ? 'Permissão personalizada' : 'Permissão do perfil'}>
+                              {hasPerm ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+            <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-600" /> Permitido</span>
+            <span className="flex items-center gap-1"><X className="w-3 h-3 text-slate-300" /> Negado</span>
+            <span className="flex items-center gap-1 text-brand-teal font-semibold">Administradores têm acesso total a todos os módulos.</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

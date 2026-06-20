@@ -400,20 +400,22 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const agendaEvents = getAgendaEvents()
   const todayEvents = getDayEvents(new Date())
   const upcomingEvents = events.filter(e => {
-    const d = new Date(e.eventDate + 'T' + e.startTime)
+    const d = e.startTime ? new Date(e.eventDate + 'T' + e.startTime) : new Date(e.eventDate + 'T23:59:59')
     const now = new Date()
     return d > now && e.status !== 'canceled' && e.status !== 'completed'
   }).sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.startTime.localeCompare(b.startTime)).slice(0, 10)
   const overdueEvents = events.filter(e => {
-    const d = new Date(e.eventDate + 'T' + e.endTime)
+    const d = e.endTime ? new Date(e.eventDate + 'T' + e.endTime) : new Date(e.eventDate + 'T23:59:59')
     return d < new Date() && e.status === 'scheduled'
   })
 
   const weekHours = weekDays.reduce((acc, day) => {
     return acc + day.events.reduce((sum, e) => {
+      if (!e.startTime || !e.endTime) return sum + 8
       const [sh, sm] = e.startTime.split(':').map(Number)
       const [eh, em] = e.endTime.split(':').map(Number)
-      return sum + (eh * 60 + em - sh * 60 - sm) / 60
+      const minutes = Math.max(0, eh * 60 + em - sh * 60 - sm)
+      return sum + minutes / 60
     }, 0)
   }, 0)
 
@@ -495,21 +497,24 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // AI HELPERS
   // ==========================================
 
+  const getEventHours = (e: CalendarEvent): number => {
+    if (!e.startTime || !e.endTime) return 8
+    const [sh, sm] = e.startTime.split(':').map(Number)
+    const [eh, em] = e.endTime.split(':').map(Number)
+    return Math.max(0, (eh * 60 + em - sh * 60 - sm)) / 60
+  }
+
   const generateDaySummary = async (date: Date): Promise<string> => {
     const dateStr = date.toISOString().split('T')[0]
     const dayEvts = events.filter(e => e.eventDate === dateStr && e.status !== 'canceled')
     const total = dayEvts.length
-    const hours = dayEvts.reduce((acc, e) => {
-      const [sh, sm] = e.startTime.split(':').map(Number)
-      const [eh, em] = e.endTime.split(':').map(Number)
-      return acc + (eh * 60 + em - sh * 60 - sm) / 60
-    }, 0)
+    const hours = dayEvts.reduce((acc, e) => acc + getEventHours(e), 0)
     const types = [...new Set(dayEvts.map(e => getEventTypeLabel(e.type)))].join(', ')
-    return `📅 **Resumo do Dia - ${date.toLocaleDateString('pt-BR')}**\n\n📊 **${total} compromisso(s)**\n⏱ **${hours.toFixed(1)}h agendadas**\n📋 **Tipos:** ${types || 'Nenhum'}\n\n${dayEvts.map(e => `- **${e.startTime}** — ${e.title} (${getEventTypeLabel(e.type)})`).join('\n') || 'Nenhum compromisso agendado para hoje.'}`
+    return `📅 **Resumo do Dia - ${date.toLocaleDateString('pt-BR')}**\n\n📊 **${total} compromisso(s)**\n⏱ **${hours.toFixed(1)}h agendadas**\n📋 **Tipos:** ${types || 'Nenhum'}\n\n${dayEvts.map(e => `- **${e.startTime || 'Dia todo'}** — ${e.title} (${getEventTypeLabel(e.type)})`).join('\n') || 'Nenhum compromisso agendado para hoje.'}`
   }
 
   const suggestBestTime = async (date: string, durationMinutes: number): Promise<string> => {
-    const dayEvts = events.filter(e => e.eventDate === date && e.status !== 'canceled').sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const dayEvts = events.filter(e => e.eventDate === date && e.status !== 'canceled' && e.startTime && e.endTime).sort((a, b) => a.startTime.localeCompare(b.startTime))
     if (dayEvts.length === 0) return '✅ **Disponível o dia inteiro.**\n\nSugiro agendar entre 09:00 e 11:00 (horário de maior produtividade).'
     const busySlots = dayEvts.map(e => ({ start: e.startTime, end: e.endTime }))
     const suggestions: string[] = []
@@ -542,11 +547,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return d >= weekStart && d <= weekEnd && e.status !== 'canceled'
     })
     const total = weekEvts.length
-    const hours = weekEvts.reduce((acc, e) => {
-      const [sh, sm] = e.startTime.split(':').map(Number)
-      const [eh, em] = e.endTime.split(':').map(Number)
-      return acc + (eh * 60 + em - sh * 60 - sm) / 60
-    }, 0)
+    const hours = weekEvts.reduce((acc, e) => acc + getEventHours(e), 0)
     const byType = EVENT_TYPES.map(t => ({ label: t.label, count: weekEvts.filter(e => e.type === t.value).length })).filter(t => t.count > 0)
     return `📊 **Relatório Semanal**\n\n📆 Semana de ${weekStart.toLocaleDateString('pt-BR')} a ${weekEnd.toLocaleDateString('pt-BR')}\n\n📋 **${total} compromissos**\n⏱ **${hours.toFixed(1)} horas agendadas**\n\n**Distribuição por tipo:**\n${byType.map(t => `- ${t.label}: ${t.count}`).join('\n') || 'Nenhum'}\n\n✅ Gerado automaticamente.`
   }

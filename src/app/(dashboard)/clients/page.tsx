@@ -338,8 +338,8 @@ function ClientDetail({
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Serviços Contratados</h4>
               <div className="space-y-3">
                 {client.services.map(s => {
-                  const daysTotal = Math.ceil((new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24))
-                  const daysElapsed = Math.ceil((Date.now() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24))
+                  const daysTotal = Math.ceil(Math.max(1, (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24)))
+                  const daysElapsed = Math.max(0, Math.ceil((Date.now() - new Date(s.startDate).getTime()) / (1000 * 60 * 60 * 24)))
                   const calcProgress = s.status === 'not_started' ? 0 : s.status === 'completed' ? 100 : Math.min(100, Math.round((daysElapsed / daysTotal) * 100))
                   const barProgress = s.progress > 0 ? s.progress : calcProgress
                   return (

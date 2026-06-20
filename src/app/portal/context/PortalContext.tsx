@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useFinancial } from '@/app/(dashboard)/financial/context/FinancialContext'
 import { useDocuments } from '@/app/(dashboard)/documents/context/DocumentContext'
+import { useAcessoTemporario } from '@/app/(dashboard)/acesso-temporario/context/AcessoTemporarioContext'
 
 export type PortalRole = 'rh' | 'diretoria' | 'lider' | 'financeiro'
 export type RequestType = 'meeting' | 'training' | 'doubt' | 'document' | 'support' | 'action_plan_adjust'
@@ -97,7 +98,7 @@ function generateSeedCalendarEvents() {
 
 interface PortalContextType {
   user: PortalUser | null; isAuthenticated: boolean; isLoading: boolean
-  login: (email: string) => Promise<boolean>; logout: () => void
+  login: (email: string) => Promise<boolean>; loginWithToken: (token: string) => Promise<boolean>; logout: () => void
   companyName: string; companyId: string | null
   hasPermission: (module: PortalTab) => boolean
   portalUsers: PortalUser[]; permissions: Permission[]
@@ -122,6 +123,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const crm = useCrm()
   const fin = useFinancial()
   const docCtx = useDocuments()
+  const { validateToken, useToken } = useAcessoTemporario()
 
   const [user, setUser] = useState<PortalUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -154,6 +156,20 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (found) { setUser(found); localStorage.setItem('portal_user', JSON.stringify(found)); return true }
     return false
   }, [portalUsers])
+
+  const loginWithToken = useCallback(async (token: string): Promise<boolean> => {
+    const access = validateToken(token)
+    if (!access) return false
+    useToken(token)
+    const tokenUserId = `token-${access.companyId}`
+    let tokenUser = portalUsers.find(u => u.id === tokenUserId)
+    if (!tokenUser) {
+      tokenUser = { id: tokenUserId, companyId: access.companyId, name: `Cliente - ${access.companyName}`, email: `temp-${access.companyId}@portal.crepaldidh.com`, role: 'diretoria', active: true }
+    }
+    setUser(tokenUser)
+    localStorage.setItem('portal_user', JSON.stringify(tokenUser))
+    return true
+  }, [validateToken, useToken, portalUsers])
 
   const logout = useCallback(() => { setUser(null); localStorage.removeItem('portal_user') }, [])
 
@@ -230,7 +246,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <PortalContext.Provider value={{
-      user, isAuthenticated: !!user, isLoading, login, logout,
+      user, isAuthenticated: !!user, isLoading, login, loginWithToken, logout,
       companyName, companyId,
       portalUsers, permissions, hasPermission,
       requests, notifications, unreadCount,

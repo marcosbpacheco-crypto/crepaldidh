@@ -94,25 +94,25 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       if (daysLeft <= 30 && daysLeft >= 0) {
         const company = companies.find(co => co.id === c.companyId)
         result.push({
-          id: `alert-contract-${c.id}-${daysLeft}`,
+          id: `alert-contract-${c.id}`,
           type: 'contract_expiring',
           title: 'Contrato próximo do vencimento',
           description: `Contrato "${c.title}"${company ? ` (${company.name})` : ''} vence em ${daysLeft} dia(s) (${new Date(c.endDate).toLocaleDateString('pt-BR')})`,
           severity: daysLeft <= 7 ? 'critical' : daysLeft <= 15 ? 'high' : 'medium',
           entityId: c.id, entityType: 'contract',
           createdAt: now.toISOString(),
-          isRead: readIds.has(`alert-contract-${c.id}-${daysLeft}`),
+          isRead: readIds.has(`alert-contract-${c.id}`),
         })
       }
     })
 
     // 4. Treinamentos próximos (7 dias)
     events.filter(e => {
-      const eventDate = new Date(e.eventDate + (e.startTime ? `T${e.startTime}` : ''))
+      const eventDate = e.startTime ? new Date(e.eventDate + `T${e.startTime}`) : new Date(e.eventDate + 'T23:59:59')
       const daysUntil = Math.floor((eventDate.getTime() - now.getTime()) / 86400000)
       return daysUntil <= 7 && daysUntil >= 0
     }).forEach(e => {
-      const eventDate = new Date(e.eventDate + (e.startTime ? `T${e.startTime}` : ''))
+      const eventDate = e.startTime ? new Date(e.eventDate + `T${e.startTime}`) : new Date(e.eventDate + 'T23:59:59')
       const daysUntil = Math.floor((eventDate.getTime() - now.getTime()) / 86400000)
       const company = companies.find(c => c.id === e.companyId)
       result.push({

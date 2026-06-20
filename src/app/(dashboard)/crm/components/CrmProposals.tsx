@@ -4,7 +4,8 @@ import React, { useState, useMemo } from 'react'
 import { useCrm, Proposal, Contract } from '../context/CrmContext'
 import { 
   FileText, Award, DollarSign, Calendar, Plus, Printer, 
-  Trash2, X, Eye, CheckCircle2, AlertTriangle, RefreshCw, Paperclip
+  Trash2, X, Eye, CheckCircle2, AlertTriangle, RefreshCw, Paperclip,
+  Brain, Sparkles, Download, Upload
 } from 'lucide-react'
 
 // Helper to provide realistic technical description for proposals based on CrepaldiDH services
@@ -35,6 +36,129 @@ const getServiceScope = (service: string): string => {
   }
 }
 
+const DEFAULT_TEMPLATE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+Pelo presente instrumento, de um lado [CREDENCIADO], doravante denominado CONTRATADA, e de outro lado [CLIENTE], doravante denominado CONTRATANTE, têm entre si justo e acertado o presente Contrato de Prestação de Serviços, mediante as cláusulas e condições seguintes:
+
+CLÁUSULA PRIMEIRA - DO OBJETO
+A CONTRATADA se obriga a prestar ao CONTRATANTE os serviços de [SERVICO], conforme escopo detalhado no Anexo I.
+
+CLÁUSULA SEGUNDA - DO PRAZO E VIGÊNCIA
+O presente contrato terá vigência de [VIGENCIA], iniciando-se em [DATA_INICIO] e encerrando-se em [DATA_FIM].
+
+CLÁUSULA TERCEIRA - DO VALOR E CONDIÇÕES DE PAGAMENTO
+O valor total do presente contrato é de R$ [VALOR], a ser pago conforme condições estabelecidas na Proposta Comercial.
+
+CLÁUSULA QUARTA - DAS OBRIGAÇÕES DA CONTRATADA
+A CONTRATADA se compromete a executar os serviços com a mais perfeita técnica e diligência, alocando profissionais qualificados e utilizando metodologias atualizadas em Desenvolvimento Humano e Organizacional.
+
+CLÁUSULA QUINTA - DAS OBRIGAÇÕES DO CONTRATANTE
+O CONTRATANTE se compromete a fornecer todas as informações necessárias, disponibilizar os recursos solicitados e garantir o acesso aos colaboradores para a execução dos serviços contratados.
+
+CLÁUSULA SEXTA - DA CONFIDENCIALIDADE
+As partes se comprometem a manter sigilo absoluto sobre todas as informações confidenciais compartilhadas durante a execução deste contrato, em conformidade com a LGPD.
+
+CLÁUSULA SÉTIMA - DA RESCISÃO
+Qualquer das partes poderá rescindir o presente contrato mediante notificação prévia de 30 (trinta) dias, sem prejuízo das obrigações já contraídas.
+
+E, por assim estarem justas e contratadas, as partes assinam o presente instrumento em 2 (duas) vias de igual teor e forma.
+
+[DATA_LOCAL], [DATA_EXTENSO]
+
+__________________________              __________________________
+CREPALDI DESENVOLVIMENTO HUMANO        CONTRATANTE`
+
+function generateAiContract(template: string, data: {
+  client: string
+  service: string
+  value: string
+  duration: string
+  startDate: string
+  endDate: string
+  local: string
+  dateExtenso: string
+}): string {
+  return template
+    .replace(/\[CREDENCIADO\]/g, 'CREPALDI DESENVOLVIMENTO HUMANO LTDA')
+    .replace(/\[CLIENTE\]/g, data.client)
+    .replace(/\[SERVICO\]/g, data.service)
+    .replace(/\[VALOR\]/g, data.value)
+    .replace(/\[VIGENCIA\]/g, data.duration)
+    .replace(/\[DATA_INICIO\]/g, data.startDate)
+    .replace(/\[DATA_FIM\]/g, data.endDate)
+    .replace(/\[DATA_LOCAL\]/g, data.local)
+    .replace(/\[DATA_EXTENSO\]/g, data.dateExtenso)
+}
+
+const DEFAULT_PROPOSAL_TEMPLATE = `PROPOSTA COMERCIAL - CREPALDI DESENVOLVIMENTO HUMANO
+
+REF: PRO-2026-[CODIGO]
+
+1. APRESENTAÇÃO
+A Crepaldi Desenvolvimento Humano apresenta sua proposta comercial para [CLIENTE], visando a prestação de serviços em Desenvolvimento Humano e Organizacional.
+
+2. OBJETO
+Prestação de serviços de [SERVICO], conforme escopo detalhado no Anexo Técnico deste documento.
+
+3. ESCOPO DO SERVIÇO
+[SCOPE]
+
+4. METODOLOGIA
+A Crepaldi DH adota abordagem humanizada e baseada em evidências, com entregas construídas em cocriação com o cliente, alinhadas à cultura corporativa e às diretrizes de compliance em SST e ESG.
+
+5. INVESTIMENTO
+O valor total da proposta é de R$ [VALOR], com vigência de [VIGENCIA].
+
+6. CONDIÇÕES DE PAGAMENTO
+- Faturamento por Nota Fiscal de Serviço
+- Pagamento via Boleto Bancário
+- Condição: [CONDICAO_PAGAMENTO]
+
+7. PRAZO DE VALIDADE
+Esta proposta tem validade de 15 (quinze) dias a contar da data de emissão.
+
+8. DADOS PARA EMPENHO
+Razão Social: CREPALDI DESENVOLVIMENTO HUMANO LTDA
+CNPJ: 00.000.000/0001-00
+Endereço: [ENDERECO]
+
+Atenciosamente,
+
+__________________________
+CREPALDI DESENVOLVIMENTO HUMANO
+Diretoria Comercial
+
+[DATA_LOCAL], [DATA_EXTENSO]`
+
+function generateAiProposal(template: string, data: {
+  client: string
+  service: string
+  scope: string
+  value: string
+  duration: string
+  local: string
+  dateExtenso: string
+  codigo: string
+}): string {
+  return template
+    .replace(/\[CLIENTE\]/g, data.client)
+    .replace(/\[SERVICO\]/g, data.service)
+    .replace(/\[SCOPE\]/g, data.scope)
+    .replace(/\[VALOR\]/g, data.value)
+    .replace(/\[VIGENCIA\]/g, data.duration)
+    .replace(/\[CONDICAO_PAGAMENTO\]/g, 'Pagamento em parcelas mensais fixas ou sinal de 50% e 50% na conclusão')
+    .replace(/\[ENDERECO\]/g, 'Campinas - SP')
+    .replace(/\[DATA_LOCAL\]/g, data.local)
+    .replace(/\[DATA_EXTENSO\]/g, data.dateExtenso)
+    .replace(/\[CODIGO\]/g, data.codigo)
+}
+
+function dateExtenso(): string {
+  const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+  const d = new Date()
+  return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`
+}
+
 export const CrmProposals: React.FC = () => {
   const { 
     proposals, contracts, companies, services,
@@ -61,6 +185,34 @@ export const CrmProposals: React.FC = () => {
   // Attachment upload fake state
   const [selectedContractForAttach, setSelectedContractForAttach] = useState<string | null>(null)
   const [fakeAttachName, setFakeAttachName] = useState('')
+
+  // AI Contract Generator State
+  const [showAiGenerator, setShowAiGenerator] = useState(false)
+  const [aiTemplate, setAiTemplate] = useState(() => {
+    try { return localStorage.getItem('crm_contract_template') || DEFAULT_TEMPLATE } catch { return DEFAULT_TEMPLATE }
+  })
+  const [aiCompanyId, setAiCompanyId] = useState('')
+  const [aiProposalId, setAiProposalId] = useState('')
+  const [aiService, setAiService] = useState('')
+  const [aiValue, setAiValue] = useState(0)
+  const [aiDuration, setAiDuration] = useState('12 meses')
+  const [aiGeneratedContract, setAiGeneratedContract] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiEditMode, setAiEditMode] = useState(false)
+
+  // AI Proposal Generator State
+  const [showAiProposalGenerator, setShowAiProposalGenerator] = useState(false)
+  const [aiPropTemplate, setAiPropTemplate] = useState(() => {
+    try { return localStorage.getItem('crm_proposal_template') || DEFAULT_PROPOSAL_TEMPLATE } catch { return DEFAULT_PROPOSAL_TEMPLATE }
+  })
+  const [aiPropCompanyId, setAiPropCompanyId] = useState('')
+  const [aiPropService, setAiPropService] = useState('')
+  const [aiPropValue, setAiPropValue] = useState(0)
+  const [aiPropDuration, setAiPropDuration] = useState('12 meses')
+  const [aiPropCondPag, setAiPropCondPag] = useState('Pagamento em parcelas mensais fixas')
+  const [aiGeneratedProposal, setAiGeneratedProposal] = useState('')
+  const [aiPropLoading, setAiPropLoading] = useState(false)
+  const [aiPropEditMode, setAiPropEditMode] = useState(false)
 
   // 2. Computed Names Mapping
   const companyNameMap = useMemo(() => {
@@ -124,13 +276,30 @@ export const CrmProposals: React.FC = () => {
         </div>
 
         {/* Action Button */}
-        {activeTab === 'proposals' && (
+        {activeTab === 'proposals' ? (
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex-1 sm:flex-none bg-brand-teal hover:bg-brand-teal/95 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Proposta
+            </button>
+            <button
+              onClick={() => { setShowAiProposalGenerator(true); setAiGeneratedProposal(''); setAiPropService(''); setAiPropValue(0); setAiPropDuration('12 meses') }}
+              className="flex-1 sm:flex-none bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-violet-600/10 hover:shadow-lg"
+            >
+              <Brain className="w-4 h-4" />
+              Gerar Proposta com IA
+            </button>
+          </div>
+        ) : (
           <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal/95 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
+            onClick={() => { setShowAiGenerator(true); setAiGeneratedContract(''); setAiProposalId(''); setAiService(''); setAiValue(0); setAiDuration('12 meses') }}
+            className="w-full sm:w-auto bg-gradient-to-r from-brand-teal to-brand-blue hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
           >
-            <Plus className="w-4 h-4" />
-            Nova Proposta
+            <Brain className="w-4 h-4" />
+            Gerar Contrato com IA
           </button>
         )}
       </div>
@@ -562,6 +731,356 @@ export const CrmProposals: React.FC = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: GERAR PROPOSTA COM IA
+          ========================================== */}
+      {showAiProposalGenerator && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-600/5 to-indigo-600/5">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-violet-600" />
+                <h3 className="text-sm font-black text-slate-800">Gerar Proposta com Inteligência Artificial</h3>
+                <span className="px-1.5 py-0.5 bg-violet-600/10 border border-violet-600/20 rounded text-[9px] font-bold text-violet-600">BETA</span>
+              </div>
+              <button onClick={() => setShowAiProposalGenerator(false)} className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left Panel - Configuration */}
+              <div className="w-1/3 border-r border-slate-100 p-4 overflow-y-auto space-y-4 bg-slate-50/30">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Empresa</label>
+                  <select value={aiPropCompanyId} onChange={e => {
+                    setAiPropCompanyId(e.target.value)
+                    const comp = companies.find(c => c.id === e.target.value)
+                    if (comp) setAiPropService(comp.segment || '')
+                  }} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    <option value="">Selecione...</option>
+                    {companies.map(c => (
+                      <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Serviço</label>
+                  <select value={aiPropService} onChange={e => setAiPropService(e.target.value)} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    {services.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Valor (R$)</label>
+                    <input type="number" value={aiPropValue || ''} onChange={e => setAiPropValue(Number(e.target.value))} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Vigência</label>
+                    <input value={aiPropDuration} onChange={e => setAiPropDuration(e.target.value)} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Condição de Pagamento</label>
+                  <select value={aiPropCondPag} onChange={e => setAiPropCondPag(e.target.value)} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    <option value="Pagamento em parcelas mensais fixas">Parcelas mensais fixas</option>
+                    <option value="Sinal de 50% e 50% na conclusão">Sinal 50% + 50% conclusão</option>
+                    <option value="Pagamento único à vista">À vista</option>
+                    <option value="Faturamento pós-entrega">Pós-entrega</option>
+                  </select>
+                </div>
+
+                <div className="border-t border-slate-200 pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase">Modelo de Proposta</label>
+                    <button onClick={() => setAiPropEditMode(!aiPropEditMode)} className="text-[9px] font-semibold text-brand-teal hover:text-brand-teal/80">
+                      {aiPropEditMode ? 'Visualizar' : 'Editar modelo'}
+                    </button>
+                  </div>
+                  {aiPropEditMode ? (
+                    <textarea value={aiPropTemplate} onChange={e => { setAiPropTemplate(e.target.value); localStorage.setItem('crm_proposal_template', e.target.value) }}
+                      className="w-full text-[10px] border border-slate-200 rounded-lg px-3 py-2 h-60 font-mono focus:outline-none focus:ring-2 focus:ring-brand-teal/20 resize-none" />
+                  ) : (
+                    <pre className="w-full text-[10px] text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 h-60 overflow-y-auto font-mono whitespace-pre-wrap">{aiPropTemplate}</pre>
+                  )}
+                </div>
+
+                <button onClick={() => {
+                  if (!aiPropCompanyId) { alert('Selecione uma empresa.'); return }
+                  if (!aiPropService) { alert('Informe o serviço.'); return }
+                  setAiPropLoading(true)
+                  setTimeout(() => {
+                    const comp = companies.find(c => c.id === aiPropCompanyId)
+                    const hoje = new Date()
+                    const local = comp ? `${comp.city} - ${comp.state}` : 'Campinas - SP'
+                    const generated = generateAiProposal(aiPropTemplate, {
+                      client: comp?.name || 'CLIENTE',
+                      service: aiPropService,
+                      scope: getServiceScope(aiPropService),
+                      value: aiPropValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                      duration: aiPropDuration,
+                      local,
+                      dateExtenso: dateExtenso(),
+                      codigo: String(Date.now()).slice(-6),
+                    })
+                    setAiGeneratedProposal(generated)
+                    setAiPropLoading(false)
+                  }, 1200)
+                }} disabled={aiPropLoading || !aiPropCompanyId}
+                  className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[11px] font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5">
+                  {aiPropLoading ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando proposta...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5" /> Gerar Proposta com IA</>
+                  )}
+                </button>
+              </div>
+
+              {/* Right Panel - Generated Proposal Preview */}
+              <div className="flex-1 flex flex-col">
+                <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase">
+                    {aiGeneratedProposal ? 'Proposta Gerada' : 'Pré-visualização'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {aiGeneratedProposal && (
+                      <>
+                        <button onClick={() => {
+                          const blob = new Blob([aiGeneratedProposal], { type: 'text/plain' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = `proposta_${(companies.find(c => c.id === aiPropCompanyId)?.name || 'cliente').replace(/\s+/g, '_')}.txt`
+                          a.click(); URL.revokeObjectURL(url)
+                        }} className="px-3 py-1.5 bg-brand-teal text-white text-[9px] font-bold rounded-lg hover:bg-brand-teal/90 flex items-center gap-1">
+                          <Download className="w-3 h-3" /> Baixar .txt
+                        </button>
+                        <button onClick={() => {
+                          if (!aiPropCompanyId) return
+                          const comp = companies.find(c => c.id === aiPropCompanyId)
+                          addProposal({
+                            companyId: aiPropCompanyId,
+                            service: aiPropService,
+                            value: aiPropValue,
+                            duration: aiPropDuration,
+                            status: 'draft',
+                            notes: `Proposta gerada por IA em ${new Date().toLocaleDateString('pt-BR')}. Condição: ${aiPropCondPag}`,
+                          })
+                          setShowAiProposalGenerator(false)
+                        }} className="px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Salvar Proposta
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  {aiGeneratedProposal ? (
+                    <pre className="text-[11px] font-sans text-slate-800 whitespace-pre-wrap leading-relaxed">{aiGeneratedProposal}</pre>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-400">
+                      <div className="text-center">
+                        <Brain className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                        <p className="text-xs font-medium">Preencha os dados ao lado e clique em</p>
+                        <p className="text-xs font-bold text-violet-600 mt-1">"Gerar Proposta com IA"</p>
+                        <p className="text-[10px] text-slate-400 mt-3">A proposta será gerada com base no modelo definido</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: GERAR CONTRATO COM IA
+          ========================================== */}
+      {showAiGenerator && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-brand-teal/5 to-brand-blue/5">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-brand-teal" />
+                <h3 className="text-sm font-black text-slate-800">Gerar Contrato com Inteligência Artificial</h3>
+                <span className="px-1.5 py-0.5 bg-brand-teal/10 border border-brand-teal/20 rounded text-[9px] font-bold text-brand-teal">BETA</span>
+              </div>
+              <button onClick={() => setShowAiGenerator(false)} className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left Panel - Configuration */}
+              <div className="w-1/3 border-r border-slate-100 p-4 overflow-y-auto space-y-4 bg-slate-50/30">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Empresa</label>
+                  <select value={aiCompanyId} onChange={e => {
+                    setAiCompanyId(e.target.value)
+                    const comp = companies.find(c => c.id === e.target.value)
+                    if (comp) setAiService(comp.segment || '')
+                  }} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    <option value="">Selecione...</option>
+                    {companies.map(c => (
+                      <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Proposta (opcional)</label>
+                  <select value={aiProposalId} onChange={e => {
+                    const pid = e.target.value
+                    setAiProposalId(pid)
+                    const prop = proposals.find(p => p.id === pid)
+                    if (prop) { setAiService(prop.service); setAiValue(prop.value); setAiDuration(prop.duration) }
+                  }} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    <option value="">Sem proposta vinculada</option>
+                    {proposals.filter(p => !aiCompanyId || p.companyId === aiCompanyId).map(p => (
+                      <option key={p.id} value={p.id}>{p.service} — R$ {p.value.toLocaleString('pt-BR')}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Serviço</label>
+                  <input value={aiService} onChange={e => setAiService(e.target.value)} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" placeholder="Ex: NR-01, Mentoria, SIPAT" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Valor (R$)</label>
+                    <input type="number" value={aiValue || ''} onChange={e => setAiValue(Number(e.target.value))} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Vigência</label>
+                    <input value={aiDuration} onChange={e => setAiDuration(e.target.value)} className="w-full text-[11px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase">Modelo de Contrato</label>
+                    <button onClick={() => setAiEditMode(!aiEditMode)} className="text-[9px] font-semibold text-brand-teal hover:text-brand-teal/80">
+                      {aiEditMode ? 'Visualizar' : 'Editar modelo'}
+                    </button>
+                  </div>
+                  {aiEditMode ? (
+                    <textarea value={aiTemplate} onChange={e => { setAiTemplate(e.target.value); localStorage.setItem('crm_contract_template', e.target.value) }}
+                      className="w-full text-[10px] border border-slate-200 rounded-lg px-3 py-2 h-60 font-mono focus:outline-none focus:ring-2 focus:ring-brand-teal/20 resize-none" />
+                  ) : (
+                    <pre className="w-full text-[10px] text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 h-60 overflow-y-auto font-mono whitespace-pre-wrap">{aiTemplate}</pre>
+                  )}
+                </div>
+
+                <button onClick={() => {
+                  if (!aiCompanyId) { alert('Selecione uma empresa.'); return }
+                  if (!aiService) { alert('Informe o serviço.'); return }
+                  setAiLoading(true)
+                  setTimeout(() => {
+                    const comp = companies.find(c => c.id === aiCompanyId)
+                    const hoje = new Date()
+                    const fim = new Date(hoje)
+                    const meses = aiDuration.match(/(\d+)\s*meses?/)
+                    if (meses) fim.setMonth(fim.getMonth() + parseInt(meses[1]))
+                    else fim.setFullYear(fim.getFullYear() + 1)
+                    const startStr = hoje.toLocaleDateString('pt-BR')
+                    const endStr = fim.toLocaleDateString('pt-BR')
+                    const local = comp ? `${comp.city} - ${comp.state}` : 'Campinas - SP'
+                    const generated = generateAiContract(aiTemplate, {
+                      client: comp?.name || 'CLIENTE',
+                      service: aiService,
+                      value: aiValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                      duration: aiDuration,
+                      startDate: startStr,
+                      endDate: endStr,
+                      local,
+                      dateExtenso: dateExtenso(),
+                    })
+                    setAiGeneratedContract(generated)
+                    setAiLoading(false)
+                  }, 1200)
+                }} disabled={aiLoading || !aiCompanyId}
+                  className="w-full py-2.5 bg-gradient-to-r from-brand-teal to-brand-blue text-white text-[11px] font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5">
+                  {aiLoading ? (
+                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando contrato...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5" /> Gerar Contrato com IA</>
+                  )}
+                </button>
+              </div>
+
+              {/* Right Panel - Generated Contract Preview */}
+              <div className="flex-1 flex flex-col">
+                <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase">
+                    {aiGeneratedContract ? 'Contrato Gerado' : 'Pré-visualização'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {aiGeneratedContract && (
+                      <>
+                        <button onClick={() => {
+                          const blob = new Blob([aiGeneratedContract], { type: 'text/plain' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = `contrato_${(companies.find(c => c.id === aiCompanyId)?.name || 'cliente').replace(/\s+/g, '_')}.txt`
+                          a.click(); URL.revokeObjectURL(url)
+                        }} className="px-3 py-1.5 bg-brand-teal text-white text-[9px] font-bold rounded-lg hover:bg-brand-teal/90 flex items-center gap-1">
+                          <Download className="w-3 h-3" /> Baixar .txt
+                        </button>
+                        <button onClick={() => {
+                          if (!aiCompanyId) return
+                          const comp = companies.find(c => c.id === aiCompanyId)
+                          const newContract = addContract({
+                            companyId: aiCompanyId,
+                            title: `Contrato - ${aiService} - ${comp?.tradeName || 'Cliente'}`,
+                            value: aiValue,
+                            startDate: new Date().toISOString().split('T')[0],
+                            endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                            autoRenew: true,
+                            status: 'draft',
+                            attachments: [`contrato_gerado_ia_${Date.now()}.txt`],
+                          })
+                          try {
+                            const stored = JSON.parse(localStorage.getItem('crm_contracts') || '[]')
+                            const idx = stored.findIndex((c: any) => c.id === newContract.id)
+                            if (idx !== -1) {
+                              stored[idx].attachments = stored[idx].attachments || []
+                              stored[idx].attachments.push(`contrato_gerado_ia_${Date.now()}.txt`)
+                              localStorage.setItem('crm_contracts', JSON.stringify(stored))
+                            }
+                          } catch {}
+                          setShowAiGenerator(false)
+                        }} className="px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Salvar Contrato
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  {aiGeneratedContract ? (
+                    <pre className="text-[11px] font-sans text-slate-800 whitespace-pre-wrap leading-relaxed">{aiGeneratedContract}</pre>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-400">
+                      <div className="text-center">
+                        <Brain className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                        <p className="text-xs font-medium">Preencha os dados ao lado e clique em</p>
+                        <p className="text-xs font-bold text-brand-teal mt-1">"Gerar Contrato com IA"</p>
+                        <p className="text-[10px] text-slate-400 mt-3">O contrato será gerado com base no modelo definido</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

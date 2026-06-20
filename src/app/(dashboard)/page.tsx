@@ -167,7 +167,7 @@ export default function DashboardPage() {
             <td style="padding:6px"></td>
             <td style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px">
               <p style="font-size:10px;color:#94a3b8;margin:0">Receita do Período</p>
-              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">R$ ${(totalReceived || trainingRevenue).toLocaleString('pt-BR')}</p>
+              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">R$ ${(totalReceived > 0 ? totalReceived : trainingRevenue).toLocaleString('pt-BR')}</p>
             </td>
           </tr>
         </table>
@@ -331,7 +331,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const revenueValue = totalReceived || trainingRevenue || projects.reduce((acc, p) => acc + p.budget, 0)
+  const revenueValue = totalReceived > 0 ? totalReceived : trainingRevenue > 0 ? trainingRevenue : projects.reduce((acc, p) => acc + p.budget, 0)
 
   const stats = [
     { label: "Total de Clientes", value: companies.length.toString(), icon: Users, color: "bg-blue-500", trend: companies.length > 0 ? `${companies.filter(c => c.status === 'active').length} ativos` : '0 ativos' },

@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "CrepaldiDH - SaaS/ERP",
-  description: "Sistema de Gestão Empresarial e Saúde Ocupacional",
+  description: "Sistema de Gestão Empresarial — CrepaldiDH",
 };
 
 export default function RootLayout({

@@ -1,10 +1,12 @@
+'use client'
+
 import Link from "next/link"
 import Image from "next/image"
-import { 
+import { useAdmin, type ModuleName } from "@/app/(dashboard)/admin/context/AdminContext"
+import {
   LayoutDashboard, 
   Users, 
   Briefcase, 
-  ShieldAlert, 
   GraduationCap, 
   CircleDollarSign, 
   CalendarDays, 
@@ -13,31 +15,41 @@ import {
   Brain,
   CheckSquare,
   Bell,
-  Upload
+  Upload,
+  Building2,
+  Key
 } from "lucide-react"
-import { LogoutButton } from "./LogoutButton"
 
-const menuItems = [
+interface MenuItem {
+  name: string
+  href: string
+  icon: React.ElementType
+  module?: ModuleName
+}
+
+const menuItems: MenuItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Gestão de Pessoas", href: "/crm", icon: Users },
-  { name: "Clientes", href: "/clients", icon: Users },
-  { name: "Projetos", href: "/projects", icon: Briefcase },
-  { name: "Tarefas", href: "/tasks", icon: CheckSquare },
-  { name: "Alertas", href: "/alerts", icon: Bell },
-  { name: "Saúde Ocupacional", href: "/occupational", icon: ShieldAlert },
-  { name: "Treinamentos", href: "/trainings", icon: GraduationCap },
-  { name: "Mentorias & PDI", href: "/mentoring", icon: Brain },
-  { name: "Financeiro", href: "/financial", icon: CircleDollarSign },
-  { name: "Agenda", href: "/calendar", icon: CalendarDays },
-  { name: "Documentos", href: "/documents", icon: FileText },
-  { name: "Importação", href: "/import", icon: Upload },
+  { name: "Gestão de Pessoas", href: "/crm", icon: Users, module: 'crm' },
+  { name: "Clientes", href: "/clients", icon: Users, module: 'clients' },
+  { name: "Projetos", href: "/projects", icon: Briefcase, module: 'projects' },
+  { name: "Tarefas", href: "/tasks", icon: CheckSquare, module: 'tasks' },
+  { name: "Alertas", href: "/alerts", icon: Bell, module: 'alerts' },
+  { name: "Assessoria Empresarial", href: "/assessoria", icon: Building2, module: 'assessoria' },
+  { name: "Acesso Temporário", href: "/acesso-temporario", icon: Key },
+  { name: "Treinamentos", href: "/trainings", icon: GraduationCap, module: 'trainings' },
+  { name: "Mentorias & PDI", href: "/mentoring", icon: Brain, module: 'mentoring' },
+  { name: "Financeiro", href: "/financial", icon: CircleDollarSign, module: 'financial' },
+  { name: "Agenda", href: "/calendar", icon: CalendarDays, module: 'calendar' },
+  { name: "Documentos", href: "/documents", icon: FileText, module: 'documents' },
+  { name: "Importação", href: "/import", icon: Upload, module: 'import' },
+  { name: "Configurações", href: "/settings", icon: Settings, module: 'admin' },
 ]
 
 export function Sidebar() {
+  const admin = useAdmin()
   return (
     <aside className="w-64 bg-brand-blue text-slate-300 flex flex-col h-screen fixed top-0 left-0 shadow-2xl z-20">
-      <div className="h-20 flex items-center justify-center px-4 relative overflow-hidden">
-        {/* Subtle background glow for the logo area */}
+      <div className="h-20 flex items-center justify-center px-4 relative overflow-hidden shrink-0">
         <div className="absolute inset-0 bg-brand-teal/10 blur-2xl rounded-full scale-150 transform -translate-y-1/2"></div>
         <Link href="/" className="relative z-10 flex items-center justify-center w-full h-full p-2 hover:scale-105 transition-transform duration-300">
           <Image 
@@ -53,7 +65,7 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 overflow-y-auto py-3 custom-scrollbar">
         <ul className="space-y-0.5 px-4">
-          {menuItems.map((item) => (
+          {menuItems.filter(item => !item.module || admin.checkPermission(item.module, 'view')).map((item) => (
             <li key={item.name}>
               <Link 
                 href={item.href}
@@ -67,16 +79,6 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-      <div className="p-3 border-t border-white/10 space-y-0.5">
-        <Link 
-          href="/settings"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-brand-blue-light hover:text-white transition-all duration-300"
-        >
-          <Settings className="w-5 h-5 text-slate-400" />
-          <span className="text-sm font-medium">Configurações</span>
-        </Link>
-        <LogoutButton />
-      </div>
     </aside>
   )
 }

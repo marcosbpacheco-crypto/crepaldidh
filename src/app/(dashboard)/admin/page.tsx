@@ -20,7 +20,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   crm: 'CRM', clients: 'Clientes', projects: 'Projetos', nr01: 'NR-01',
   mentoring: 'Mentorias', trainings: 'Treinamentos', financial: 'Financeiro',
   calendar: 'Agenda', portal: 'Portal', documents: 'Documentos', bi: 'BI', ai: 'IA', admin: 'Admin',
-  tasks: 'Tarefas', alerts: 'Alertas', import: 'Importação',
+  tasks: 'Tarefas', alerts: 'Alertas', import: 'Importação', assessoria: 'Assessoria Empresarial',
 }
 
 const ACTION_LABELS: Record<string, string> = {
