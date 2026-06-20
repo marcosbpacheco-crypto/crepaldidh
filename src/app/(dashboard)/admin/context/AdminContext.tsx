@@ -216,7 +216,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [lgpdConsents, setLgpdConsents] = useState<LgpdConsent[]>([])
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequest[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | null>('user-admin')
+  const [currentUserId, setCurrentUserIdState] = useState<string | null>(null)
+
+  const setCurrentUserId = useCallback((id: string | null) => {
+    setCurrentUserIdState(id)
+    try {
+      if (id) {
+        const usersData = JSON.parse(localStorage.getItem('admin_users') || '[]')
+        const user = usersData.find((u: User) => u.id === id)
+        if (user) {
+          localStorage.setItem('current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, roleId: user.roleId, roleName: user.roleName }))
+        }
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     try {
@@ -225,7 +238,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
       const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
       const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
-    } catch { setUsers(SEED_USERS); setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents()); setPrivacyRequests(seedPrivacyRequests()) }
+      const stored = localStorage.getItem('current_user')
+      if (stored) {
+        const cu = JSON.parse(stored)
+        setCurrentUserId(cu.id || 'user-admin')
+      } else {
+        setCurrentUserId('user-admin')
+      }
+    } catch { setUsers(SEED_USERS); setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents()); setPrivacyRequests(seedPrivacyRequests()); setCurrentUserId('user-admin') }
   }, [])
 
   useEffect(() => { try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {} }, [users])
@@ -278,10 +298,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     if (user.roleName === 'Administrador') return true
     const rolePerms = getPermissionsForRole(user.roleId).filter(p => p.module === module)
     const userPerms = getPermissionsForUser(uid).filter(p => p.module === module)
-    const allPerms = [...rolePerms, ...userPerms]
     const fieldMap: Record<string, keyof Permission> = { view: 'canView', create: 'canCreate', edit: 'canEdit', delete: 'canDelete', export: 'canExport' }
     const field = fieldMap[action]
-    return allPerms.some(p => p[field])
+    if (userPerms.length > 0) return userPerms.some(p => p[field])
+    return rolePerms.some(p => p[field])
   }, [currentUserId, users, getPermissionsForRole, getPermissionsForUser])
 
   const setUserPermission = useCallback((userId: string, module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => {
