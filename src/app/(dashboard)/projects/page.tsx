@@ -36,41 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
   pausado: 'Pausado',
 }
 
-const SEED_PROJECTS: Project[] = [
-  {
-    id: 'proj-1',
-    name: 'PGR e Clima Organizacional',
-    companyId: 'comp-2',
-    companyName: 'Vale S.A.',
-    description: 'Programa de Gerenciamento de Riscos e Pesquisa de Clima com foco em saúde mental e segurança psicológica.',
-    startDate: '2026-03-01',
-    endDate: '2026-09-30',
-    status: 'em_andamento',
-    budget: 120000,
-  },
-  {
-    id: 'proj-2',
-    name: 'Programa DHO Anual BR Distribuidora',
-    companyId: 'comp-1',
-    companyName: 'BR Distribuidora',
-    description: 'Contrato anual de Desenvolvimento Humano e Organizacional: palestras, treinamentos e mentoria de líderes.',
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
-    status: 'em_andamento',
-    budget: 85000,
-  },
-  {
-    id: 'proj-3',
-    name: 'Workshop de Alta Performance Itaú',
-    companyId: 'comp-3',
-    companyName: 'Banco Itaú',
-    description: 'Série de workshops de segurança psicológica e alta performance para times de tecnologia.',
-    startDate: '2026-05-01',
-    endDate: '2026-07-31',
-    status: 'concluido',
-    budget: 45000,
-  },
-]
+const SEED_PROJECTS: Project[] = []
 
 export default function ProjectsPage() {
   const { events } = useTrainings()

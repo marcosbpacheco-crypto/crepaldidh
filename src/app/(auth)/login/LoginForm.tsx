@@ -1,26 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { localLogin } from './actions'
+import { setSessionCookie, syncUsersToCookie, getUsersFromCookie } from './actions'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
-import Image from 'next/image'
 import type { User } from '@/app/(dashboard)/admin/context/AdminContext'
 
-const DEFAULT_PASS = '123456'
-const SEED_USERS: User[] = [
-  { id: 'user-admin', name: 'Marcos Crepaldi', email: 'marcos@crepaldidh.com.br', phone: '(11) 99999-0001', avatar: 'MC', roleId: 'role-admin', roleName: 'Administrador', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: true, createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-dir', name: 'Ana Oliveira', email: 'ana@crepaldidh.com.br', phone: '(11) 99999-0002', avatar: 'AO', roleId: 'role-director', roleName: 'Diretor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-02-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-cons', name: 'Carlos Souza', email: 'carlos@crepaldidh.com.br', phone: '(11) 99999-0003', avatar: 'CS', roleId: 'role-consultant', roleName: 'Consultor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-comm', name: 'Bruno Crepaldi', email: 'bruno@crepaldidh.com.br', phone: '(11) 99999-0004', avatar: 'BC', roleId: 'role-commercial', roleName: 'Comercial', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-01-15T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-fin', name: 'Cláudio Santos', email: 'claudio@crepaldidh.com.br', phone: '(11) 99999-0005', avatar: 'CS', roleId: 'role-finance', roleName: 'Financeiro', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-04-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-rh', name: 'Mariana Souza', email: 'mariana@crepaldidh.com.br', phone: '(11) 99999-0006', avatar: 'MS', roleId: 'role-rh', roleName: 'RH', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-05-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-dho', name: 'Juliana Costa', email: 'juliana@crepaldidh.com.br', phone: '(11) 99999-0008', avatar: 'JC', roleId: 'role-dho', roleName: 'Analista de DHO', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-op', name: 'Ricardo Lima', email: 'ricardo@crepaldidh.com.br', phone: '(11) 99999-0007', avatar: 'RL', roleId: 'role-operational', roleName: 'Operacional', isExternal: false, active: false, password: DEFAULT_PASS, loginAttempts: 3, mfaEnabled: false, createdAt: '2025-06-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-client-rh', name: 'Mariana Souza (Cliente)', email: 'mariana@br.com.br', phone: '(21) 99999-1001', avatar: 'MS', roleId: 'role-client-rh', roleName: 'Cliente - RH', isExternal: true, companyId: 'comp-1', companyName: 'BR Distribuidora', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-01T00:00:00Z', tenantId: 'tnt-br' },
-  { id: 'user-client-dir', name: 'Roberto Santos (Cliente)', email: 'roberto@vale.com', phone: '(31) 99999-1002', avatar: 'RS', roleId: 'role-client-director', roleName: 'Cliente - Diretoria', isExternal: true, companyId: 'comp-2', companyName: 'Vale S.A.', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-15T00:00:00Z', tenantId: 'tnt-vale' },
-  { id: 'user-client-gest', name: 'Patrícia Lima (Cliente)', email: 'patricia@itau.com.br', phone: '(11) 99999-1003', avatar: 'PL', roleId: 'role-client-manager', roleName: 'Cliente - Gestor', isExternal: true, companyId: 'comp-3', companyName: 'Banco Itaú', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-01T00:00:00Z', tenantId: 'tnt-itau' },
-  { id: 'user-client-fin', name: 'Eduardo Silveira (Cliente)', email: 'eduardo@gerdau.com', phone: '(51) 99999-1004', avatar: 'ES', roleId: 'role-client-finance', roleName: 'Cliente - Financeiro', isExternal: true, companyId: 'comp-4', companyName: 'Gerdau', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-15T00:00:00Z', tenantId: 'tnt-gerdau' },
-]
+// BOOTSTRAP_ADMIN — unico usuario de bootstrap para primeiro acesso.
+// Usado SOMENTE quando nao ha nenhum dado em localStorage nem no servidor.
+// Nunca e reinserido apos o primeiro login — usuarios deletados permanecem deletados.
+const BOOTSTRAP_ADMIN: User = {
+  id: 'user-admin', name: 'Administrador Master', email: 'admin@crepaldidh.com.br',
+  phone: '(11) 99999-0000', avatar: 'AD', roleId: 'role-admin', roleName: 'Administrador',
+  isExternal: false, active: true, password: 'admin123', loginAttempts: 0, mfaEnabled: false,
+  createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi',
+}
 
 export function LoginForm() {
   const [email, setEmail] = useState('')
@@ -30,23 +23,72 @@ export function LoginForm() {
   const [showForgot, setShowForgot] = useState(false)
   const [recoverySent, setRecoverySent] = useState(false)
 
+  // Fetch users from server store (cross-device sync) on mount
+  const [serverUsers, setServerUsers] = useState<User[]>([])
+  useEffect(() => {
+    getUsersFromCookie().then(json => {
+      if (json) {
+        try {
+          const parsed = JSON.parse(json)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setServerUsers(parsed)
+          }
+        } catch {}
+      }
+    }).catch(() => {})
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setPending(true)
 
-    // Use localStorage users (saved by AdminContext) with fallback to seed users
-    let users: User[] = SEED_USERS
-    try {
-      const stored = localStorage.getItem('admin_users')
-      if (stored) users = JSON.parse(stored)
-    } catch {}
-
     const emailNorm = email.trim().toLowerCase()
     const passNorm = password.trim()
-    const user = users.find(u => u.email.trim().toLowerCase() === emailNorm && u.password === passNorm)
+
+    // Try to fetch latest users from server store in case useEffect hasn't completed yet
+    let liveServerUsers = serverUsers
+    if (liveServerUsers.length === 0) {
+      try {
+        const json = await getUsersFromCookie()
+        if (json) {
+          const parsed = JSON.parse(json)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            liveServerUsers = parsed
+          }
+        }
+      } catch {}
+    }
+
+    // Read users from localStorage (set by AdminContext) — fonte de verdade
+    let storedUsers: User[] = []
+    try {
+      const stored = localStorage.getItem('admin_users')
+      if (stored) storedUsers = JSON.parse(stored)
+    } catch {}
+
+    const hasLocalData = storedUsers.length > 0
+    const hasServerData = liveServerUsers.length > 0
+
+    // Determinar se e bootstrap (primeiro acesso, nenhum dado existe)
+    const isBootstrap = !hasLocalData && !hasServerData
+    const availableUsers = isBootstrap ? [BOOTSTRAP_ADMIN] : [...liveServerUsers, ...storedUsers]
+
+    // Find user by email
+    const user = availableUsers.find(u => u.email.trim().toLowerCase() === emailNorm)
 
     if (!user) {
+      setError('E-mail ou senha inválidos.')
+      setPending(false)
+      return
+    }
+
+    // Verificar senha
+    const sourcePass = isBootstrap
+      ? BOOTSTRAP_ADMIN.password
+      : (storedUsers.find(u => u.id === user.id)?.password || liveServerUsers.find(u => u.id === user.id)?.password)
+
+    if (!sourcePass || passNorm !== sourcePass) {
       setError('E-mail ou senha inválidos.')
       setPending(false)
       return
@@ -58,34 +100,57 @@ export function LoginForm() {
       return
     }
 
+    // Construir lista final: localStorage sempre vence sobre dados do servidor
+    // NUNCA inclui BOOTSTRAP_ADMIN ou seed — usuarios deletados permanecem deletados
+    const mergedMap = new Map<string, User>()
+    liveServerUsers.forEach(u => mergedMap.set(u.id, u))
+    storedUsers.forEach(u => mergedMap.set(u.id, u))
+    // Se for bootstrap, adiciona o admin ao mapa para persistir
+    if (isBootstrap) {
+      const bootstrapUser = { ...BOOTSTRAP_ADMIN, password: passNorm }
+      mergedMap.set(bootstrapUser.id, bootstrapUser)
+    }
+    // Atualizar senha para o valor digitado
+    if (mergedMap.has(user.id)) {
+      mergedMap.get(user.id)!.password = passNorm
+    }
+    const mergedUsers = [...mergedMap.values()]
+
     // Update lastLogin
     user.lastLogin = new Date().toISOString()
-    try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {}
+    try { localStorage.setItem('admin_users', JSON.stringify(mergedUsers)) } catch {}
 
-    // Store current user info for the app to use
+    // Store current user info
     localStorage.setItem('current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, roleId: user.roleId, roleName: user.roleName }))
 
-    // Call server action to set session cookie and redirect
-    await localLogin(user.id, user.name, user.roleName)
-    // Fallback redirect (in case server action doesn't redirect)
+    // Set session cookie via server action + client-side fallback
+    try { await setSessionCookie(user.id, user.name, user.roleName) } catch {}
+    document.cookie = `sb-mock-session=${JSON.stringify({ userId: user.id, userName: user.name, userRole: user.roleName })}; path=/; max-age=86400`
+
+    // Sync merged user list to server store (cookie + in-memory) so all devices see the latest users
+    try { await syncUsersToCookie(JSON.stringify(mergedUsers)) } catch {}
+    document.cookie = `admin_users_cache=${JSON.stringify(mergedUsers)}; path=/; max-age=${86400 * 30}`
+
     window.location.href = '/'
   }
 
   const handleForgotPassword = () => {
-    let users: User[] = SEED_USERS
+    let storedUsers: User[] = []
     try {
       const stored = localStorage.getItem('admin_users')
-      if (stored) users = JSON.parse(stored)
+      if (stored) storedUsers = JSON.parse(stored)
     } catch {}
 
-    const targetUser = users.find(u => u.email === email)
+    // Find user by email — apenas dados reais, nunca seed mock
+    const targetUser = storedUsers.find(u => u.email === email)
+
     if (!targetUser) {
       setError('E-mail não encontrado no sistema.')
       return
     }
 
     // Find admins and directors to notify
-    const adminsAndDirectors = users.filter(u =>
+    const adminsAndDirectors = storedUsers.filter(u =>
       (u.roleName === 'Administrador' || u.roleName === 'Diretor') && u.active
     )
 
@@ -138,6 +203,11 @@ export function LoginForm() {
               id="email"
               name="email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -167,6 +237,10 @@ export function LoginForm() {
               id="password"
               name="password"
               type="password"
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               required
               value={password}
               onChange={e => setPassword(e.target.value)}

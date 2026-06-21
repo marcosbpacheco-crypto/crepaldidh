@@ -83,31 +83,31 @@ const AssessoriaContext = createContext<AssessoriaContextType | undefined>(undef
 
 function gid(): string { return 'ass-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6) }
 
-const SEED_DIAGNOSTICOS: Diagnostico[] = [
-  { id: 'diag-1', titulo: 'Diagnóstico Cultural', empresa: 'BR Distribuidora', responsavel: 'Marcos Crepaldi', areasAvaliadas: ['Liderança', 'Comunicação', 'Clima Organizacional'], pontuacaoGeral: 72, status: 'concluido', dataCriacao: '2026-03-15T00:00:00Z', observacoes: 'Necessidade de fortalecer canais de comunicação interna.' },
-  { id: 'diag-2', titulo: 'Mapeamento de Competências', empresa: 'Vale S.A.', responsavel: 'Ana Oliveira', areasAvaliadas: ['Técnicas', 'Comportamentais', 'Gerenciais'], pontuacaoGeral: 65, status: 'rascunho', dataCriacao: '2026-04-01T00:00:00Z', observacoes: 'Aguardando aplicação dos questionários.' },
-]
+const SEED_DIAGNOSTICOS: Diagnostico[] = []
 
-const SEED_OKRS: Okr[] = [
-  { id: 'okr-1', objetivo: 'Fortalecer cultura de inovação', empresa: 'BR Distribuidora', ciclo: '2026.Q1', keyResults: [{ descricao: 'Workshops realizados', meta: 12, atual: 8, unidade: 'un' }, { descricao: 'Colaboradores engajados', meta: 200, atual: 145, unidade: 'un' }], status: 'ativo', dataCriacao: '2026-01-10T00:00:00Z' },
-  { id: 'okr-2', objetivo: 'Reduzir turnover em 20%', empresa: 'Banco Itaú', ciclo: '2026.Q2', keyResults: [{ descricao: 'Pesquisa de clima aplicada', meta: 1, atual: 1, unidade: 'un' }, { descricao: 'Planos de ação implementados', meta: 10, atual: 4, unidade: 'un' }], status: 'ativo', dataCriacao: '2026-04-01T00:00:00Z' },
-]
+const SEED_OKRS: Okr[] = []
 
-const SEED_SWOTS: Swot[] = [
-  { id: 'swot-1', empresa: 'BR Distribuidora', forcas: ['Marca consolidada', 'Equipe técnica qualificada'], fraquezas: ['Processos manuais', 'Baixa digitalização'], oportunidades: ['Expansão para novos mercados', 'Incentivos fiscais'], ameacas: ['Concorrência agressiva', 'Mudanças regulatórias'], dataCriacao: '2026-02-20T00:00:00Z' },
-  { id: 'swot-2', empresa: 'Vale S.A.', forcas: ['Liderança de mercado', 'Capital robusto'], fraquezas: ['Estrutura hierárquica rígida'], oportunidades: ['Inovação em sustentabilidade', 'Parcerias estratégicas'], ameacas: ['Crise econômica', 'Pressão sindical'], dataCriacao: '2026-03-10T00:00:00Z' },
-]
+const SEED_SWOTS: Swot[] = []
 
-const SEED_PLANOS_ACAO: PlanoAcao[] = [
-  { id: 'plan-1', titulo: 'Melhoria do Clima Organizacional', empresa: 'BR Distribuidora', responsavel: 'Juliana Costa', itens: [{ acao: 'Realizar pesquisa de clima', prazo: '2026-05-30', responsavel: 'RH', status: 'concluido' }, { acao: 'Criar canal de denúncias', prazo: '2026-06-15', responsavel: 'Compliance', status: 'andamento' }, { acao: 'Implementar programa de reconhecimento', prazo: '2026-07-30', responsavel: 'DHO', status: 'pendente' }], status: 'ativo', dataCriacao: '2026-04-05T00:00:00Z' },
-  { id: 'plan-2', titulo: 'Digitalização de Processos', empresa: 'Vale S.A.', responsavel: 'Carlos Souza', itens: [{ acao: 'Mapear processos críticos', prazo: '2026-05-15', responsavel: 'TI', status: 'concluido' }, { acao: 'Selecionar ferramenta de gestão', prazo: '2026-06-30', responsavel: 'Gestão', status: 'andamento' }], status: 'ativo', dataCriacao: '2026-04-10T00:00:00Z' },
-]
+const SEED_PLANOS_ACAO: PlanoAcao[] = []
 
-const SEED_KPIS: Kpi[] = [
-  { id: 'kpi-1', nome: 'Satisfação dos Colaboradores', empresa: 'BR Distribuidora', meta: 85, atual: 72, unidade: '%', periodo: '2026.Q1', tendencia: 'subindo' },
-  { id: 'kpi-2', nome: 'Taxa de Conclusão de Treinamentos', empresa: 'Vale S.A.', meta: 90, atual: 78, unidade: '%', periodo: '2026.Q1', tendencia: 'estavel' },
-  { id: 'kpi-3', nome: 'Índice de Inovação', empresa: 'Banco Itaú', meta: 70, atual: 55, unidade: '%', periodo: '2026.Q2', tendencia: 'subindo' },
-]
+const SEED_KPIS: Kpi[] = []
+
+function getCrmCompanyNames(): string[] {
+  try {
+    const raw = localStorage.getItem('crm_companies')
+    if (!raw) return []
+    const companies: { name?: string; tradeName?: string }[] = JSON.parse(raw)
+    const names = new Set<string>()
+    companies.forEach(c => { if (c.name) names.add(c.name.toLowerCase().trim()); if (c.tradeName) names.add(c.tradeName.toLowerCase().trim()) })
+    return [...names]
+  } catch { return [] }
+}
+
+function filterOrphans<T extends { empresa: string }>(items: T[], companies: string[]): T[] {
+  if (!companies.length) return items
+  return items.filter(item => companies.includes(item.empresa.toLowerCase().trim()))
+}
 
 export function AssessoriaProvider({ children }: { children: React.ReactNode }) {
   const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([])
@@ -116,15 +116,27 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
   const [planosAcao, setPlanosAcao] = useState<PlanoAcao[]>([])
   const [kpis, setKpis] = useState<Kpi[]>([])
 
-  useEffect(() => {
+  // Load + filter on init and whenever CRM companies change
+  const loadAndFilter = useCallback(() => {
+    const companies = getCrmCompanyNames()
+    const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+
     try {
-      const d = localStorage.getItem('ass_diagnosticos'); if (d) setDiagnosticos(JSON.parse(d)); else setDiagnosticos(SEED_DIAGNOSTICOS)
-      const o = localStorage.getItem('ass_okrs'); if (o) setOkrs(JSON.parse(o)); else setOkrs(SEED_OKRS)
-      const s = localStorage.getItem('ass_swots'); if (s) setSwots(JSON.parse(s)); else setSwots(SEED_SWOTS)
-      const p = localStorage.getItem('ass_planos_acao'); if (p) setPlanosAcao(JSON.parse(p)); else setPlanosAcao(SEED_PLANOS_ACAO)
-      const k = localStorage.getItem('ass_kpis'); if (k) setKpis(JSON.parse(k)); else setKpis(SEED_KPIS)
-    } catch { setDiagnosticos(SEED_DIAGNOSTICOS); setOkrs(SEED_OKRS); setSwots(SEED_SWOTS); setPlanosAcao(SEED_PLANOS_ACAO); setKpis(SEED_KPIS) }
+      const d = localStorage.getItem('ass_diagnosticos'); setDiagnosticos(applyFilter(d ? JSON.parse(d) : SEED_DIAGNOSTICOS))
+      const o = localStorage.getItem('ass_okrs'); setOkrs(applyFilter(o ? JSON.parse(o) : SEED_OKRS))
+      const s = localStorage.getItem('ass_swots'); setSwots(applyFilter(s ? JSON.parse(s) : SEED_SWOTS))
+      const p = localStorage.getItem('ass_planos_acao'); setPlanosAcao(applyFilter(p ? JSON.parse(p) : SEED_PLANOS_ACAO))
+      const k = localStorage.getItem('ass_kpis'); setKpis(applyFilter(k ? JSON.parse(k) : SEED_KPIS))
+    } catch {
+      setDiagnosticos(SEED_DIAGNOSTICOS); setOkrs(SEED_OKRS); setSwots(SEED_SWOTS); setPlanosAcao(SEED_PLANOS_ACAO); setKpis(SEED_KPIS)
+    }
   }, [])
+
+  useEffect(() => {
+    loadAndFilter()
+    window.addEventListener('crm:sync-companies', loadAndFilter)
+    return () => window.removeEventListener('crm:sync-companies', loadAndFilter)
+  }, [loadAndFilter])
 
   useEffect(() => { try { localStorage.setItem('ass_diagnosticos', JSON.stringify(diagnosticos)) } catch {} }, [diagnosticos])
   useEffect(() => { try { localStorage.setItem('ass_okrs', JSON.stringify(okrs)) } catch {} }, [okrs])

@@ -73,11 +73,22 @@ export default function ReportsPage() {
       const { jsPDF } = await import('jspdf')
       const canvas = await html2canvas(reportCardRef.current, { backgroundColor: '#ffffff', scale: 2, useCORS: true })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' })
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const ratio = canvas.height / canvas.width
-      const imgH = pageWidth * ratio
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgH)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
+      const margin = 10
+      const imgW = pw - margin * 2
+      const imgH = (canvas.height / canvas.width) * imgW
+      const pageH = ph - margin * 2
+      const totalPages = Math.ceil(imgH / pageH)
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage()
+        const srcY = (canvas.height / totalPages) * i
+        pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH, undefined, undefined, srcY)
+        pdf.setFontSize(7)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(`Página ${i + 1} de ${totalPages} · CrepaldiDH ERP`, margin, ph - 4)
+      }
       pdf.save(`relatorio-${event.name.replace(/\s+/g, '-')}.pdf`)
     } catch (err) {
       console.error('PDF error:', err)

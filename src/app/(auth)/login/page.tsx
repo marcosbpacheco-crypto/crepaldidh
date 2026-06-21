@@ -62,31 +62,31 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side: Login Form */}
-      <div className="w-full lg:w-2/5 flex flex-col justify-center px-5 sm:px-10 lg:px-20 bg-slate-50 relative min-h-0">
+      <div className="w-full lg:w-2/5 flex flex-col justify-center px-4 sm:px-8 lg:px-16 xl:px-20 bg-slate-50 relative min-h-0">
         <motion.div 
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="max-w-md w-full mx-auto relative z-10 py-4 sm:py-6 lg:py-0"
+          className="max-w-md w-full mx-auto relative z-10 py-6 sm:py-8 lg:py-0"
         >
-          <div className="mb-5 sm:mb-8 lg:mb-10">
+          <div className="mb-4 sm:mb-6 lg:mb-10">
             <Image 
               src="/logo-full.png" 
               alt="CrepaldiDH Logo" 
-              width={260} 
-              height={65} 
-              className="object-contain mb-4 sm:mb-6 lg:mb-8"
+              width={200}
+              height={50}
+              className="object-contain mb-3 sm:mb-4 lg:mb-8"
               priority
             />
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">Bem-vindo</h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-1">Acesse sua conta para gerenciar sua operação.</p>
+            <h2 className="text-lg sm:text-xl lg:text-3xl font-bold text-slate-900 tracking-tight">Bem-vindo</h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Acesse sua conta para gerenciar sua operação.</p>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-3xl shadow-xl shadow-black/5 border border-slate-100">
+          <div className="bg-white p-4 sm:p-5 lg:p-8 rounded-2xl sm:rounded-3xl shadow-xl shadow-black/5 border border-slate-100">
             <LoginForm />
           </div>
 
-          <p className="mt-4 sm:mt-6 lg:mt-8 text-center text-slate-400 text-xs sm:text-sm">
+          <p className="mt-4 sm:mt-5 lg:mt-8 text-center text-slate-400 text-[10px] sm:text-xs">
             © 2026 Crepaldi Desenvolvimento Humano.<br/>
             Todos os direitos reservados.
           </p>

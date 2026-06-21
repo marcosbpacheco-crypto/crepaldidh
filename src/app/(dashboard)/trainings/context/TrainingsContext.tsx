@@ -191,117 +191,15 @@ interface TrainingsContextType {
 // 2. SEED DATA
 // ==========================================
 
-const SEED_SIPATS: SipatProgram[] = [
-  {
-    id: 'sipat-1',
-    companyId: 'comp-2',
-    companyName: 'Vale S.A.',
-    title: 'Semana de Prevenção de Acidentes e Saúde Mental Vale 2026',
-    theme: 'Cuidado mútuo e Resiliência Psicológica no trabalho',
-    startDate: '2026-06-15',
-    endDate: '2026-06-19',
-    status: 'agendado',
-    observations: 'SIPAT em parceria com a engenharia de saúde ocupacional da Vale.',
-    createdAt: '2026-05-10T10:00:00Z',
-    schedule: [
-      { id: 'sday-1', sipatProgramId: 'sipat-1', dayNumber: 1, date: '2026-06-15', startTime: '09:00', endTime: '10:30', theme: 'Liderança e Ergonomia Cognitiva', facilitator: 'Bruno Crepaldi', location: 'Auditório Principal Vale' },
-      { id: 'sday-2', sipatProgramId: 'sipat-1', dayNumber: 2, date: '2026-06-16', startTime: '09:00', endTime: '10:30', theme: 'Comunicação Empática no Chão de Fábrica', facilitator: 'Carlos Eduardo', location: 'Auditório Principal Vale' },
-      { id: 'sday-3', sipatProgramId: 'sipat-1', dayNumber: 3, date: '2026-06-17', startTime: '09:00', endTime: '10:30', theme: 'Inteligência Emocional e Prevenção de Burnout', facilitator: 'Bruno Crepaldi', location: 'Auditório Principal Vale' },
-      { id: 'sday-4', sipatProgramId: 'sipat-1', dayNumber: 4, date: '2026-06-18', startTime: '09:00', endTime: '10:30', theme: 'Relações Saudáveis e Clima Organizacional', facilitator: 'Ana Beatriz', location: 'Auditório Principal Vale' },
-      { id: 'sday-5', sipatProgramId: 'sipat-1', dayNumber: 5, date: '2026-06-19', startTime: '09:00', endTime: '10:30', theme: 'Qualidade de Vida e Hábitos Saudáveis', facilitator: 'Carlos Eduardo', location: 'Auditório Principal Vale' },
-    ]
-  }
-]
+const SEED_SIPATS: SipatProgram[] = []
 
-const SEED_EVENTS: TrainingEvent[] = [
-  {
-    id: 'tr-event-1',
-    companyId: 'comp-2',
-    companyName: 'Vale S.A.',
-    projectId: 'proj-1',
-    projectName: 'PGR e Clima Organizacional',
-    type: 'Treinamento',
-    name: 'Treinamento de Multiplicadores de Saúde Mental',
-    theme: 'Saúde Mental no Trabalho e Primeiros Socorros Psicológicos',
-    objective: 'Capacitar a liderança e equipe de DHO a identificar sinais de sofrimento mental.',
-    targetAudience: 'Líderes de Turno, RH, CIPA',
-    facilitator: 'Bruno Crepaldi',
-    modality: 'presencial',
-    location: 'Centro de Treinamento Vale - BH',
-    eventDate: '2026-05-15',
-    startTime: '08:30',
-    endTime: '12:30',
-    hoursDuration: 4.0,
-    expectedParticipants: 25,
-    cost: 15000,
-    status: 'realizado',
-    notes: 'Treinamento altamente elogiado e realizado com sucesso.',
-    createdAt: '2026-05-10T11:00:00Z'
-  },
-  {
-    id: 'tr-event-2',
-    companyId: 'comp-1',
-    companyName: 'BR Distribuidora',
-    type: 'Palestra',
-    name: 'Palestra: Comunicação Não-Violenta e Gestão de Conflitos',
-    theme: 'Comunicação Assertiva e Relacionamento Interpessoal',
-    objective: 'Sensibilizar a equipe administrativa sobre o uso de CNV no cotidiano.',
-    targetAudience: 'Todos os colaboradores administrativos',
-    facilitator: 'Carlos Eduardo',
-    modality: 'online',
-    location: 'https://teams.microsoft.com/crepaldidh-br-palestra',
-    eventDate: '2026-06-02',
-    startTime: '14:00',
-    endTime: '15:30',
-    hoursDuration: 1.5,
-    expectedParticipants: 120,
-    cost: 4500,
-    status: 'agendado',
-    notes: 'Envio de convites executados via e-mail e Teams.',
-    createdAt: '2026-05-20T10:00:00Z'
-  },
-  {
-    id: 'tr-event-3',
-    companyId: 'comp-3',
-    companyName: 'Banco Itaú',
-    type: 'Workshop',
-    name: 'Workshop de Segurança Psicológica de Times de Alta Performance',
-    theme: 'Segurança Psicológica e Inovação',
-    objective: 'Construir bases de segurança psicológica em equipes ágeis.',
-    targetAudience: 'Product Owners, Scrum Masters, Tech Leads',
-    facilitator: 'Bruno Crepaldi',
-    modality: 'hibrido',
-    location: 'Cubo Itaú - SP / Zoom',
-    eventDate: '2026-05-28',
-    startTime: '13:30',
-    endTime: '17:30',
-    hoursDuration: 4.0,
-    expectedParticipants: 40,
-    cost: 22000,
-    status: 'realizado',
-    notes: 'Geração de ideias de plano de ação na CrepaldiDH.',
-    createdAt: '2026-05-15T09:00:00Z'
-  }
-]
+const SEED_EVENTS: TrainingEvent[] = []
 
-const SEED_PARTICIPANTS: TrainingParticipant[] = [
-  { id: 'tpart-1', eventId: 'tr-event-1', name: 'Ricardo Mendes', companyName: 'Vale S.A.', unit: 'Operações MG', sector: 'Logística', role: 'Gerente de Operações', email: 'ricardo.mendes@vale.com', phone: '(31) 99123-4567', attendanceStatus: 'presente', entryTime: '2026-05-15T08:25:00Z', signatureSimple: 'Ricardo Mendes' },
-  { id: 'tpart-2', eventId: 'tr-event-1', name: 'Aline Souza', companyName: 'Vale S.A.', unit: 'Operações MG', sector: 'DHO', role: 'Analista de RH', email: 'aline.souza@vale.com', phone: '(31) 98877-6655', attendanceStatus: 'presente', entryTime: '2026-05-15T08:29:00Z', signatureSimple: 'Aline Souza' },
-  { id: 'tpart-3', eventId: 'tr-event-1', name: 'Marcos Viana', companyName: 'Vale S.A.', unit: 'Operações MG', sector: 'Segurança Trabalho', role: 'Técnico de Segurança', email: 'marcos.viana@vale.com', phone: '(31) 98765-4321', attendanceStatus: 'ausente', justification: 'Viagem técnica de emergência para campo.' },
-  { id: 'tpart-4', eventId: 'tr-event-3', name: 'Fernando Alves', companyName: 'Banco Itaú', unit: 'Centro Tecnológico SP', sector: 'TI Corporativa', role: 'Diretor de Tecnologia', email: 'fernando.alves@itau.com.br', phone: '(11) 97654-3210', attendanceStatus: 'presente', entryTime: '2026-05-28T13:20:00Z', signatureSimple: 'Fernando Alves' },
-  { id: 'tpart-5', eventId: 'tr-event-3', name: 'Patricia Lima', companyName: 'Banco Itaú', unit: 'Centro Tecnológico SP', sector: 'TI Corporativa', role: 'Coordenadora de Projetos', email: 'patricia.lima@itau.com.br', phone: '(11) 98888-7777', attendanceStatus: 'presente', entryTime: '2026-05-28T13:24:00Z', signatureSimple: 'Patricia Lima' }
-]
+const SEED_PARTICIPANTS: TrainingParticipant[] = []
 
-const SEED_FEEDBACKS: TrainingFeedback[] = [
-  { id: 'tfb-1', eventId: 'tr-event-1', ratingGeneral: 5, clarityContent: 5, applicability: 5, didactics: 5, organization: 4, nps: 10, comments: 'Excelente abordagem! Nos traz ferramentas reais de liderança empática.', createdAt: '2026-05-15T13:00:00Z' },
-  { id: 'tfb-2', eventId: 'tr-event-1', ratingGeneral: 4, clarityContent: 4, applicability: 5, didactics: 5, organization: 5, nps: 9, comments: 'Muito bom. O facilitador Bruno tem muita didática no tema de saúde mental.', createdAt: '2026-05-15T13:05:00Z' },
-  { id: 'tfb-3', eventId: 'tr-event-3', ratingGeneral: 5, clarityContent: 5, applicability: 5, didactics: 5, organization: 5, nps: 10, comments: 'Melhor workshop do ano! Criou um ambiente de extrema confiança no time.', createdAt: '2026-05-28T18:00:00Z' }
-]
+const SEED_FEEDBACKS: TrainingFeedback[] = []
 
-const SEED_CERTIFICATES: TrainingCertificate[] = [
-  { id: 'tcert-1', participantId: 'tpart-1', participantName: 'Ricardo Mendes', eventId: 'tr-event-1', eventName: 'Treinamento de Multiplicadores de Saúde Mental', clientName: 'Vale S.A.', hours: 4.0, facilitator: 'Bruno Crepaldi', date: '2026-05-15', validationCode: 'VAL-CDH-17805151', issuedAt: '2026-05-15T14:00:00Z' },
-  { id: 'tcert-2', participantId: 'tpart-2', participantName: 'Aline Souza', eventId: 'tr-event-1', eventName: 'Treinamento de Multiplicadores de Saúde Mental', clientName: 'Vale S.A.', hours: 4.0, facilitator: 'Bruno Crepaldi', date: '2026-05-15', validationCode: 'VAL-CDH-17805152', issuedAt: '2026-05-15T14:02:00Z' }
-]
+const SEED_CERTIFICATES: TrainingCertificate[] = []
 
 // ==========================================
 // 3. CONTEXT PROVIDER

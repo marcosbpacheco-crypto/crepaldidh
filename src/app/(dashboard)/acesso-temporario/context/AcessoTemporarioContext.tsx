@@ -65,42 +65,13 @@ function generateToken(): string {
   return token
 }
 
-const SEED_ACCESSES: TemporaryAccess[] = [
-  { id: 'tmp-1', companyId: 'comp-1', companyName: 'BR Distribuidora', token: 'BR2026DEMO001', createdAt: '2026-06-01T00:00:00Z', expiresAt: '2026-12-31T00:00:00Z', lastAccess: '2026-06-15T10:30:00Z', active: true, createdBy: 'Marcos Crepaldi' },
-  { id: 'tmp-2', companyId: 'comp-2', companyName: 'Vale S.A.', token: 'VALE2026DEMO002', createdAt: '2026-06-10T00:00:00Z', expiresAt: '2026-09-30T00:00:00Z', active: true, createdBy: 'Marcos Crepaldi' },
-  { id: 'tmp-3', companyId: 'comp-3', companyName: 'Banco Itaú', token: 'ITAU2026DEMO003', createdAt: '2026-05-15T00:00:00Z', expiresAt: '2026-06-15T00:00:00Z', active: false, createdBy: 'Ana Oliveira' },
-]
+const SEED_ACCESSES: TemporaryAccess[] = []
 
-const SEED_USERS: TempUser[] = [
-  { id: 'tu-1', companyId: 'comp-1', companyName: 'BR Distribuidora', name: 'Carlos Silva', email: 'carlos@brdistribuidora.com', password: '123456', active: true, createdAt: '2026-06-01T00:00:00Z', createdBy: 'Admin' },
-  { id: 'tu-2', companyId: 'comp-2', companyName: 'Vale S.A.', name: 'Roberto Lima', email: 'roberto@vale.com', password: '123456', active: true, createdAt: '2026-06-02T00:00:00Z', createdBy: 'Admin' },
-]
+const SEED_USERS: TempUser[] = []
 
-const SEED_QUESTIONNAIRES: Questionnaire[] = [
-  {
-    id: 'q-1', title: 'Diagnóstico Organizacional', description: 'Levantamento inicial de dados da empresa', instructions: 'Responda todas as perguntas com atenção.',
-    questions: [
-      { id: 'q1-1', text: 'Nome da empresa', type: 'text', required: true, placeholder: 'Razão social' },
-      { id: 'q1-2', text: 'CNPJ', type: 'cnpj', required: true },
-      { id: 'q1-3', text: 'Segmento de atuação', type: 'select', required: true, options: [{ id: 'opt-1', label: 'Indústria' }, { id: 'opt-2', label: 'Comércio' }, { id: 'opt-3', label: 'Serviços' }, { id: 'opt-4', label: 'Tecnologia' }, { id: 'opt-5', label: 'Saúde' }, { id: 'opt-6', label: 'Financeiro' }, { id: 'opt-7', label: 'Educação' }, { id: 'opt-8', label: 'Outro' }] },
-      { id: 'q1-4', text: 'Número de funcionários', type: 'number', required: true, placeholder: 'Ex: 150' },
-      { id: 'q1-5', text: 'Principais desafios de DHO', type: 'textarea', required: false, placeholder: 'Descreva os principais desafios...' },
-    ], createdAt: '2026-06-01T00:00:00Z', createdBy: 'Marcos Crepaldi', active: true,
-  },
-  {
-    id: 'q-2', title: 'Levantamento de Necessidades de Treinamento', description: 'Identificação das necessidades de capacitação',
-    questions: [
-      { id: 'q2-1', text: 'Cargos que necessitam treinamento', type: 'textarea', required: true },
-      { id: 'q2-2', text: 'Temas prioritários', type: 'select', required: true, options: [{ id: 'opt-9', label: 'Segurança do Trabalho' }, { id: 'opt-10', label: 'Liderança' }, { id: 'opt-11', label: 'Comunicação' }, { id: 'opt-12', label: 'Atendimento ao Cliente' }, { id: 'opt-13', label: 'Gestão de Pessoas' }, { id: 'opt-14', label: 'NRs Regulamentadoras' }] },
-      { id: 'q2-3', text: 'Previsão de participantes', type: 'number', required: true },
-      { id: 'q2-4', text: 'Observações adicionais', type: 'textarea', required: false },
-    ], createdAt: '2026-06-05T00:00:00Z', createdBy: 'Marcos Crepaldi', active: true,
-  },
-]
+const SEED_QUESTIONNAIRES: Questionnaire[] = []
 
-const SEED_RESPONSES: QuestionnaireResponse[] = [
-  { id: 'r-1', questionnaireId: 'q-1', questionnaireTitle: 'Diagnóstico Organizacional', companyId: 'comp-1', companyName: 'BR Distribuidora', userId: 'tu-1', userName: 'Carlos Silva', answers: [{ questionId: 'q1-1', value: 'BR Distribuidora Ltda' }, { questionId: 'q1-2', value: '11.222.333/0001-44' }, { questionId: 'q1-3', value: 'Comércio' }, { questionId: 'q1-4', value: '320' }, { questionId: 'q1-5', value: 'Alta rotatividade e necessidade de desenvolvimento de lideranças.' }], submittedAt: '2026-06-10T14:00:00Z', status: 'submitted' },
-]
+const SEED_RESPONSES: QuestionnaireResponse[] = []
 
 export function AcessoTemporarioProvider({ children }: { children: React.ReactNode }) {
   const [accesses, setAccesses] = useState<TemporaryAccess[]>([])

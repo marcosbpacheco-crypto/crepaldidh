@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { syncUsersToCookie } from '@/app/(auth)/login/actions'
 
 export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
@@ -161,53 +162,25 @@ function buildSeedPermissions(): Permission[] {
   return result
 }
 
-const DEFAULT_PASS = '123456'
-const SEED_USERS: User[] = [
-  { id: 'user-admin', name: 'Marcos Crepaldi', email: 'marcos@crepaldidh.com.br', phone: '(11) 99999-0001', avatar: 'MC', roleId: 'role-admin', roleName: 'Administrador', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: true, createdAt: '2025-01-01T00:00:00Z', lastLogin: new Date().toISOString(), tenantId: 'tnt-crepaldi' },
-  { id: 'user-dir', name: 'Ana Oliveira', email: 'ana@crepaldidh.com.br', phone: '(11) 99999-0002', avatar: 'AO', roleId: 'role-director', roleName: 'Diretor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-02-01T00:00:00Z', lastLogin: new Date(Date.now() - 86400000).toISOString(), tenantId: 'tnt-crepaldi' },
-  { id: 'user-cons', name: 'Carlos Souza', email: 'carlos@crepaldidh.com.br', phone: '(11) 99999-0003', avatar: 'CS', roleId: 'role-consultant', roleName: 'Consultor', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-comm', name: 'Bruno Crepaldi', email: 'bruno@crepaldidh.com.br', phone: '(11) 99999-0004', avatar: 'BC', roleId: 'role-commercial', roleName: 'Comercial', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-01-15T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-fin', name: 'Cláudio Santos', email: 'claudio@crepaldidh.com.br', phone: '(11) 99999-0005', avatar: 'CS', roleId: 'role-finance', roleName: 'Financeiro', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-04-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-rh', name: 'Mariana Souza', email: 'mariana@crepaldidh.com.br', phone: '(11) 99999-0006', avatar: 'MS', roleId: 'role-rh', roleName: 'RH', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2025-05-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-dho', name: 'Juliana Costa', email: 'juliana@crepaldidh.com.br', phone: '(11) 99999-0008', avatar: 'JC', roleId: 'role-dho', roleName: 'Analista de DHO', isExternal: false, active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-03-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-op', name: 'Ricardo Lima', email: 'ricardo@crepaldidh.com.br', phone: '(11) 99999-0007', avatar: 'RL', roleId: 'role-operational', roleName: 'Operacional', isExternal: false, active: false, password: DEFAULT_PASS, loginAttempts: 3, mfaEnabled: false, createdAt: '2025-06-01T00:00:00Z', tenantId: 'tnt-crepaldi' },
-  { id: 'user-client-rh', name: 'Mariana Souza (Cliente)', email: 'mariana@br.com.br', phone: '(21) 99999-1001', avatar: 'MS', roleId: 'role-client-rh', roleName: 'Cliente - RH', isExternal: true, companyId: 'comp-1', companyName: 'BR Distribuidora', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-01T00:00:00Z', tenantId: 'tnt-br' },
-  { id: 'user-client-dir', name: 'Roberto Santos (Cliente)', email: 'roberto@vale.com', phone: '(31) 99999-1002', avatar: 'RS', roleId: 'role-client-director', roleName: 'Cliente - Diretoria', isExternal: true, companyId: 'comp-2', companyName: 'Vale S.A.', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-01-15T00:00:00Z', tenantId: 'tnt-vale' },
-  { id: 'user-client-gest', name: 'Patrícia Lima (Cliente)', email: 'patricia@itau.com.br', phone: '(11) 99999-1003', avatar: 'PL', roleId: 'role-client-manager', roleName: 'Cliente - Gestor', isExternal: true, companyId: 'comp-3', companyName: 'Banco Itaú', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-01T00:00:00Z', tenantId: 'tnt-itau' },
-  { id: 'user-client-fin', name: 'Eduardo Silveira (Cliente)', email: 'eduardo@gerdau.com', phone: '(51) 99999-1004', avatar: 'ES', roleId: 'role-client-finance', roleName: 'Cliente - Financeiro', isExternal: true, companyId: 'comp-4', companyName: 'Gerdau', active: true, password: DEFAULT_PASS, loginAttempts: 0, mfaEnabled: false, createdAt: '2026-02-15T00:00:00Z', tenantId: 'tnt-gerdau' },
-]
+// BOOTSTRAP_ADMIN — usado apenas quando NENHUM usuario existe (sistema novo)
+// Apos o primeiro login, o usuario bootstrap nunca mais e referenciado
+const BOOTSTRAP_ADMIN: User = {
+  id: 'user-admin', name: 'Administrador Master', email: 'admin@crepaldidh.com.br',
+  phone: '(11) 99999-0000', avatar: 'AD', roleId: 'role-admin', roleName: 'Administrador',
+  isExternal: false, active: true, password: 'admin123', loginAttempts: 0, mfaEnabled: false,
+  createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi',
+}
 
 function seedAuditLogs(): AuditLog[] {
-  const now = Date.now()
-  return [
-    { id: 'aud-1', userId: 'user-admin', userName: 'Marcos Crepaldi', userRole: 'Administrador', action: 'login', entity: 'auth', description: 'Login realizado', ipAddress: '192.168.1.100', createdAt: new Date(now - 3600000).toISOString() },
-    { id: 'aud-2', userId: 'user-comm', userName: 'Bruno Crepaldi', userRole: 'Comercial', action: 'create', entity: 'deal', entityId: 'deal-7', description: 'Criou novo deal: Diagnóstico Gerdau', ipAddress: '192.168.1.101', createdAt: new Date(now - 7200000).toISOString() },
-    { id: 'aud-3', userId: 'user-fin', userName: 'Cláudio Santos', userRole: 'Financeiro', action: 'update', entity: 'receivable', entityId: 'rec-2', description: 'Marcou recebível como pago: Mentoria Vale R$ 64.000', ipAddress: '192.168.1.102', createdAt: new Date(now - 10800000).toISOString() },
-    { id: 'aud-4', userId: 'user-cons', userName: 'Carlos Souza', userRole: 'Consultor', action: 'export', entity: 'report', description: 'Exportou relatório executivo em PDF', ipAddress: '192.168.1.103', createdAt: new Date(now - 14400000).toISOString() },
-    { id: 'aud-5', userId: 'user-admin', userName: 'Marcos Crepaldi', userRole: 'Administrador', action: 'delete', entity: 'user', entityId: 'user-op', description: 'Desativou usuário: Ricardo Lima', ipAddress: '192.168.1.100', createdAt: new Date(now - 18000000).toISOString() },
-    { id: 'aud-6', userId: 'user-dir', userName: 'Ana Oliveira', userRole: 'Diretor', action: 'view', entity: 'financial', description: 'Visualizou dashboard financeiro completo', ipAddress: '192.168.1.104', createdAt: new Date(now - 21600000).toISOString() },
-    { id: 'aud-7', userId: 'user-admin', userName: 'Marcos Crepaldi', userRole: 'Administrador', action: 'update', entity: 'permission', description: 'Alterou permissões do perfil Consultor', ipAddress: '192.168.1.100', createdAt: new Date(now - 25200000).toISOString() },
-    { id: 'aud-8', userId: 'user-fin', userName: 'Cláudio Santos', userRole: 'Financeiro', action: 'download', entity: 'invoice', entityId: 'inv-1', description: 'Baixou nota fiscal', ipAddress: '192.168.1.102', createdAt: new Date(now - 28800000).toISOString() },
-  ]
+  return []
 }
 
 function seedLgpdConsents(): LgpdConsent[] {
-  return [
-    { id: 'lgpd-1', userId: 'user-client-rh', consentType: 'dados_pessoais', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: true, grantedAt: new Date(Date.now() - 2592000000).toISOString(), version: '1.0' },
-    { id: 'lgpd-2', userId: 'user-client-dir', consentType: 'comunicacao', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: true, grantedAt: new Date(Date.now() - 2592000000).toISOString(), version: '1.0' },
-    { id: 'lgpd-3', userId: 'user-client-gest', consentType: 'dados_pessoais', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: true, grantedAt: new Date(Date.now() - 2592000000).toISOString(), version: '1.0' },
-    { id: 'lgpd-4', userId: 'user-client-fin', consentType: 'dados_pessoais', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: false, version: '1.0' },
-    { id: 'lgpd-5', userId: 'user-client-rh', consentType: 'comunicacao', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: true, grantedAt: new Date(Date.now() - 2592000000).toISOString(), version: '1.0' },
-    { id: 'lgpd-6', userId: 'user-client-dir', consentType: 'dados_pessoais', legalBasis: 'LGPD Art. 7 I - Consentimento', granted: true, grantedAt: new Date(Date.now() - 2592000000).toISOString(), version: '1.0' },
-  ]
+  return []
 }
 
 function seedPrivacyRequests(): PrivacyRequest[] {
-  return [
-    { id: 'priv-1', userId: 'user-client-rh', userName: 'Mariana Souza (Cliente)', requestType: 'access', status: 'pending', description: 'Solicito acesso a todos os dados pessoais armazenados sobre mim.', createdAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 'priv-2', userId: 'user-client-dir', userName: 'Roberto Santos (Cliente)', requestType: 'rectification', status: 'processing', description: 'Corrigir telefone de contato para (31) 98888-0001', processedBy: 'user-admin', createdAt: new Date(Date.now() - 172800000).toISOString() },
-    { id: 'priv-3', userId: 'user-client-gest', userName: 'Patrícia Lima (Cliente)', requestType: 'deletion', status: 'completed', description: 'Excluir dados após encerramento do contrato', processedBy: 'user-admin', processedAt: new Date(Date.now() - 259200000).toISOString(), responseNotes: 'Dados anonimizados conforme política de retenção.', createdAt: new Date(Date.now() - 345600000).toISOString() },
-  ]
+  return []
 }
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
@@ -231,28 +204,43 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [])
 
+  const loadedRef = useRef(false)
+
   useEffect(() => {
+    if (loadedRef.current) return
+    loadedRef.current = true
+
+    // Load all data from localStorage (synchronous, always preserves local changes)
+    // NUNCA recria usuarios mock/seed — se localStorage estiver vazio, comeca vazio
     try {
-      const u = localStorage.getItem('admin_users'); if (u) setUsers(JSON.parse(u)); else setUsers(SEED_USERS)
+      const u = localStorage.getItem('admin_users')
+      if (u) { const p = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
+    } catch { /* localStorage corrompido — ignora */ }
+
+    try {
       const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
       const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
       const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
       const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
       const stored = localStorage.getItem('current_user')
-      if (stored) {
-        const cu = JSON.parse(stored)
-        setCurrentUserId(cu.id || 'user-admin')
-      } else {
-        setCurrentUserId('user-admin')
-      }
-    } catch { setUsers(SEED_USERS); setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents()); setPrivacyRequests(seedPrivacyRequests()); setCurrentUserId('user-admin') }
+      if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
+      else setCurrentUserId('user-admin')
+    } catch {
+      setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
+      setPrivacyRequests(seedPrivacyRequests()); setCurrentUserId('user-admin')
+    }
   }, [])
 
   useEffect(() => { try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {} }, [users])
+  useEffect(() => { if (users.length > 0) { syncUsersToCookie(JSON.stringify(users)).catch(() => {}) } }, [users])
   useEffect(() => { try { localStorage.setItem('admin_permissions', JSON.stringify(permissions)) } catch {} }, [permissions])
   useEffect(() => { try { localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs)) } catch {} }, [auditLogs])
   useEffect(() => { try { localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents)) } catch {} }, [lgpdConsents])
   useEffect(() => { try { localStorage.setItem('admin_privacy_requests', JSON.stringify(privacyRequests)) } catch {} }, [privacyRequests])
+
+  // Cross-device sync is UNIDIRECTIONAL: local → server only.
+  // A direcao reversa (server → local) nao deve restaurar usuarios deletados.
+  // O sync server→local ocorre apenas via LoginForm.handleSubmit com localStorage vencendo.
 
   const roles = SEED_ROLES
 
@@ -260,28 +248,44 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const addUser = useCallback((u: Omit<User, 'id' | 'createdAt'>) => {
     const newUser: User = { ...u, id: gid(), createdAt: new Date().toISOString() }
-    setUsers(prev => [...prev, newUser])
+    setUsers(prev => {
+      const next = [...prev, newUser]
+      localStorage.setItem('admin_users', JSON.stringify(next))
+      return next
+    })
     addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'create', entity: 'user', entityId: newUser.id, description: 'Criou usuário: ' + newUser.name, ipAddress: '127.0.0.1' })
     return newUser
   }, [currentUserId, users])
 
   const updateUser = useCallback((id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u))
+    setUsers(prev => {
+      const next = prev.map(u => u.id === id ? { ...u, ...updates } : u)
+      localStorage.setItem('admin_users', JSON.stringify(next))
+      return next
+    })
   }, [])
 
   const deleteUser = useCallback((id: string) => {
     const user = users.find(u => u.id === id)
-    setUsers(prev => prev.filter(u => u.id !== id))
-    if (user) {
-      addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu usuário: ' + user.name, ipAddress: '127.0.0.1' })
-    }
+    if (!user) return
+    // Soft delete: marca como inativo em vez de remover — dados preservados para auditoria
+    setUsers(prev => {
+      const next = prev.map(u => u.id === id ? { ...u, active: false } : u)
+      localStorage.setItem('admin_users', JSON.stringify(next))
+      return next
+    })
+    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu (desativou) usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
   const toggleUserActive = useCallback((id: string) => {
     const user = users.find(u => u.id === id)
     if (user) {
       const becomingActive = !user.active
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, active: becomingActive } : u))
+      setUsers(prev => {
+        const next = prev.map(u => u.id === id ? { ...u, active: becomingActive } : u)
+        localStorage.setItem('admin_users', JSON.stringify(next))
+        return next
+      })
       addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
     }
   }, [currentUserId, users])

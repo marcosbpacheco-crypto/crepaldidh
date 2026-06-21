@@ -313,78 +313,11 @@ function lateCheck(dueDate: string): boolean {
   return new Date(dueDate + 'T23:59:59') < new Date()
 }
 
-const SEED_RECEIVABLES: AccountReceivable[] = [
-  {
-    id: 'rec-1', companyId: 'comp-1', companyName: 'BR Distribuidora',
-    contractId: 'contr-1', contractName: 'Contrato Anual DHO BR',
-    projectId: 'proj-2', projectName: 'Programa DHO Anual BR Distribuidora',
-    serviceName: 'Treinamentos Corporativos', amount: 85000,
-    dueDate: generateDueDate(10), paymentDate: undefined, status: 'pending',
-    paymentMethodId: 'pm-1', paymentMethodName: 'PIX',
-    notes: 'Mensalidade do contrato anual de DHO', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-2', companyId: 'comp-2', companyName: 'Vale S.A.',
-    contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale',
-    serviceName: 'Mentoria de Lideranças', amount: 64000,
-    dueDate: generateDueDate(-5), paymentDate: undefined, status: 'overdue',
-    paymentMethodId: 'pm-2', paymentMethodName: 'Boleto Bancário',
-    notes: 'Mentoria 6 meses - parcela vencida', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-3', companyId: 'comp-3', companyName: 'Banco Itaú',
-    projectId: 'proj-3', projectName: 'Workshop de Alta Performance Itaú',
-    serviceName: 'Workshop Segurança Psicológica', amount: 22000,
-    dueDate: generateDueDate(-3), paymentDate: generateDueDate(-8), status: 'paid',
-    paymentMethodId: 'pm-3', paymentMethodName: 'Transferência Bancária',
-    notes: 'Workshop realizado em maio/2026. Pago antecipadamente.', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-4', companyId: 'comp-1', companyName: 'BR Distribuidora',
-    serviceName: 'Palestra CNV', amount: 4500,
-    dueDate: generateDueDate(20), paymentDate: undefined, status: 'pending',
-    paymentMethodId: 'pm-1', paymentMethodName: 'PIX',
-    notes: 'Palestra agendada para junho/2026', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-5', companyId: 'comp-2', companyName: 'Vale S.A.',
-    contractId: 'contr-2', contractName: 'PGR e Clima Organizacional',
-    projectId: 'proj-1', projectName: 'PGR e Clima Organizacional',
-    serviceName: 'Diagnóstico Psicossocial', amount: 120000,
-    dueDate: generateDueDate(45), paymentDate: undefined, status: 'pending',
-    notes: 'Diagnóstico global - faturamento em 2 parcelas de R$60k', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-6', companyId: 'comp-2', companyName: 'Vale S.A.',
-    serviceName: 'Treinamento Multiplicadores', amount: 15000,
-    dueDate: generateDueDate(-2), paymentDate: generateDueDate(-5), status: 'paid',
-    paymentMethodId: 'pm-1', paymentMethodName: 'PIX',
-    notes: 'Treinamento realizado com sucesso', createdAt: new Date().toISOString()
-  },
-  {
-    id: 'rec-7', companyId: 'comp-4', companyName: 'Gerdau',
-    serviceName: 'Consultoria Estratégica', amount: 12000,
-    dueDate: generateDueDate(60), paymentDate: undefined, status: 'canceled',
-    notes: 'Cliente inativo - contrato cancelado', createdAt: new Date().toISOString()
-  },
-]
+const SEED_RECEIVABLES: AccountReceivable[] = []
 
-const SEED_PAYABLES: AccountPayable[] = [
-  { id: 'pay-1', supplier: 'Escritório Central', categoryId: 'cat-1', categoryName: 'Infraestrutura', description: 'Aluguel comercial maio/2026', amount: 5500, dueDate: generateDueDate(5), paymentDate: undefined, status: 'pending', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-2', supplier: 'Equipe CrepaldiDH', categoryId: 'cat-2', categoryName: 'Salários e Pró-labore', description: 'Pró-labore maio/2026', amount: 28000, dueDate: generateDueDate(0), paymentDate: generateDueDate(-1), status: 'paid', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-3', supplier: 'Google Ads', categoryId: 'cat-3', categoryName: 'Marketing e Vendas', description: 'Tráfego pago maio/2026', amount: 3200, dueDate: generateDueDate(-2), paymentDate: undefined, status: 'overdue', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-4', supplier: 'Gráfica Rápida', categoryId: 'cat-4', categoryName: 'Material Didático', description: 'Impressão de apostilas - Treinamento Vale', amount: 1800, dueDate: generateDueDate(-5), paymentDate: generateDueDate(-6), status: 'paid', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-5', supplier: 'Posto Ipiranga', categoryId: 'cat-5', categoryName: 'Transporte e Logística', description: 'Combustível viagens maio/2026', amount: 950, dueDate: generateDueDate(3), paymentDate: undefined, status: 'pending', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-6', supplier: 'Receita Federal', categoryId: 'cat-6', categoryName: 'Impostos e Taxas', description: 'Simples Nacional - Maio/2026', amount: 7200, dueDate: generateDueDate(15), paymentDate: undefined, status: 'pending', notes: 'Guia emitida', createdAt: new Date().toISOString() },
-  { id: 'pay-7', supplier: 'Contabilidade Silva', categoryId: 'cat-7', categoryName: 'Serviços Terceirizados', description: 'Honorários contábeis maio/2026', amount: 2500, dueDate: generateDueDate(-10), paymentDate: generateDueDate(-11), status: 'paid', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-8', supplier: 'Vercel Inc.', categoryId: 'cat-8', categoryName: 'Software e Tecnologia', description: 'Hospedagem Next.js / Supabase - maio/2026', amount: 1200, dueDate: generateDueDate(8), paymentDate: undefined, status: 'pending', notes: '', createdAt: new Date().toISOString() },
-  { id: 'pay-9', supplier: 'Zoom Video', categoryId: 'cat-8', categoryName: 'Software e Tecnologia', description: 'Assinatura Zoom Enterprise', amount: 450, dueDate: generateDueDate(-3), paymentDate: undefined, status: 'overdue', notes: '', createdAt: new Date().toISOString() },
-]
+const SEED_PAYABLES: AccountPayable[] = []
 
-const SEED_RECURRING_RULES: RecurringRule[] = [
-  { id: 'rr-1', contractId: 'contr-1', contractName: 'Contrato Anual DHO BR', companyId: 'comp-1', companyName: 'BR Distribuidora', frequency: 'monthly', amount: 85000, nextBillingDate: generateDueDate(10), readjustmentRate: 5.5, status: 'active', serviceName: 'Treinamentos Corporativos', createdAt: new Date().toISOString() },
-  { id: 'rr-2', contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale', companyId: 'comp-2', companyName: 'Vale S.A.', frequency: 'monthly', amount: 10667, nextBillingDate: generateDueDate(-5), readjustmentRate: 0, status: 'active', serviceName: 'Mentoria de Lideranças', createdAt: new Date().toISOString() },
-]
+const SEED_RECURRING_RULES: RecurringRule[] = []
 
 // ==========================================
 // 3. CONTEXT PROVIDER

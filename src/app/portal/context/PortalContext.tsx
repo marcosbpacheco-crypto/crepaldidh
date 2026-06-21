@@ -69,32 +69,11 @@ const SEED_PERMISSIONS: Permission[] = [
   { id: 'pp-17', userId: 'pu-5', module: 'dashboard', canView: true, canEdit: false },
 ]
 
-const SEED_REQUESTS: ClientRequest[] = [
-  { id: 'cr-1', companyId: 'comp-1', userId: 'pu-1', userName: 'Carlos Silva', type: 'meeting', subject: 'Solicitação de reunião de alinhamento', description: 'Precisamos alinhar o cronograma do projeto DHO para o próximo semestre.', priority: 'high', status: 'open', createdAt: new Date(Date.now() - 172800000).toISOString(), updatedAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 'cr-2', companyId: 'comp-1', userId: 'pu-2', userName: 'Ana Oliveira', type: 'document', subject: 'Solicitação de certificados', description: 'Precisamos dos certificados do treinamento de NR01 realizado em maio.', priority: 'medium', status: 'in_progress', createdAt: new Date(Date.now() - 259200000).toISOString(), updatedAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'cr-3', companyId: 'comp-2', userId: 'pu-3', userName: 'Roberto Lima', type: 'training', subject: 'Novo treinamento para equipe', description: 'Gostaríamos de agendar uma turma extra de segurança psicológica.', priority: 'high', status: 'open', createdAt: new Date(Date.now() - 43200000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cr-4', companyId: 'comp-2', userId: 'pu-4', userName: 'Marina Costa', type: 'support', subject: 'Dúvida sobre plano de ação', description: 'Não estou conseguindo acessar o plano de ação do setor de produção.', priority: 'low', status: 'resolved', createdAt: new Date(Date.now() - 604800000).toISOString(), updatedAt: new Date(Date.now() - 345600000).toISOString() },
-]
+const SEED_REQUESTS: ClientRequest[] = []
 
-const SEED_NOTIFICATIONS: ClientNotification[] = [
-  { id: 'cn-1', companyId: 'comp-1', userId: 'pu-1', title: 'Reunião agendada para amanhã', description: 'Reunião de alinhamento com equipe CrepaldiDH às 09:00.', type: 'info', read: false, createdAt: new Date().toISOString() },
-  { id: 'cn-2', companyId: 'comp-1', userId: 'pu-1', title: 'Relatório NR01 disponível', description: 'O relatório final do diagnóstico psicossocial já está disponível.', type: 'success', link: '/portal/nr01', read: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: 'cn-3', companyId: 'comp-1', userId: 'pu-2', title: 'Plano de ação pendente', description: '2 ações do plano de ação NR01 estão com prazo vencido.', type: 'alert', link: '/portal/nr01', read: false, createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: 'cn-4', companyId: 'comp-2', userId: 'pu-3', title: 'Fatura próxima do vencimento', description: 'A parcela de R$ 64.000,00 vence em 5 dias.', type: 'warning', link: '/portal/financial', read: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
-]
+const SEED_NOTIFICATIONS: ClientNotification[] = []
 
-function generateSeedCalendarEvents() {
-  const now = new Date()
-  const d = (daysOffset: number) => { const r = new Date(now); r.setDate(r.getDate() + daysOffset); return r.toISOString().split('T')[0] }
-  return [
-    { id: 'pce-1', companyId: 'comp-1', title: 'Treinamento NR01 - Turma A', type: 'training', eventDate: d(2), startTime: '08:00', endTime: '12:00', location: 'Matriz - Sala 3', status: 'confirmed', responsible: 'Instrutor CrepaldiDH' },
-    { id: 'pce-2', companyId: 'comp-1', title: 'Palestra Segurança Psicológica', type: 'lecture', eventDate: d(5), startTime: '14:00', endTime: '16:00', location: 'Auditório BR', status: 'confirmed', responsible: 'Dr. Marcos' },
-    { id: 'pce-3', companyId: 'comp-1', title: 'Reunião de Alinhamento DHO', type: 'commercial_meeting', eventDate: d(1), startTime: '09:00', endTime: '10:30', location: 'Sala Reunião', status: 'scheduled' },
-    { id: 'pce-4', companyId: 'comp-2', title: 'Mentoria Liderança Vale', type: 'mentoring', eventDate: d(3), startTime: '10:00', endTime: '12:00', location: 'Online', status: 'confirmed', responsible: 'Consultor CrepaldiDH' },
-    { id: 'pce-5', companyId: 'comp-2', title: 'SIPAT 2026', type: 'sipat', eventDate: d(14), startTime: '08:00', endTime: '17:00', location: 'Vale S.A.', status: 'scheduled' },
-    { id: 'pce-6', companyId: 'comp-3', title: 'Auditoria Financeira', type: 'internal_activity', eventDate: d(7), startTime: '09:00', endTime: '11:00', location: 'Itaú', status: 'scheduled' },
-  ]
-}
+function generateSeedCalendarEvents() { return [] }
 
 interface PortalContextType {
   user: PortalUser | null; isAuthenticated: boolean; isLoading: boolean

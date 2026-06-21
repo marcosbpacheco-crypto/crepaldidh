@@ -17,6 +17,7 @@ import { ClientsProvider } from './clients/context/ClientsContext'
 import { AlertsProvider } from './alerts/context/AlertsContext'
 import { AssessoriaProvider } from './assessoria/context/AssessoriaContext'
 import { AcessoTemporarioProvider } from './acesso-temporario/context/AcessoTemporarioContext'
+import { SidebarProvider } from '@/components/layout/SidebarContext'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -36,7 +37,9 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                               <AlertsProvider>
                                 <AssessoriaProvider>
                                   <AcessoTemporarioProvider>
-                                    {children}
+                                    <SidebarProvider>
+                                      {children}
+                                    </SidebarProvider>
                                   </AcessoTemporarioProvider>
                                 </AssessoriaProvider>
                               </AlertsProvider>

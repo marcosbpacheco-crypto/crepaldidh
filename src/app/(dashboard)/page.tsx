@@ -23,41 +23,7 @@ interface Project {
   budget: number
 }
 
-const SEED_PROJECTS: Project[] = [
-  {
-    id: 'proj-1',
-    name: 'PGR e Clima Organizacional',
-    companyId: 'comp-2',
-    companyName: 'Vale S.A.',
-    description: 'Programa de Gerenciamento de Riscos e Pesquisa de Clima.',
-    startDate: '2026-03-01',
-    endDate: '2026-09-30',
-    status: 'em_andamento',
-    budget: 120000,
-  },
-  {
-    id: 'proj-2',
-    name: 'Programa DHO Anual BR Distribuidora',
-    companyId: 'comp-1',
-    companyName: 'BR Distribuidora',
-    description: 'Contrato anual de DHO: palestras, treinamentos e mentoria.',
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
-    status: 'em_andamento',
-    budget: 85000,
-  },
-  {
-    id: 'proj-3',
-    name: 'Workshop de Alta Performance Itaú',
-    companyId: 'comp-3',
-    companyName: 'Banco Itaú',
-    description: 'Workshops de segurança psicológica e alta performance.',
-    startDate: '2026-05-01',
-    endDate: '2026-07-31',
-    status: 'concluido',
-    budget: 45000,
-  },
-]
+const SEED_PROJECTS: Project[] = []
 
 const STATUS_COLORS: Record<string, string> = {
   em_andamento: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -144,64 +110,88 @@ export default function DashboardPage() {
       tempDiv.style.fontFamily = 'Inter, sans-serif'
       tempDiv.innerHTML = `
         <div style="border-bottom:3px solid #7c3aed;padding-bottom:16px;margin-bottom:24px">
-          <h1 style="font-size:22px;font-weight:800;color:#1e293b">CrepaldiDH · Relatório do Dashboard</h1>
-          <p style="font-size:12px;color:#94a3b8">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <table style="width:100%"><tr>
+            <td><h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0">CrepaldiDH</h1>
+            <p style="font-size:12px;color:#64748b;margin:4px 0 0">Relatório do Dashboard</p></td>
+            <td style="text-align:right;vertical-align:top">
+              <p style="font-size:10px;color:#94a3b8;margin:0">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </td>
+          </tr></table>
         </div>
-        <h2 style="font-size:14px;font-weight:700;color:#334155;margin-bottom:12px">Indicadores</h2>
+        <h2 style="font-size:14px;font-weight:700;color:#334155;margin:0 0 12px">Indicadores</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <tr>
-            <td style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px">
-              <p style="font-size:10px;color:#94a3b8;margin:0">Total de Clientes</p>
-              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">${companies.length}</p>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%">
+              <p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase;letter-spacing:0.5px">Clientes</p>
+              <p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${companies.length}</p>
             </td>
-            <td style="padding:6px"></td>
-            <td style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px">
-              <p style="font-size:10px;color:#94a3b8;margin:0">Projetos Ativos</p>
-              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">${activeProjects.length}</p>
+            <td style="width:8px"></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%">
+              <p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase;letter-spacing:0.5px">Projetos Ativos</p>
+              <p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${activeProjects.length}</p>
             </td>
-            <td style="padding:6px"></td>
-            <td style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px">
-              <p style="font-size:10px;color:#94a3b8;margin:0">Treinamentos Realizados</p>
-              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">${completedEvents}</p>
+            <td style="width:8px"></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%">
+              <p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase;letter-spacing:0.5px">Treinamentos</p>
+              <p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${completedEvents}</p>
             </td>
-            <td style="padding:6px"></td>
-            <td style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px">
-              <p style="font-size:10px;color:#94a3b8;margin:0">Receita do Período</p>
-              <p style="font-size:20px;font-weight:800;color:#1e293b;margin:4px 0 0">R$ ${(totalReceived > 0 ? totalReceived : trainingRevenue).toLocaleString('pt-BR')}</p>
+            <td style="width:8px"></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%">
+              <p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase;letter-spacing:0.5px">Receita</p>
+              <p style="font-size:24px;font-weight:800;color:#059669;margin:6px 0 0">R$ ${(totalReceived > 0 ? totalReceived : trainingRevenue).toLocaleString('pt-BR')}</p>
             </td>
           </tr>
         </table>
-        <h2 style="font-size:14px;font-weight:700;color:#334155;margin-bottom:12px">Projetos Recentes</h2>
+        <h2 style="font-size:14px;font-weight:700;color:#334155;margin:0 0 12px">Projetos</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <thead>
             <tr style="background:#f1f5f9">
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Projeto</th>
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Empresa</th>
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Status</th>
-              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Orçamento</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Projeto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Empresa</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Status</th>
+              <th style="padding:10px 14px;text-align:right;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Orçamento</th>
             </tr>
           </thead>
           <tbody>
-            ${projects.slice(0, 10).map(p => `
+            ${projects.slice(0, 15).map(p => `
               <tr>
-                <td style="padding:8px 12px;font-size:12px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${p.name}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${p.companyName}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${STATUS_LABELS[p.status]}</td>
-                <td style="padding:8px 12px;font-size:12px;color:#1e293b;border:1px solid #e2e8f0;text-align:right;font-weight:700">R$ ${p.budget.toLocaleString('pt-BR')}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${p.name}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${p.companyName}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${STATUS_LABELS[p.status]}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#059669;border:1px solid #e2e8f0;text-align:right;font-weight:700">R$ ${p.budget.toLocaleString('pt-BR')}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
-        <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px">
-          <p style="font-size:10px;color:#94a3b8;text-align:center">Relatório gerado automaticamente · CrepaldiDH ERP</p>
+        <div style="border-top:2px solid #e2e8f0;padding-top:16px;margin-top:32px">
+          <table style="width:100%"><tr>
+            <td><p style="font-size:9px;color:#94a3b8;margin:0">CrepaldiDH · Desenvolvimento Humano e Organizacional</p></td>
+            <td style="text-align:right"><p style="font-size:9px;color:#94a3b8;margin:0">Relatório gerado automaticamente</p></td>
+          </tr></table>
         </div>
       `
       document.body.appendChild(tempDiv)
 
       const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, logging: false })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [canvas.width / 2, canvas.height / 2] })
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
+      const margin = 8
+      const imgW = pw - margin * 2
+      const imgH = (canvas.height / canvas.width) * imgW
+      const totalPages = Math.ceil(imgH / (ph - margin * 2))
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage()
+        const srcY = (canvas.height / totalPages) * i
+        const srcH = canvas.height / totalPages
+        const destY = margin
+        const destH = Math.min(imgH - (imgH / totalPages) * i, ph - margin * 2)
+        pdf.addImage(imgData, 'PNG', margin, destY, imgW, destH, undefined, undefined, srcY)
+        pdf.setFontSize(7)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(`Página ${i + 1} de ${totalPages} · CrepaldiDH ERP`, margin, ph - 4)
+      }
       pdf.save(`relatorio-dashboard-${new Date().toISOString().split('T')[0]}.pdf`)
       document.body.removeChild(tempDiv)
     } catch (err) {
@@ -235,80 +225,104 @@ export default function DashboardPage() {
       tempDiv.style.fontFamily = 'Inter, sans-serif'
       tempDiv.innerHTML = `
         <div style="border-bottom:3px solid #059669;padding-bottom:16px;margin-bottom:24px">
-          <h1 style="font-size:22px;font-weight:800;color:#1e293b">CrepaldiDH · Relatório por Empresa</h1>
-          <p style="font-size:12px;color:#94a3b8">${company.name} · ${new Date().toLocaleDateString('pt-BR')}</p>
+          <table style="width:100%"><tr>
+            <td><h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0">CrepaldiDH</h1>
+            <p style="font-size:12px;color:#64748b;margin:4px 0 0">Relatório por Empresa</p></td>
+            <td style="text-align:right;vertical-align:top">
+              <p style="font-size:10px;color:#94a3b8;margin:0">${new Date().toLocaleDateString('pt-BR')}</p>
+            </td>
+          </tr></table>
         </div>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <tr>
-            <td style="background:#f0fdf4;padding:12px;border:1px solid #bbf7d0;border-radius:8px">
-              <p style="font-size:10px;color:#64748b;margin:0">CNPJ</p>
-              <p style="font-size:14px;font-weight:700;color:#1e293b;margin:4px 0 0">${company.cnpj || '—'}</p>
+            <td style="background:#f0fdf4;padding:16px;border:1px solid #bbf7d0;width:33%">
+              <p style="font-size:9px;color:#64748b;margin:0;text-transform:uppercase;letter-spacing:0.5px">Empresa</p>
+              <p style="font-size:16px;font-weight:700;color:#1e293b;margin:6px 0 0">${company.name || company.tradeName || '—'}</p>
             </td>
-            <td style="padding:6px"></td>
-            <td style="background:#f0fdf4;padding:12px;border:1px solid #bbf7d0;border-radius:8px">
-              <p style="font-size:10px;color:#64748b;margin:0">Segmento</p>
-              <p style="font-size:14px;font-weight:700;color:#1e293b;margin:4px 0 0">${company.segment || '—'}</p>
+            <td style="width:8px"></td>
+            <td style="background:#f0fdf4;padding:16px;border:1px solid #bbf7d0;width:33%">
+              <p style="font-size:9px;color:#64748b;margin:0;text-transform:uppercase;letter-spacing:0.5px">CNPJ</p>
+              <p style="font-size:14px;font-weight:700;color:#1e293b;margin:6px 0 0">${company.cnpj || '—'}</p>
             </td>
-            <td style="padding:6px"></td>
-            <td style="background:#f0fdf4;padding:12px;border:1px solid #bbf7d0;border-radius:8px">
-              <p style="font-size:10px;color:#64748b;margin:0">Cidade/UF</p>
-              <p style="font-size:14px;font-weight:700;color:#1e293b;margin:4px 0 0">${company.city || '—'}/${company.state || ''}</p>
+            <td style="width:8px"></td>
+            <td style="background:#f0fdf4;padding:16px;border:1px solid #bbf7d0;width:33%">
+              <p style="font-size:9px;color:#64748b;margin:0;text-transform:uppercase;letter-spacing:0.5px">Cidade/UF</p>
+              <p style="font-size:14px;font-weight:700;color:#1e293b;margin:6px 0 0">${company.city || '—'}/${company.state || ''}</p>
             </td>
           </tr>
         </table>
-        <h2 style="font-size:14px;font-weight:700;color:#334155;margin-bottom:12px">Projetos (${companyProjects.length})</h2>
-        ${companyProjects.length === 0 ? '<p style="font-size:12px;color:#94a3b8">Nenhum projeto vinculado a esta empresa.</p>' : `
+        <h2 style="font-size:14px;font-weight:700;color:#334155;margin:0 0 12px">Projetos (${companyProjects.length})</h2>
+        ${companyProjects.length === 0 ? '<p style="font-size:12px;color:#94a3b8;padding:20px 0;text-align:center">Nenhum projeto vinculado a esta empresa.</p>' : `
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <thead>
             <tr style="background:#f1f5f9">
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Projeto</th>
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Status</th>
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Período</th>
-              <th style="padding:8px 12px;text-align:right;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Valor</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Projeto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Status</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Período</th>
+              <th style="padding:10px 14px;text-align:right;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Valor</th>
             </tr>
           </thead>
           <tbody>
             ${companyProjects.map(p => `
               <tr>
-                <td style="padding:8px 12px;font-size:12px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${p.name}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${STATUS_LABELS[p.status]}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${new Date(p.startDate).toLocaleDateString('pt-BR')} a ${new Date(p.endDate).toLocaleDateString('pt-BR')}</td>
-                <td style="padding:8px 12px;font-size:12px;color:#1e293b;border:1px solid #e2e8f0;text-align:right;font-weight:700">R$ ${p.budget.toLocaleString('pt-BR')}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${p.name}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${STATUS_LABELS[p.status]}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${new Date(p.startDate).toLocaleDateString('pt-BR')} a ${new Date(p.endDate).toLocaleDateString('pt-BR')}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#059669;border:1px solid #e2e8f0;text-align:right;font-weight:700">R$ ${p.budget.toLocaleString('pt-BR')}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         `}
-        <p style="font-size:16px;font-weight:800;color:#059669;margin:16px 0">Receita total: R$ ${companyRevenue.toLocaleString('pt-BR')}</p>
+        <p style="font-size:18px;font-weight:800;color:#059669;margin:16px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;text-align:center">Receita total: R$ ${companyRevenue.toLocaleString('pt-BR')}</p>
         ${companyEvents.length > 0 ? `
-        <h2 style="font-size:14px;font-weight:700;color:#334155;margin-bottom:12px">Agenda de Hoje</h2>
+        <h2 style="font-size:14px;font-weight:700;color:#334155;margin:24px 0 12px">Agenda</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <thead>
             <tr style="background:#f1f5f9">
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Evento</th>
-              <th style="padding:8px 12px;text-align:left;font-size:10px;color:#64748b;border:1px solid #e2e8f0">Horário</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Evento</th>
+              <th style="padding:10px 14px;text-align:left;font-size:9px;color:#64748b;border:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.5px">Horário</th>
             </tr>
           </thead>
           <tbody>
             ${companyEvents.map(e => `
               <tr>
-                <td style="padding:8px 12px;font-size:12px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${e.title}</td>
-                <td style="padding:8px 12px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${e.startTime} - ${e.endTime}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#1e293b;border:1px solid #e2e8f0;font-weight:600">${e.title}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#64748b;border:1px solid #e2e8f0">${e.startTime} - ${e.endTime}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         ` : ''}
-        <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:24px">
-          <p style="font-size:10px;color:#94a3b8;text-align:center">Relatório gerado automaticamente · CrepaldiDH ERP</p>
+        <div style="border-top:2px solid #e2e8f0;padding-top:16px;margin-top:32px">
+          <table style="width:100%"><tr>
+            <td><p style="font-size:9px;color:#94a3b8;margin:0">CrepaldiDH · Desenvolvimento Humano e Organizacional</p></td>
+            <td style="text-align:right"><p style="font-size:9px;color:#94a3b8;margin:0">Relatório gerado automaticamente</p></td>
+          </tr></table>
         </div>
       `
       document.body.appendChild(tempDiv)
 
       const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, logging: false })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [canvas.width / 2, canvas.height / 2] })
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
+      const margin = 8
+      const imgW = pw - margin * 2
+      const imgH = (canvas.height / canvas.width) * imgW
+      const totalPages = Math.ceil(imgH / (ph - margin * 2))
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage()
+        const srcY = (canvas.height / totalPages) * i
+        const srcH = canvas.height / totalPages
+        const destY = margin
+        const destH = Math.min(imgH - (imgH / totalPages) * i, ph - margin * 2)
+        pdf.addImage(imgData, 'PNG', margin, destY, imgW, destH, undefined, undefined, srcY)
+        pdf.setFontSize(7)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(`Página ${i + 1} de ${totalPages} · CrepaldiDH ERP`, margin, ph - 4)
+      }
       pdf.save(`relatorio-${company.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`)
       document.body.removeChild(tempDiv)
       setShowCompanyReport(false)

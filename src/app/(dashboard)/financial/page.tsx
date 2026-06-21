@@ -221,27 +221,23 @@ export default function FinancialPage() {
       const html2canvas = (await import('html2canvas')).default
       const { jsPDF } = await import('jspdf')
       if (!reportRef.current) return
-      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true })
+      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const pw = 190, ph = (canvas.height * pw) / canvas.width
-      // Header
-      pdf.setFontSize(16)
-      pdf.setTextColor(92, 50, 230)
-      pdf.text('CrepaldiDH ERP - Módulo Financeiro', 10, 15)
-      pdf.setFontSize(8)
-      pdf.setTextColor(100, 100, 100)
-      pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 22)
-      pdf.line(10, 26, 200, 26)
-      // Content
-      pdf.addImage(imgData, 'PNG', 10, 30, pw, Math.min(ph, 250))
-      // Footer
-      const pageCount = (pdf as any).internal?.getNumberOfPages?.() || 1
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i)
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
+      const margin = 10
+      const imgW = pw - margin * 2
+      const imgH = (canvas.height / canvas.width) * imgW
+      const pageH = ph - margin * 2
+      const totalPages = Math.ceil(imgH / pageH)
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage()
+        const srcY = (canvas.height / totalPages) * i
+        pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH, undefined, undefined, srcY)
         pdf.setFontSize(7)
         pdf.setTextColor(150, 150, 150)
-        pdf.text(`Página ${i} de ${pageCount} | CrepaldiDH ERP`, 10, 290)
+        pdf.text(`Página ${i + 1} de ${totalPages} · CrepaldiDH ERP`, margin, ph - 4)
       }
       pdf.save(`relatorio-financeiro-${new Date().toISOString().split('T')[0]}.pdf`)
     } catch (err) { console.error('Export error:', err) }

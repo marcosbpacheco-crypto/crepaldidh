@@ -167,6 +167,7 @@ export const CrmProposals: React.FC = () => {
   } = useCrm()
   const admin = useAdmin()
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
+  const isContractAllowed = admin.currentUser?.roleName === 'Administrador' || admin.currentUser?.roleName === 'Diretor'
 
   // 1. Tab State: 'proposals' | 'contracts'
   const [activeTab, setActiveTab] = useState<'proposals' | 'contracts'>('proposals')
@@ -292,13 +293,13 @@ export const CrmProposals: React.FC = () => {
             </button>
             <button
               onClick={() => { setShowAiProposalGenerator(true); setAiGeneratedProposal(''); setAiPropService(''); setAiPropValue(0); setAiPropDuration('12 meses') }}
-              className="flex-1 sm:flex-none bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-violet-600/10 hover:shadow-lg"
+              className={`flex-1 sm:flex-none bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-violet-600/10 hover:shadow-lg ${isContractAllowed ? '' : 'hidden'}`}
             >
               <Brain className="w-4 h-4" />
               Gerar Proposta com IA
             </button>
           </div>
-        ) : hasFinancialAccess ? (
+        ) : hasFinancialAccess && isContractAllowed ? (
           <button
             onClick={() => { setShowAiGenerator(true); setAiGeneratedContract(''); setAiProposalId(''); setAiService(''); setAiValue(0); setAiDuration('12 meses') }}
             className="w-full sm:w-auto bg-gradient-to-r from-brand-teal to-brand-blue hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
@@ -366,7 +367,7 @@ export const CrmProposals: React.FC = () => {
                       <td className="p-4 text-center">
                         <button
                           onClick={() => setPreviewProposal(prop)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-brand-teal hover:text-white rounded-lg transition-colors font-bold text-[10px] inline-flex items-center gap-1 text-slate-600"
+                          className={`px-3 py-1.5 bg-slate-100 hover:bg-brand-teal hover:text-white rounded-lg transition-colors font-bold text-[10px] inline-flex items-center gap-1 text-slate-600 ${isContractAllowed ? '' : 'hidden'}`}
                         >
                           <Eye className="w-3.5 h-3.5" />
                           Visualizar PDF
@@ -599,6 +600,7 @@ export const CrmProposals: React.FC = () => {
             <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between print:hidden">
               <span className="text-slate-600 font-bold text-xs">Visualização da Proposta Oficial</span>
               <div className="flex items-center gap-3">
+                {isContractAllowed && (
                 <button
                   onClick={handlePrint}
                   className="px-4 py-2 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-brand-teal/10"
@@ -606,6 +608,7 @@ export const CrmProposals: React.FC = () => {
                   <Printer className="w-4 h-4" />
                   Imprimir / Salvar PDF
                 </button>
+                )}
                 <button
                   onClick={() => setPreviewProposal(null)}
                   className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-all"

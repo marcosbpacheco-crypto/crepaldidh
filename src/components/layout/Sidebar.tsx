@@ -3,6 +3,8 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useAdmin, type ModuleName } from "@/app/(dashboard)/admin/context/AdminContext"
+import { useSidebar } from "./SidebarContext"
+import { X } from "lucide-react"
 import {
   LayoutDashboard, 
   Users, 
@@ -47,9 +49,29 @@ const menuItems: MenuItem[] = [
 
 export function Sidebar() {
   const admin = useAdmin()
+  const { isOpen, close } = useSidebar()
+  const handleNav = () => { close() }
   return (
-    <aside className="w-64 bg-brand-blue text-slate-300 flex flex-col h-screen fixed top-0 left-0 shadow-2xl z-20">
-      <div className="h-20 flex items-center justify-center px-4 relative overflow-hidden shrink-0">
+    <>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={close} />
+      )}
+
+      {/* Sidebar - fixed, toggled via translate on mobile, always visible on desktop */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40
+        w-64 bg-brand-blue text-slate-300 flex flex-col shadow-2xl h-screen
+        transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
+        {/* Close button (mobile only) */}
+        <button onClick={close} className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-brand-blue-light lg:hidden">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="h-20 flex items-center justify-center px-4 relative overflow-hidden shrink-0">
         <div className="absolute inset-0 bg-brand-teal/10 blur-2xl rounded-full scale-150 transform -translate-y-1/2"></div>
         <Link href="/" className="relative z-10 flex items-center justify-center w-full h-full p-2 hover:scale-105 transition-transform duration-300">
           <Image 
@@ -69,6 +91,7 @@ export function Sidebar() {
             <li key={item.name}>
               <Link 
                 href={item.href}
+                onClick={handleNav}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-brand-blue-light hover:text-white hover:shadow-lg hover:shadow-black/10 transition-all duration-300 group relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-teal/0 to-brand-teal/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -79,6 +102,7 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
-    </aside>
+      </aside>
+    </>
   )
 }

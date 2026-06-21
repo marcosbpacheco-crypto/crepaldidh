@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, User, Menu, LogOut } from "lucide-react"
+import { Search, User, Menu, LogOut, X } from "lucide-react"
 import { NotificationDropdown } from "./NotificationDropdown"
 import { logout } from '@/app/(auth)/login/actions'
+import { useSidebar } from "./SidebarContext"
 
 export function Header() {
+  const { toggle, isOpen } = useSidebar()
   const [user, setUser] = useState<{ name: string; roleName: string } | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -33,36 +35,36 @@ export function Header() {
   }
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
-      <div className="flex items-center gap-4 w-full max-w-md">
-        <button className="md:hidden p-2 text-slate-500 hover:text-brand-blue">
-          <Menu className="w-6 h-6" />
+    <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-10 shadow-sm">
+      <div className="flex items-center gap-2 sm:gap-4 w-full max-w-md">
+        <button onClick={toggle} className="lg:hidden p-1.5 sm:p-2 text-slate-500 hover:text-brand-blue hover:bg-slate-100 rounded-lg transition-colors">
+          {isOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
         </button>
-        <div className="flex-1 flex items-center bg-slate-100/80 rounded-full px-4 py-2.5 border border-slate-200 focus-within:border-brand-teal focus-within:ring-2 focus-within:ring-brand-teal/20 transition-all">
-          <Search className="w-4 h-4 text-slate-400 mr-3" />
+        <div className="flex-1 flex items-center bg-slate-100/80 rounded-full px-3 sm:px-4 py-2 sm:py-2.5 border border-slate-200 focus-within:border-brand-teal focus-within:ring-2 focus-within:ring-brand-teal/20 transition-all">
+          <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 mr-2 sm:mr-3 shrink-0" />
           <input 
             type="text" 
-            placeholder="Buscar no sistema..." 
-            className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder-slate-400"
+            placeholder="Buscar..." 
+            className="bg-transparent border-none outline-none text-xs sm:text-sm w-full text-slate-700 placeholder-slate-400"
           />
         </div>
       </div>
       
-      <div className="flex items-center gap-6" ref={dropdownRef}>
+      <div className="flex items-center gap-2 sm:gap-6" ref={dropdownRef}>
         <NotificationDropdown />
         
-        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+        <div className="h-6 sm:h-8 w-px bg-slate-200 hidden sm:block"></div>
         
         <div className="relative">
-          <button onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-full pr-4 transition-all border border-transparent hover:border-slate-200">
-            <div className="w-10 h-10 bg-brand-blue-light/10 text-brand-blue rounded-full flex items-center justify-center font-bold text-sm">
+          <button onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-1 sm:gap-3 hover:bg-slate-50 p-1 sm:p-2 rounded-full sm:pr-4 transition-all border border-transparent hover:border-slate-200">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-blue-light/10 text-brand-blue rounded-full flex items-center justify-center font-bold text-xs sm:text-sm">
               {user?.name ? (
                 <span>{user.name.charAt(0).toUpperCase()}</span>
               ) : (
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </div>
-            <div className="flex flex-col items-start text-left hidden sm:flex">
+            <div className="flex-col items-start text-left hidden lg:flex">
               <span className="text-sm font-semibold text-slate-800 leading-none mb-1">{user?.name || 'Carregando...'}</span>
               <span className="text-xs text-brand-teal font-medium uppercase tracking-wider">{user?.roleName || ''}</span>
             </div>

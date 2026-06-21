@@ -92,54 +92,11 @@ const SEED_PLANS: TenantPlan[] = [
   { id: 'plan-enterprise', name: 'Enterprise', code: 'enterprise', description: 'Solução corporativa com suporte dedicado e customizações', maxUsers: 999, maxClients: 99999, maxProjects: 9999, storageLimitMb: 500000, hasAi: true, hasPortal: true, hasReports: true, monthlyPrice: 2497, annualPrice: 24970 },
 ]
 
-const SEED_TENANTS: Tenant[] = [
-  { id: 'tnt-crepaldi', name: 'CrepaldiDH', cnpj: '00.000.000/0001-00', planId: 'plan-enterprise', planName: 'Enterprise', status: 'active', maxUsers: 999, storageLimitMb: 500000, startDate: '2025-01-01T00:00:00Z', responsibleName: 'Marcos Crepaldi', responsibleEmail: 'marcos@crepaldidh.com.br', responsiblePhone: '(11) 99999-0001', createdAt: '2025-01-01T00:00:00Z' },
-  { id: 'tnt-vale', name: 'Vale S.A.', cnpj: '33.592.510/0001-54', planId: 'plan-premium', planName: 'Premium', status: 'active', maxUsers: 50, storageLimitMb: 20000, startDate: '2026-01-01T00:00:00Z', renewalDate: '2027-01-01T00:00:00Z', responsibleName: 'Roberto Santos', responsibleEmail: 'roberto@vale.com', responsiblePhone: '(31) 99999-1002', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'tnt-br', name: 'BR Distribuidora', cnpj: '34.274.182/0001-02', planId: 'plan-professional', planName: 'Profissional', status: 'active', maxUsers: 15, storageLimitMb: 5000, startDate: '2026-02-01T00:00:00Z', renewalDate: '2027-02-01T00:00:00Z', responsibleName: 'Mariana Souza', responsibleEmail: 'mariana@br.com.br', responsiblePhone: '(21) 99999-1001', createdAt: '2026-02-01T00:00:00Z' },
-  { id: 'tnt-itau', name: 'Banco Itaú', cnpj: '61.532.644/0001-15', planId: 'plan-enterprise', planName: 'Enterprise', status: 'trial', maxUsers: 10, storageLimitMb: 5000, startDate: '2026-05-01T00:00:00Z', renewalDate: '2026-06-01T00:00:00Z', responsibleName: 'Patrícia Lima', responsibleEmail: 'patricia@itau.com.br', responsiblePhone: '(11) 99999-1003', createdAt: '2026-05-01T00:00:00Z' },
-  { id: 'tnt-gerdau', name: 'Gerdau', cnpj: '33.611.868/0001-09', planId: 'plan-basic', planName: 'Básico', status: 'suspended', maxUsers: 5, storageLimitMb: 1000, startDate: '2026-03-01T00:00:00Z', renewalDate: '2026-09-01T00:00:00Z', responsibleName: 'Eduardo Silveira', responsibleEmail: 'eduardo@gerdau.com', responsiblePhone: '(51) 99999-1004', createdAt: '2026-03-01T00:00:00Z' },
-]
+const SEED_TENANTS: Tenant[] = []
 
-function seedUsage(): TenantUsage[] {
-  const now = Date.now()
-  return [
-    { id: 'usage-1', tenantId: 'tnt-crepaldi', metric: 'users', value: 7, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-2', tenantId: 'tnt-crepaldi', metric: 'clients', value: 4, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-3', tenantId: 'tnt-crepaldi', metric: 'projects', value: 12, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-4', tenantId: 'tnt-crepaldi', metric: 'storage_mb', value: 456, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-5', tenantId: 'tnt-crepaldi', metric: 'ai_requests', value: 89, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-6', tenantId: 'tnt-vale', metric: 'users', value: 12, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-7', tenantId: 'tnt-vale', metric: 'clients', value: 3, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-8', tenantId: 'tnt-vale', metric: 'projects', value: 8, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-9', tenantId: 'tnt-vale', metric: 'storage_mb', value: 234, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-10', tenantId: 'tnt-vale', metric: 'ai_requests', value: 45, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-11', tenantId: 'tnt-br', metric: 'users', value: 8, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-12', tenantId: 'tnt-br', metric: 'clients', value: 15, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-13', tenantId: 'tnt-br', metric: 'projects', value: 5, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-14', tenantId: 'tnt-br', metric: 'storage_mb', value: 89, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-15', tenantId: 'tnt-br', metric: 'ai_requests', value: 12, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-16', tenantId: 'tnt-itau', metric: 'users', value: 3, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-17', tenantId: 'tnt-itau', metric: 'storage_mb', value: 34, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-18', tenantId: 'tnt-gerdau', metric: 'users', value: 2, recordedAt: new Date(now - 86400000).toISOString() },
-    { id: 'usage-19', tenantId: 'tnt-gerdau', metric: 'storage_mb', value: 12, recordedAt: new Date(now - 86400000).toISOString() },
-  ]
-}
+function seedUsage(): TenantUsage[] { return [] }
 
-function seedBilling(): TenantBilling[] {
-  const now = Date.now()
-  const d = (ms: number) => new Date(now - ms).toISOString()
-  const date = (days: number) => new Date(now - days * 86400000).toISOString().split('T')[0]
-  return [
-    { id: 'bill-1', tenantId: 'tnt-vale', invoiceNumber: 'NF-2026-0001', amount: 997, status: 'paid', dueDate: date(35), paidAt: d(86400000 * 30), createdAt: d(86400000 * 35) },
-    { id: 'bill-2', tenantId: 'tnt-vale', invoiceNumber: 'NF-2026-0002', amount: 997, status: 'paid', dueDate: date(5), paidAt: d(86400000 * 2), createdAt: d(86400000 * 5) },
-    { id: 'bill-3', tenantId: 'tnt-vale', invoiceNumber: 'NF-2026-0003', amount: 997, status: 'pending', dueDate: date(-25), createdAt: d(86400000 * 5) },
-    { id: 'bill-4', tenantId: 'tnt-br', invoiceNumber: 'NF-2026-0004', amount: 497, status: 'paid', dueDate: date(20), paidAt: d(86400000 * 17), createdAt: d(86400000 * 20) },
-    { id: 'bill-5', tenantId: 'tnt-br', invoiceNumber: 'NF-2026-0005', amount: 497, status: 'pending', dueDate: date(-10), createdAt: d(86400000 * 10) },
-    { id: 'bill-6', tenantId: 'tnt-gerdau', invoiceNumber: 'NF-2026-0006', amount: 197, status: 'overdue', dueDate: date(-60), createdAt: d(86400000 * 60) },
-    { id: 'bill-7', tenantId: 'tnt-gerdau', invoiceNumber: 'NF-2026-0007', amount: 197, status: 'overdue', dueDate: date(-30), createdAt: d(86400000 * 30) },
-    { id: 'bill-8', tenantId: 'tnt-itau', invoiceNumber: 'NF-2026-0008', amount: 0, status: 'pending', dueDate: date(30), createdAt: d(86400000 * 5) },
-  ]
-}
+function seedBilling(): TenantBilling[] { return [] }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenants, setTenants] = useState<Tenant[]>([])

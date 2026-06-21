@@ -3,11 +3,12 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useDocuments, DocType, DocVisibility, DocStatus, DocViewMode, DocType as DocTypeT } from './context/DocumentContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import {
   FileText, Search, Upload, Grid3X3, List, Filter, X, Download,
   Plus, Building2, FolderKanban, Eye, History, Shield, FileUp,
   ChevronDown, Clock, User, Tag, AlertCircle, CheckCircle2,
-  Trash2, ExternalLink, Archive, RotateCcw, Menu
+  Trash2, ExternalLink, Archive, RotateCcw, Menu, Lock
 } from 'lucide-react'
 
 type DocsTab = 'library' | 'byClient' | 'byProject'
@@ -33,6 +34,9 @@ const DOC_TYPES: { value: DocType; label: string }[] = [
 export default function DocumentsPage() {
   const doc = useDocuments()
   const crm = useCrm()
+  const { currentUser } = useAdmin()
+  const isContractAllowed = currentUser?.roleName === 'Administrador' || currentUser?.roleName === 'Diretor'
+  const visibleDocuments = useMemo(() => isContractAllowed ? doc.documents : doc.documents.filter(d => d.type !== 'contract' && d.type !== 'proposal'), [doc.documents, isContractAllowed])
   const [tab, setTab] = useState<DocsTab>('library')
   const [viewMode, setViewMode] = useState<DocViewMode>('cards')
   const [search, setSearch] = useState('')
@@ -46,14 +50,14 @@ export default function DocumentsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const filteredDocs = useMemo(() => {
-    let list = doc.documents
+    let list = visibleDocuments
     if (search) { const q = search.toLowerCase(); list = list.filter(d => d.name.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q)) }
     if (filterType !== 'all') list = list.filter(d => d.type === filterType)
     if (filterCompany !== 'all') list = list.filter(d => d.companyId === filterCompany)
     if (filterStatus !== 'all') list = list.filter(d => d.status === filterStatus)
     if (filterVisibility !== 'all') list = list.filter(d => d.visibility === filterVisibility)
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [doc.documents, search, filterType, filterCompany, filterStatus, filterVisibility])
+  }, [visibleDocuments, search, filterType, filterCompany, filterStatus, filterVisibility])
 
   const companies = crm.companies.filter(c => c.status === 'active' || !c.status)
   const activeFilters = [filterType, filterCompany, filterStatus, filterVisibility].filter(f => f !== 'all').length
@@ -61,7 +65,7 @@ export default function DocumentsPage() {
   // Count docs per company
   const docsByCompany = useMemo(() => {
     const map = new Map<string, { company: (typeof crm.companies)[0]; docs: typeof doc.documents; count: number }>()
-    doc.documents.forEach(d => {
+    visibleDocuments.forEach(d => {
       if (!d.companyId) return
       const company = crm.companies.find(c => c.id === d.companyId)
       if (!company) return
@@ -71,11 +75,11 @@ export default function DocumentsPage() {
     })
     map.forEach((v) => { v.count = v.docs.length })
     return Array.from(map.values()).sort((a, b) => b.count - a.count)
-  }, [doc.documents, crm.companies])
+  }, [visibleDocuments, crm.companies])
 
   const docsByProject = useMemo(() => {
     const map = new Map<string, { project: (typeof crm.contracts)[0]; docs: typeof doc.documents; count: number }>()
-    doc.documents.forEach(d => {
+    visibleDocuments.forEach(d => {
       if (!d.projectId) return
       const project = crm.contracts.find(c => c.id === d.projectId)
       if (!project) return
@@ -85,7 +89,7 @@ export default function DocumentsPage() {
     })
     map.forEach((v) => { v.count = v.docs.length })
     return Array.from(map.values()).sort((a, b) => b.count - a.count)
-  }, [doc.documents, crm.contracts])
+  }, [visibleDocuments, crm.contracts])
 
   // Upload form
   const [uploadForm, setUploadForm] = useState({
@@ -147,7 +151,7 @@ export default function DocumentsPage() {
     setVersioning(false)
   }, [versioningDocId, versionForm, doc])
 
-  const selectedDoc = showDetailModal ? doc.documents.find(d => d.id === showDetailModal) : null
+  const selectedDoc = showDetailModal ? visibleDocuments.find(d => d.id === showDetailModal) : null
   const docVersions = showDetailModal ? doc.getVersions(showDetailModal) : []
   const docLogs = showDetailModal ? doc.getAccessLogs(showDetailModal) : []
 
@@ -229,6 +233,7 @@ export default function DocumentsPage() {
   }
 
   const handleDownload = (d: typeof doc.documents[0]) => {
+    if (!isContractAllowed && (d.type === 'contract' || d.type === 'proposal')) return
     doc.logAccess(d.id, 'Admin', 'download')
     const content = `${d.name}\n\nTipo: ${doc.docTypeConfig[d.type].label}\nCliente: ${d.companyName || '-'}\nProjeto: ${d.projectName || '-'}\nDescrição: ${d.description || '-'}\nVersão: ${d.currentVersion}\nStatus: ${doc.statusConfig[d.status].label}`
     const blob = new Blob([content], { type: 'text/plain' })
@@ -244,7 +249,7 @@ export default function DocumentsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Central de Documentos</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{doc.documents.length} documentos cadastrados</p>
+          <p className="text-sm text-slate-500 mt-0.5">{visibleDocuments.length} documentos cadastrados</p>
         </div>
         <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all"><Upload className="w-4 h-4" /> Novo Documento</button>
       </div>
@@ -367,7 +372,7 @@ export default function DocumentsPage() {
                   <input required value={uploadForm.name} onChange={e => setUploadForm({ ...uploadForm, name: e.target.value })} placeholder="Ex: Contrato Anual - Cliente" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-violet-400" /></div>
                 <div><label className="block text-[10px] font-bold text-slate-700 mb-1.5">Tipo</label>
                   <select value={uploadForm.type} onChange={e => setUploadForm({ ...uploadForm, type: e.target.value as DocType })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-violet-400">
-                    {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    {DOC_TYPES.filter(t => isContractAllowed || (t.value !== 'contract' && t.value !== 'proposal')).map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select></div>
                 <div><label className="block text-[10px] font-bold text-slate-700 mb-1.5">Visibilidade</label>
                   <select value={uploadForm.visibility} onChange={e => setUploadForm({ ...uploadForm, visibility: e.target.value as DocVisibility })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-violet-400">
@@ -461,7 +466,7 @@ export default function DocumentsPage() {
 
               {/* Actions */}
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => handleDownload(selectedDoc)} className="flex items-center gap-1.5 px-4 py-2 bg-violet-50 text-violet-700 rounded-xl text-xs font-bold hover:bg-violet-100 transition-colors"><Download className="w-3.5 h-3.5" /> Download</button>
+                <button onClick={() => handleDownload(selectedDoc)} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${isContractAllowed || (selectedDoc.type !== 'contract' && selectedDoc.type !== 'proposal') ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`} disabled={!isContractAllowed && (selectedDoc.type === 'contract' || selectedDoc.type === 'proposal')}><Download className="w-3.5 h-3.5" /> Download</button>
                 <button onClick={() => { setVersioningDocId(selectedDoc.id); setShowVersionModal(true); setShowDetailModal(null) }} className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"><Upload className="w-3.5 h-3.5" /> Nova Versão</button>
                 <button onClick={() => doc.updateDocument(selectedDoc.id, { status: selectedDoc.status === 'approved' ? 'archived' : 'approved' })} className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl text-xs font-bold hover:bg-amber-100 transition-colors">
                   {selectedDoc.status === 'approved' ? <Archive className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}

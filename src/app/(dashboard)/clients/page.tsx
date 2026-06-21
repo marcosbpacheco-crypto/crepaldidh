@@ -16,7 +16,10 @@ const NoAccess = () => (
 )
 
 function ClientsMainContent() {
-  const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
+  const admin = useAdmin()
+  const hasFinancialAccess = admin.checkPermission('financial', 'view')
+  const currentRoleName = admin.currentUser?.roleName || ''
+  const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
   const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
   const [search, setSearch] = useState('')
@@ -184,6 +187,7 @@ function ClientsMainContent() {
             serviceStatusIcon={serviceStatusIcon}
             serviceStatusLabel={serviceStatusLabel}
             hasFinancialAccess={hasFinancialAccess}
+            isAdminOrDiretor={isAdminOrDiretor}
           />
         )}
       </div>
@@ -217,7 +221,7 @@ function ClientDetail({
   client, contacts, interactions, documents, feedbacks, calendarEvents,
   onClose, onDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
   showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel,
-  hasFinancialAccess
+  hasFinancialAccess, isAdminOrDiretor
 }: {
   hasFinancialAccess: boolean
   client: Client
@@ -229,6 +233,7 @@ function ClientDetail({
   onClose: () => void
   onDelete: (id: string) => void
   onEdit: () => void
+  isAdminOrDiretor: boolean
   onAddContact: (c: any) => void
   onAddInteraction: (i: any) => void
   onAddFeedback: (f: any) => void
@@ -248,6 +253,7 @@ function ClientDetail({
   const [newIntType, setNewIntType] = useState<'call' | 'meeting' | 'whatsapp' | 'email' | 'visit' | 'support'>('call')
   const [newFbScore, setNewFbScore] = useState(10)
   const [newFbComment, setNewFbComment] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const statusBadge = (s: Client['status']) => {
     const map: Record<Client['status'], { label: string, color: string }> = {
@@ -312,9 +318,11 @@ function ClientDetail({
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-all">
               <X className="w-4 h-4" />
             </button>
-            <button onClick={() => onDelete(client.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-all">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {isAdminOrDiretor && (
+              <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-all">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -629,6 +637,29 @@ function ClientDetail({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5" /></div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Excluir Cliente</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              Tem certeza que deseja excluir o cliente <strong>{client.companyTradeName || client.companyName}</strong>?
+              O cliente será marcado como <strong>cancelado</strong> e todos os dados vinculados (contatos, interações, documentos, feedbacks) serão preservados.
+            </p>
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+              <button onClick={() => { onDelete(client.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-all">Confirmar Exclusão</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

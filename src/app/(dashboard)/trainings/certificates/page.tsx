@@ -111,8 +111,10 @@ export default function CertificatesPage() {
       })
 
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] })
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
+      pdf.addImage(imgData, 'PNG', 0, 0, pw, ph)
       pdf.save(`certificado-${previewCert.participantName.replace(/\s+/g, '-')}-${previewCert.validationCode}.pdf`)
     } catch (err) {
       console.error('PDF generation error:', err)
@@ -128,7 +130,9 @@ export default function CertificatesPage() {
     try {
       const html2canvas = (await import('html2canvas')).default
       const { jsPDF } = await import('jspdf')
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [794, 561] })
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pw = pdf.internal.pageSize.getWidth()
+      const ph = pdf.internal.pageSize.getHeight()
 
       for (let i = 0; i < eventCerts.length; i++) {
         const cert = eventCerts[i]
@@ -148,7 +152,7 @@ export default function CertificatesPage() {
         const canvas = await html2canvas(tempDiv, { backgroundColor: '#0f172a', scale: 1.5, useCORS: true })
         if (i > 0) pdf.addPage()
         const imgData = canvas.toDataURL('image/png')
-        pdf.addImage(imgData, 'PNG', 0, 0, 794, 561)
+        pdf.addImage(imgData, 'PNG', 0, 0, pw, ph)
         document.body.removeChild(tempDiv)
       }
 
