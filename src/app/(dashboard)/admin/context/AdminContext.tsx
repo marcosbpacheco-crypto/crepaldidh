@@ -171,6 +171,10 @@ const BOOTSTRAP_ADMIN: User = {
   createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi',
 }
 
+// IDs do antigo SEED_USERS (hardcoded) que devem ser removidos na migracao.
+// Usuarios CRIADOS DINAMICAMENTE tem prefixo 'adm-' e sao preservados.
+const OLD_SEED_IDS = new Set(['user-admin', 'user-dir', 'user-cons', 'user-comm', 'user-fin', 'user-rh', 'user-dho', 'user-op'])
+
 function seedAuditLogs(): AuditLog[] {
   return []
 }
@@ -214,7 +218,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     // NUNCA recria usuarios mock/seed — se localStorage estiver vazio, comeca vazio
     try {
       const u = localStorage.getItem('admin_users')
-      if (u) { const p = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
+      if (u) {
+        const p: User[] = JSON.parse(u)
+        if (Array.isArray(p)) {
+          // Migracao: remove usuarios com IDs do antigo SEED_USERS (hardcoded)
+          // Preserva apenas usuarios criados dinamicamente (prefixo 'adm-') e o BOOTSTRAP_ADMIN
+          const filtered = p.filter(user => {
+            if (!OLD_SEED_IDS.has(user.id)) return true // ID dinamico (adm-xxx)
+            // ID hardcoded antigo — so mantem se for exatamente o bootstrap admin
+            return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
+          })
+          setUsers(filtered)
+        }
+      }
     } catch { /* localStorage corrompido — ignora */ }
 
     try {

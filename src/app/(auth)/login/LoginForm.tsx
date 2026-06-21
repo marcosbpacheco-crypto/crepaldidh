@@ -15,6 +15,9 @@ const BOOTSTRAP_ADMIN: User = {
   createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi',
 }
 
+// IDs do antigo SEED_USERS que devem ser removidos na migracao (cross-device)
+const OLD_SEED_IDS = new Set(['user-admin', 'user-dir', 'user-cons', 'user-comm', 'user-fin', 'user-rh', 'user-dho', 'user-op'])
+
 export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -59,12 +62,26 @@ export function LoginForm() {
         }
       } catch {}
     }
+    // Migracao: limpa IDs do antigo SEED_USERS do servidor tambem
+    if (liveServerUsers.length > 0) {
+      liveServerUsers = liveServerUsers.filter(user => {
+        if (!OLD_SEED_IDS.has(user.id)) return true
+        return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
+      })
+    }
 
     // Read users from localStorage (set by AdminContext) — fonte de verdade
     let storedUsers: User[] = []
     try {
       const stored = localStorage.getItem('admin_users')
       if (stored) storedUsers = JSON.parse(stored)
+      // Migracao: remove usuarios com IDs do antigo SEED_USERS (cross-device cleanup)
+      if (Array.isArray(storedUsers) && storedUsers.length > 0) {
+        storedUsers = storedUsers.filter(user => {
+          if (!OLD_SEED_IDS.has(user.id)) return true
+          return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
+        })
+      }
     } catch {}
 
     const hasLocalData = storedUsers.length > 0
