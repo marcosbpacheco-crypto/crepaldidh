@@ -260,11 +260,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.permissions) && d.permissions.length > 0) setPermissions(d.permissions as Permission[])
-          if (Array.isArray(d.auditLogs) && d.auditLogs.length > 0) setAuditLogs(d.auditLogs as AuditLog[])
-          if (Array.isArray(d.lgpdConsents) && d.lgpdConsents.length > 0) setLgpdConsents(d.lgpdConsents as LgpdConsent[])
-          if (Array.isArray(d.privacyRequests) && d.privacyRequests.length > 0) setPrivacyRequests(d.privacyRequests as PrivacyRequest[])
-          for (const [k, v] of Object.entries(d)) { localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
+          const localEmpty = (key: string) => {
+            try { const s = localStorage.getItem(key); return !s || JSON.parse(s).length === 0 } catch { return true }
+          }
+          if (localEmpty('admin_permissions') && Array.isArray(d.permissions) && d.permissions.length > 0) setPermissions(d.permissions as Permission[])
+          if (localEmpty('admin_audit_logs') && Array.isArray(d.auditLogs) && d.auditLogs.length > 0) setAuditLogs(d.auditLogs as AuditLog[])
+          if (localEmpty('admin_lgpd_consents') && Array.isArray(d.lgpdConsents) && d.lgpdConsents.length > 0) setLgpdConsents(d.lgpdConsents as LgpdConsent[])
+          if (localEmpty('admin_privacy_requests') && Array.isArray(d.privacyRequests) && d.privacyRequests.length > 0) setPrivacyRequests(d.privacyRequests as PrivacyRequest[])
+          for (const [k, v] of Object.entries(d)) { if (Array.isArray(v) && v.length > 0) localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
         }
       })
       .catch(() => {})

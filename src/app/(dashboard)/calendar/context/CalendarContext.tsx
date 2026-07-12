@@ -279,22 +279,22 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setReminders(get('cal_reminders', []))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/calendar')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as CalendarEvent[])
-          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as CalendarParticipant[])
-          if (Array.isArray(d.reminders) && d.reminders.length > 0) setReminders(d.reminders as CalendarReminder[])
+          if (get('cal_events', []).length === 0 && Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as CalendarEvent[])
+          if (get('cal_participants', []).length === 0 && Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as CalendarParticipant[])
+          if (get('cal_reminders', []).length === 0 && Array.isArray(d.reminders) && d.reminders.length > 0) setReminders(d.reminders as CalendarReminder[])
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`cal_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

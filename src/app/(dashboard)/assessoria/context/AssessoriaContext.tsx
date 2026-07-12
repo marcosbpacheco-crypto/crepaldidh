@@ -137,6 +137,8 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
       setKpis(applyFilter(get('ass_kpis', SEED_KPIS)))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/assessoria')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
@@ -144,19 +146,17 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
           const d = res.data
           const companies = getCrmCompanyNames()
           const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
-          if (Array.isArray(d.diagnosticos) && d.diagnosticos.length > 0) setDiagnosticos(applyFilter(d.diagnosticos as Diagnostico[]))
-          if (Array.isArray(d.okrs) && d.okrs.length > 0) setOkrs(applyFilter(d.okrs as Okr[]))
-          if (Array.isArray(d.swots) && d.swots.length > 0) setSwots(applyFilter(d.swots as Swot[]))
-          if (Array.isArray(d.planosAcao) && d.planosAcao.length > 0) setPlanosAcao(applyFilter(d.planosAcao as PlanoAcao[]))
-          if (Array.isArray(d.kpis) && d.kpis.length > 0) setKpis(applyFilter(d.kpis as Kpi[]))
+          if (get('ass_diagnosticos', []).length === 0 && Array.isArray(d.diagnosticos) && d.diagnosticos.length > 0) setDiagnosticos(applyFilter(d.diagnosticos as Diagnostico[]))
+          if (get('ass_okrs', []).length === 0 && Array.isArray(d.okrs) && d.okrs.length > 0) setOkrs(applyFilter(d.okrs as Okr[]))
+          if (get('ass_swots', []).length === 0 && Array.isArray(d.swots) && d.swots.length > 0) setSwots(applyFilter(d.swots as Swot[]))
+          if (get('ass_planos_acao', []).length === 0 && Array.isArray(d.planosAcao) && d.planosAcao.length > 0) setPlanosAcao(applyFilter(d.planosAcao as PlanoAcao[]))
+          if (get('ass_kpis', []).length === 0 && Array.isArray(d.kpis) && d.kpis.length > 0) setKpis(applyFilter(d.kpis as Kpi[]))
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`ass_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
 
     window.addEventListener('crm:sync-companies', loadFromLocal)
     return () => window.removeEventListener('crm:sync-companies', loadFromLocal)

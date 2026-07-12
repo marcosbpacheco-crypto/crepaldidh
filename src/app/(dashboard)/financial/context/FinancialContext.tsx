@@ -358,28 +358,28 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setBankTransactions(get('fin_bank_transactions', []))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/financial')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories as FinancialCategory[])
-          if (Array.isArray(d.paymentMethods) && d.paymentMethods.length > 0) setPaymentMethods(d.paymentMethods as PaymentMethod[])
-          if (Array.isArray(d.receivables) && d.receivables.length > 0) setReceivables(d.receivables as AccountReceivable[])
-          if (Array.isArray(d.payables) && d.payables.length > 0) setPayables(d.payables as AccountPayable[])
-          if (Array.isArray(d.transactions) && d.transactions.length > 0) setTransactions(d.transactions as FinancialTransaction[])
-          if (Array.isArray(d.invoices) && d.invoices.length > 0) setInvoices(d.invoices as FinancialInvoice[])
-          if (Array.isArray(d.recurringRules) && d.recurringRules.length > 0) setRecurringRules(d.recurringRules as RecurringRule[])
-          if (Array.isArray(d.bankTransactions) && d.bankTransactions.length > 0) setBankTransactions(d.bankTransactions as BankTransaction[])
+          if (get('fin_categories', []).length === 0 && Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories as FinancialCategory[])
+          if (get('fin_payment_methods', []).length === 0 && Array.isArray(d.paymentMethods) && d.paymentMethods.length > 0) setPaymentMethods(d.paymentMethods as PaymentMethod[])
+          if (get('fin_receivables', []).length === 0 && Array.isArray(d.receivables) && d.receivables.length > 0) setReceivables(d.receivables as AccountReceivable[])
+          if (get('fin_payables', []).length === 0 && Array.isArray(d.payables) && d.payables.length > 0) setPayables(d.payables as AccountPayable[])
+          if (get('fin_transactions', []).length === 0 && Array.isArray(d.transactions) && d.transactions.length > 0) setTransactions(d.transactions as FinancialTransaction[])
+          if (get('fin_invoices', []).length === 0 && Array.isArray(d.invoices) && d.invoices.length > 0) setInvoices(d.invoices as FinancialInvoice[])
+          if (get('fin_recurring_rules', []).length === 0 && Array.isArray(d.recurringRules) && d.recurringRules.length > 0) setRecurringRules(d.recurringRules as RecurringRule[])
+          if (get('fin_bank_transactions', []).length === 0 && Array.isArray(d.bankTransactions) && d.bankTransactions.length > 0) setBankTransactions(d.bankTransactions as BankTransaction[])
           // cache to localStorage
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`fin_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   // ---- Sync to Supabase + cache to localStorage on changes ----

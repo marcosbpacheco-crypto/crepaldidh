@@ -149,22 +149,22 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setAccessLogs(get('doc_access_logs', SEED_LOGS))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/documents')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as Document[])
-          if (Array.isArray(d.versions) && d.versions.length > 0) setVersions(d.versions as DocumentVersion[])
-          if (Array.isArray(d.accessLogs) && d.accessLogs.length > 0) setAccessLogs(d.accessLogs as AccessLog[])
+          if (get('doc_documents', []).length === 0 && Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as Document[])
+          if (get('doc_versions', []).length === 0 && Array.isArray(d.versions) && d.versions.length > 0) setVersions(d.versions as DocumentVersion[])
+          if (get('doc_access_logs', []).length === 0 && Array.isArray(d.accessLogs) && d.accessLogs.length > 0) setAccessLogs(d.accessLogs as AccessLog[])
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`doc_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

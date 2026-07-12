@@ -97,23 +97,23 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
       setResponses(get('acesso_temporario_responses', SEED_RESPONSES))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/acesso-temporario')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.accesses) && d.accesses.length > 0) setAccesses(d.accesses as TemporaryAccess[])
-          if (Array.isArray(d.tempUsers) && d.tempUsers.length > 0) setTempUsers(d.tempUsers as TempUser[])
-          if (Array.isArray(d.questionnaires) && d.questionnaires.length > 0) setQuestionnaires(d.questionnaires as Questionnaire[])
-          if (Array.isArray(d.responses) && d.responses.length > 0) setResponses(d.responses as QuestionnaireResponse[])
+          if (get('acesso_temporario_accesses', []).length === 0 && Array.isArray(d.accesses) && d.accesses.length > 0) setAccesses(d.accesses as TemporaryAccess[])
+          if (get('acesso_temporario_users', []).length === 0 && Array.isArray(d.tempUsers) && d.tempUsers.length > 0) setTempUsers(d.tempUsers as TempUser[])
+          if (get('acesso_temporario_questionnaires', []).length === 0 && Array.isArray(d.questionnaires) && d.questionnaires.length > 0) setQuestionnaires(d.questionnaires as Questionnaire[])
+          if (get('acesso_temporario_responses', []).length === 0 && Array.isArray(d.responses) && d.responses.length > 0) setResponses(d.responses as QuestionnaireResponse[])
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`acesso_temporario_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

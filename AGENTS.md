@@ -68,3 +68,31 @@ This version has breaking changes — APIs, conventions, and file structure may 
 3. **API `/api/clients` 500**: cada query de tabela tem try/catch próprio, isolando falhas
 4. **`supabaseClient.ts` crashando página**: `throw new Error()` em módulo substituído por lazy getter — se env vars faltarem, `supabase` vira `null` silenciosamente
 5. **Deploy**: Vercel CLI (`npx vercel --prod`); projeto estava em conta `mbpac-projects`; URL nova: `https://crepaldidh.vercel.app` (antiga `crepaldidh-erp.vercel.app` deletada)
+
+## Session 2026-07-12 — Persistência blindada: localStorage SEMPRE vence
+
+### Problema crítico
+Ao recarregar a página, dados criados/deletados localmente (empresas, clientes, contatos, negócios, treinamentos, etc.) eram revertidos para o estado antigo vindo da API. Causa: em **todos os 10 contexts**, o fetch assíncrono da API sobrescrevia o estado mesmo quando o `localStorage` já tinha dados mais recentes.
+
+Root cause: `loadFromLocal()` era chamado **depois** da API (apenas no `catch`/`else`), e a API SEMPRE vencia mesmo quando localStorage tinha dados atualizados.
+
+### Fix aplicado (padrão consistente em todos os 10 contexts)
+1. **`loadFromLocal()` executa PRIMEIRO** (síncrono, antes do fetch) — localStorage SEMPRE preenche o estado inicial
+2. **Cada `setState` da API é guardado** com `if (get('ls_key', []).length === 0)` — API só seta estado se localStorage estiver vazio para aquela coleção
+3. **API ainda salva em localStorage** (cache cross-device), mas nunca sobrescreve estado local
+4. **`catch`/`else` não chama mais `loadFromLocal()`** — já rodou antes
+
+### Arquivos modificados (10 contexts)
+- **CrmContext.tsx** — `loadFromCache()` antes de `loadFromApi()`; cada `setX()` guardado com `getStored(key, []).length === 0`
+- **ClientsContext.tsx** — `loadFromLocal()` extraído para fora e chamado primeiro; `get` movido pro escopo do effect; `localEmpty(key)` guard
+- **TrainingsContext.tsx** — `loadFromLocal()` primeiro; `get(key, []).length === 0` guard
+- **FinancialContext.tsx** — mesmo padrão
+- **CalendarContext.tsx** — mesmo padrão
+- **MentoringContext.tsx** — mesmo padrão
+- **AssessoriaContext.tsx** — mesmo padrão
+- **DocumentContext.tsx** — mesmo padrão
+- **AcessoTemporarioContext.tsx** — mesmo padrão
+- **AdminContext.tsx** — mesmo padrão (incluindo guard no `localStorage.setItem` do `for` loop que faltava)
+
+### Build
+50/50 rotas, TypeScript compilado, sem erros.

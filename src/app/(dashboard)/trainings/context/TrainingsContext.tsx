@@ -236,26 +236,26 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setReports(get('tr_reports', []))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/trainings')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.sipatPrograms) && d.sipatPrograms.length > 0) setSipatPrograms(d.sipatPrograms as SipatProgram[])
-          if (Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as TrainingEvent[])
-          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as TrainingParticipant[])
-          if (Array.isArray(d.certificates) && d.certificates.length > 0) setCertificates(d.certificates as TrainingCertificate[])
-          if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as TrainingFeedback[])
-          if (Array.isArray(d.materials) && d.materials.length > 0) setMaterials(d.materials as TrainingMaterial[])
-          if (Array.isArray(d.reports) && d.reports.length > 0) setReports(d.reports as TrainingReport[])
+          if (get('tr_sipat_programs', []).length === 0 && Array.isArray(d.sipatPrograms) && d.sipatPrograms.length > 0) setSipatPrograms(d.sipatPrograms as SipatProgram[])
+          if (get('tr_events', []).length === 0 && Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as TrainingEvent[])
+          if (get('tr_participants', []).length === 0 && Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as TrainingParticipant[])
+          if (get('tr_certificates', []).length === 0 && Array.isArray(d.certificates) && d.certificates.length > 0) setCertificates(d.certificates as TrainingCertificate[])
+          if (get('tr_feedbacks', []).length === 0 && Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as TrainingFeedback[])
+          if (get('tr_materials', []).length === 0 && Array.isArray(d.materials) && d.materials.length > 0) setMaterials(d.materials as TrainingMaterial[])
+          if (get('tr_reports', []).length === 0 && Array.isArray(d.reports) && d.reports.length > 0) setReports(d.reports as TrainingReport[])
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`tr_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

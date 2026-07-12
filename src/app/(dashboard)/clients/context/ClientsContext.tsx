@@ -152,13 +152,14 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (typeof window === 'undefined' || loadedRef.current) return
     loadedRef.current = true
 
+    const get = <T,>(key: string, fallback: T): T => {
+      try {
+        const stored = localStorage.getItem(key)
+        return stored ? JSON.parse(stored) : fallback
+      } catch { return fallback }
+    }
+
     const loadFromLocal = () => {
-      const get = <T,>(key: string, fallback: T): T => {
-        try {
-          const stored = localStorage.getItem(key)
-          return stored ? JSON.parse(stored) : fallback
-        } catch { return fallback }
-      }
       const raw = get<unknown[]>('clients_data', [])
       const clean = sanitizeClients(raw)
       setClients(clean)
@@ -169,6 +170,8 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setFeedbacks(get('clients_feedbacks', []))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/clients')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
@@ -176,21 +179,20 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const d = res.data
           const raw = d.clients || []
           const clean = sanitizeClients(raw)
-          if (Array.isArray(clean) && clean.length > 0) setClients(clean)
-          if (Array.isArray(d.contacts) && d.contacts.length > 0) setContacts(d.contacts as ClientContact[])
-          if (Array.isArray(d.interactions) && d.interactions.length > 0) setInteractions(d.interactions as ClientInteraction[])
-          if (Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as ClientDocument[])
-          if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as ClientFeedback[])
+          const localEmpty = (key: string) => get(key, []).length === 0
+          if (localEmpty('clients_data') && Array.isArray(clean) && clean.length > 0) setClients(clean)
+          if (localEmpty('clients_contacts') && Array.isArray(d.contacts) && d.contacts.length > 0) setContacts(d.contacts as ClientContact[])
+          if (localEmpty('clients_interactions') && Array.isArray(d.interactions) && d.interactions.length > 0) setInteractions(d.interactions as ClientInteraction[])
+          if (localEmpty('clients_documents') && Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as ClientDocument[])
+          if (localEmpty('clients_feedbacks') && Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as ClientFeedback[])
           if (Array.isArray(clean) && clean.length > 0) localStorage.setItem('clients_data', JSON.stringify(clean))
           if (Array.isArray(d.contacts) && d.contacts.length > 0) localStorage.setItem('clients_contacts', JSON.stringify(d.contacts))
           if (Array.isArray(d.interactions) && d.interactions.length > 0) localStorage.setItem('clients_interactions', JSON.stringify(d.interactions))
           if (Array.isArray(d.documents) && d.documents.length > 0) localStorage.setItem('clients_documents', JSON.stringify(d.documents))
           if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) localStorage.setItem('clients_feedbacks', JSON.stringify(d.feedbacks))
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
 
     const STALE_KEYS = [
       'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',

@@ -244,26 +244,26 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setMentoringReports(get('mentoring_reports', []))
     }
 
+    loadFromLocal()
+
     fetch('/api/sync/mentoring')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
         if (res?.data) {
           const d = res.data
-          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as Participant[])
-          if (Array.isArray(d.sessions) && d.sessions.length > 0) setSessions(d.sessions as MentoringSession[])
-          if (Array.isArray(d.pdiPlans) && d.pdiPlans.length > 0) setPDIPlans(d.pdiPlans as PDIPlan[])
-          if (Array.isArray(d.competencies) && d.competencies.length > 0) setCompetencies(d.competencies as Competency[])
-          if (Array.isArray(d.tools) && d.tools.length > 0) setTools(d.tools as DevelopmentTool[])
-          if (Array.isArray(d.assessments) && d.assessments.length > 0) setAssessments(d.assessments as Assessment[])
-          if (Array.isArray(d.mentoringReports) && d.mentoringReports.length > 0) setMentoringReports(d.mentoringReports as MentoringReport[])
+          if (get('mentoring_participants', []).length === 0 && Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as Participant[])
+          if (get('mentoring_sessions', []).length === 0 && Array.isArray(d.sessions) && d.sessions.length > 0) setSessions(d.sessions as MentoringSession[])
+          if (get('mentoring_pdi', []).length === 0 && Array.isArray(d.pdiPlans) && d.pdiPlans.length > 0) setPDIPlans(d.pdiPlans as PDIPlan[])
+          if (get('mentoring_competencies', []).length === 0 && Array.isArray(d.competencies) && d.competencies.length > 0) setCompetencies(d.competencies as Competency[])
+          if (get('mentoring_tools', []).length === 0 && Array.isArray(d.tools) && d.tools.length > 0) setTools(d.tools as DevelopmentTool[])
+          if (get('mentoring_assessments', []).length === 0 && Array.isArray(d.assessments) && d.assessments.length > 0) setAssessments(d.assessments as Assessment[])
+          if (get('mentoring_reports', []).length === 0 && Array.isArray(d.mentoringReports) && d.mentoringReports.length > 0) setMentoringReports(d.mentoringReports as MentoringReport[])
           for (const [k, v] of Object.entries(d)) {
             if (Array.isArray(v) && v.length > 0) localStorage.setItem(`mentoring_${k}`, JSON.stringify(v))
           }
-        } else {
-          loadFromLocal()
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

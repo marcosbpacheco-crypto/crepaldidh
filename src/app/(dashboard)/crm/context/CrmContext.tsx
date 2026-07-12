@@ -292,13 +292,13 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           seen.add(key)
           return true
         })
-        setCompanies(cleanCompanies)
-        setContacts((data.contacts || []) as any)
-        setDeals((data.deals || []) as any)
-        setActivities((data.activities || []) as any)
-        setTasks((data.tasks || []) as any)
-        setProposals((data.proposals || []) as any)
-        setContracts((data.contracts || []) as any)
+        if (getStored<any[]>('crm_companies', []).length === 0) setCompanies(cleanCompanies)
+        if (getStored('crm_contacts', []).length === 0) setContacts((data.contacts || []) as any)
+        if (getStored('crm_deals', []).length === 0) setDeals((data.deals || []) as any)
+        if (getStored('crm_activities', []).length === 0) setActivities((data.activities || []) as any)
+        if (getStored('crm_tasks', []).length === 0) setTasks((data.tasks || []) as any)
+        if (getStored('crm_proposals', []).length === 0) setProposals((data.proposals || []) as any)
+        if (getStored('crm_contracts', []).length === 0) setContracts((data.contracts || []) as any)
         localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
         if (data.contacts) localStorage.setItem('crm_contacts', JSON.stringify(data.contacts))
         if (data.deals) localStorage.setItem('crm_deals', JSON.stringify(data.deals))
@@ -342,7 +342,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setInterviews(getStored('crm_interviews', []))
     }
 
-    loadFromApi().then(ok => { if (!ok) loadFromCache() })
+    loadFromCache()
+    loadFromApi()
 
     const storedRole = localStorage.getItem('crm_current_role')
     if (storedRole) setCurrentRole(storedRole as UserRole)
