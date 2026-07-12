@@ -209,7 +209,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         logLoad('localStorage (API erro)', clients.length, clients.map(c => c.id))
       })
 
-    // Limpeza de chaves obsoletas
+    // Limpeza de chaves obsoletas (mock/seed)
     const STALE_KEYS = [
       'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
       'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
@@ -218,6 +218,25 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     for (const key of STALE_KEYS) {
       try { localStorage.removeItem(key) } catch {}
     }
+
+    // Helper console para limpeza manual de dados de clientes
+    console.log('[CLIENTS] Para limpar cache local de clientes, execute no console:')
+    console.log('  localStorage.removeItem("clients_data")')
+    console.log('  localStorage.removeItem("clients_contacts")')
+    console.log('  localStorage.removeItem("clients_interactions")')
+    console.log('  localStorage.removeItem("clients_documents")')
+    console.log('  localStorage.removeItem("clients_feedbacks")')
+    ;(window as any).__clearClientsCache = () => {
+      try {
+        localStorage.removeItem('clients_data')
+        localStorage.removeItem('clients_contacts')
+        localStorage.removeItem('clients_interactions')
+        localStorage.removeItem('clients_documents')
+        localStorage.removeItem('clients_feedbacks')
+        console.log('[CLIENTS] Cache limpo. Recarregue a pagina.')
+      } catch (e) { console.error('[CLIENTS] Erro ao limpar cache:', e) }
+    }
+    console.log('[CLIENTS] Ou execute: __clearClientsCache()')
   }, [])
 
   // ---- Sync to Supabase + cache to localStorage on changes ----

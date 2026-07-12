@@ -1,6 +1,7 @@
 ﻿'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { ClientsProvider, useClients, Client, ClientService, ContractType } from './context/ClientsContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
@@ -16,12 +17,21 @@ const NoAccess = () => (
 )
 
 function ClientsMainContent() {
+  const router = useRouter()
   const admin = useAdmin()
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
   const currentRoleName = admin.currentUser?.roleName || ''
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
   const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, restoreClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
+
+  const handleDelete = useCallback(async (id: string) => {
+    try { await deleteClient(id); router.refresh() } catch {}
+  }, [deleteClient, router])
+
+  const handleRestore = useCallback(async (id: string) => {
+    try { await restoreClient(id); router.refresh() } catch {}
+  }, [restoreClient, router])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -176,9 +186,9 @@ function ClientsMainContent() {
             feedbacks={feedbacks.filter(f => f.clientId === selected.id)}
             calendarEvents={getClientCalendarEvents(selected.id)}
             onClose={() => setSelectedId(null)}
-            onDelete={deleteClient}
+            onDelete={handleDelete}
             onHardDelete={hardDeleteClient}
-            onRestore={restoreClient}
+            onRestore={handleRestore}
             onEdit={() => setEditingClient(selected)}
             onAddContact={addContact}
             onAddInteraction={addInteraction}
