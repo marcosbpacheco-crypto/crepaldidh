@@ -1,7 +1,6 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -403,23 +402,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Load CRM data from Supabase on mount
   useEffect(() => { refetchAll() }, [refetchAll])
-
-  // Realtime subscription — refresh CRM data when any CRM table changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const supabase = createClient()
-    const channel = supabase
-      .channel('crm-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_companies' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_contacts' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_deals' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_activities' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_proposals' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_contracts' }, () => refetchAll())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_tasks' }, () => refetchAll())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [refetchAll])
 
   // Sync to local storage
   const syncStorage = (key: string, value: any) => {

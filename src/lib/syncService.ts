@@ -153,12 +153,21 @@ export async function loadModuleFromSupabase(moduleKey: string): Promise<Record<
 
     const result: Record<string, unknown> = {}
     const promises = Object.entries(tableMap).map(async ([key, table]) => {
-      const { data, error } = await supabase.from(table).select('*')
-      if (error) throw new Error(`DB select ${table}: ${error.message}`)
-      if (data) {
-        const reverseMap = buildReverseMap(table)
-        result[key] = data.map(r => mapFields(r as Record<string, any>, reverseMap))
-      } else {
+      try {
+        const { data, error } = await supabase.from(table).select('*')
+        if (error) {
+          console.error(`syncService.loadModule DB select ${table}: ${error.message}`)
+          result[key] = []
+          return
+        }
+        if (data) {
+          const reverseMap = buildReverseMap(table)
+          result[key] = data.map(r => mapFields(r as Record<string, any>, reverseMap))
+        } else {
+          result[key] = []
+        }
+      } catch (e: any) {
+        console.error(`syncService.loadModule DB select ${table}: ${e?.message || e}`)
         result[key] = []
       }
     })

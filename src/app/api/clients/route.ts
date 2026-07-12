@@ -14,21 +14,26 @@ export async function GET() {
     const admin = getAdminClient()
     if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
-    const { data: clients, error: err1 } = await db(admin, 'client_list').select('*').order('created_at', { ascending: false })
-    if (err1) { log('GET clients error', err1.message); return NextResponse.json({ error: err1.message }, { status: 500 }) }
-    log('GET clients', `${clients?.length || 0} rows`)
+    let clients: any[] | null = null
+    let contacts: any[] | null = null
+    let interactions: any[] | null = null
+    let documents: any[] | null = null
+    let feedbacks: any[] | null = null
 
-    const { data: contacts, error: err2 } = await db(admin, 'client_contacts').select('*')
-    if (err2) { log('GET contacts error', err2.message) }
+    try { const r = await db(admin, 'client_list').select('*').order('created_at', { ascending: false }); clients = r.data; if (r.error) log('GET clients error', r.error.message); else log('GET clients', `${clients?.length || 0} rows`) }
+    catch (e: any) { log('GET clients exception', e.message) }
 
-    const { data: interactions, error: err3 } = await db(admin, 'client_interactions').select('*')
-    if (err3) { log('GET interactions error', err3.message) }
+    try { const r = await db(admin, 'client_contacts').select('*'); contacts = r.data; if (r.error) log('GET contacts error', r.error.message) }
+    catch (e: any) { log('GET contacts exception', e.message) }
 
-    const { data: documents, error: err4 } = await db(admin, 'client_documents').select('*')
-    if (err4) { log('GET documents error', err4.message) }
+    try { const r = await db(admin, 'client_interactions').select('*'); interactions = r.data; if (r.error) log('GET interactions error', r.error.message) }
+    catch (e: any) { log('GET interactions exception', e.message) }
 
-    const { data: feedbacks, error: err5 } = await db(admin, 'client_feedbacks').select('*')
-    if (err5) { log('GET feedbacks error', err5.message) }
+    try { const r = await db(admin, 'client_documents').select('*'); documents = r.data; if (r.error) log('GET documents error', r.error.message) }
+    catch (e: any) { log('GET documents exception', e.message) }
+
+    try { const r = await db(admin, 'client_feedbacks').select('*'); feedbacks = r.data; if (r.error) log('GET feedbacks error', r.error.message) }
+    catch (e: any) { log('GET feedbacks exception', e.message) }
 
     return NextResponse.json({
       clients: clients || [],
