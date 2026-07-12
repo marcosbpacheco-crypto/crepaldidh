@@ -144,3 +144,40 @@ create index if not exists idx_client_list_deleted_at on client_list(deleted_at)
 
 ### Build
 50/50 rotas, TypeScript compilado, sem erros.
+
+## Session 2026-07-12 — Auditoria final: eliminação de fontes concorrentes + RLS + cache + SQL migration
+
+### Ghost clients
+Problema: clientes deletados reapareciam após refresh porque **CRM backfill effect** relia `localStorage.crm_companies` e recriava clientes ausentes em `clients_data`.
+
+### Fix
+1. **REMOVIDO** CRM backfill effect (causa raiz)
+2. **REMOVIDO** cross-sync CRM em `addClient` (poluía `crm_companies`)
+3. **REMOVIDO** event listener `clients:sync-data`
+4. **API sempre vence** — removido `localEmpty` guard (agora que GET filtra `deleted_at is null`)
+5. **deleteClient**: otimista — remove do state + localStorage imediatamente, depois chama API
+6. **restoreClient**: recarrega do Supabase via `refreshClients()` após sucesso
+7. **router.refresh()** via `useRouter` após delete/restore no page.tsx
+8. **Helper console**: `window.__clearClientsCache()` — limpa só dados de clientes do localStorage
+
+### RLS Policies
+`client_list` tem policy `FOR ALL TO authenticated USING (true) WITH CHECK (true)`. API usa `SUPABASE_SERVICE_ROLE_KEY` que bypassa RLS. OK.
+
+### Cache
+`router.refresh()` chamado após delete/restore — invalida cache do servidor.
+
+### Duplicidades
+Formulário tem `isSubmitting` + botão `disabled` — previne duplo clique.
+
+### SQL Migration executada
+```sql
+alter table public.client_list add column if not exists deleted_at timestamptz null;
+create index if not exists idx_client_list_deleted_at on public.client_list (deleted_at);
+```
+**Confirmado**: coluna `deleted_at` existe, índice criado.
+
+### Status Supabase
+- Clientes ativos: 5
+- Clientes deletados: 0
+- Build: 50/50 rotas, sem erros
+- Deploy: `https://crepaldidh.vercel.app`
