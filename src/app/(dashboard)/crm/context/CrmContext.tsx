@@ -962,20 +962,33 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
-  // Persist CRM data to Supabase whenever any collection changes
+  // Persist CRM data to localStorage + Supabase (debounced, guarded)
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = companies.length > 0 || contacts.length > 0 || deals.length > 0 ||
+      activities.length > 0 || tasks.length > 0 || proposals.length > 0 ||
+      contracts.length > 0 || clients.length > 0 || diagnostics.length > 0 ||
+      units.length > 0 || sectors.length > 0 || risks.length > 0 ||
+      evidences.length > 0 || actionPlans.length > 0 || monitoring.length > 0 ||
+      reports.length > 0 || interviews.length > 0
+    if (!hasData) return
     const data = { companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews }
-    ;(async () => {
-      try {
-        await fetch('/api/sync/crm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ merged: data })
-        })
-      } catch (e) {
-        console.error('CRM sync error:', e)
-      }
-    })()
+    localStorage.setItem('crm_companies', JSON.stringify(companies))
+    localStorage.setItem('crm_contacts', JSON.stringify(contacts))
+    localStorage.setItem('crm_deals', JSON.stringify(deals))
+    localStorage.setItem('crm_activities', JSON.stringify(activities))
+    localStorage.setItem('crm_tasks', JSON.stringify(tasks))
+    localStorage.setItem('crm_proposals', JSON.stringify(proposals))
+    localStorage.setItem('crm_contracts', JSON.stringify(contracts))
+    localStorage.setItem('crm_clients', JSON.stringify(clients))
+    const timer = setTimeout(() => {
+      fetch('/api/sync/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: data })
+      }).catch(() => {})
+    }, 500)
+    return () => clearTimeout(timer)
   }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])
 
   // Helper helper
