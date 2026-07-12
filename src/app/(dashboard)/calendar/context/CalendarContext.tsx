@@ -2,6 +2,100 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import supabase from '@/lib/supabaseClient'
+import { createClient } from '@/lib/supabase/client'
+
+// ==========================================
+// 0. DB CONVERSION HELPERS
+// ==========================================
+
+// Map app event types to DB event_type CHECK values
+const APP_TYPE_TO_DB: Record<string, string> = {
+  commercial_meeting: 'meeting',
+  client_meeting: 'meeting',
+  mentoring: 'other',
+  training: 'training',
+  lecture: 'other',
+  sipat: 'other',
+  nr01_interview: 'other',
+  technical_visit: 'other',
+  internal_activity: 'other',
+}
+const DB_TYPE_TO_APP: Record<string, EventType> = {
+  meeting: 'commercial_meeting',
+  training: 'training',
+  deadline: 'internal_activity',
+  reminder: 'internal_activity',
+  appointment: 'commercial_meeting',
+  other: 'internal_activity',
+}
+
+// Map app status to DB status CHECK values (confirmed|tentative|cancelled)
+const APP_STATUS_TO_DB: Record<string, string> = {
+  scheduled: 'confirmed',
+  confirmed: 'confirmed',
+  completed: 'confirmed',
+  canceled: 'cancelled',
+  rescheduled: 'confirmed',
+}
+const DB_STATUS_TO_APP: Record<string, EventStatus> = {
+  confirmed: 'scheduled',
+  tentative: 'scheduled',
+  cancelled: 'canceled',
+}
+
+// Convert app CalendarEvent to DB insert object
+function appEventToDb(e: any): Record<string, any> {
+  const startTime = e.eventDate + 'T' + (e.startTime || '00:00') + ':00.000Z'
+  const endTime = e.eventDate + 'T' + (e.endTime || '23:59') + ':00.000Z'
+  const result: Record<string, any> = {
+    id: e.id,
+    title: e.title,
+    description: e.description || null,
+    event_type: APP_TYPE_TO_DB[e.type] || 'other',
+    start_time: startTime,
+    end_time: endTime,
+    all_day: e.allDay ?? false,
+    location: e.location || null,
+    color: e.color || null,
+    company_id: e.companyId || null,
+    created_by: e.responsible || null,
+    status: APP_STATUS_TO_DB[e.status] || 'confirmed',
+  }
+  if (e.tenant_id) result.tenant_id = e.tenant_id
+  if (e.project_id) result.project_id = e.project_id
+  if (e.responsible_user_id) result.responsible_user_id = e.responsible_user_id
+  return result
+}
+
+// Convert DB record to app CalendarEvent
+function dbRecordToAppEvent(r: any): CalendarEvent {
+  const start = r.start_time ? new Date(r.start_time) : new Date()
+  const end = r.end_time ? new Date(r.end_time) : new Date()
+  const eventDate = start.toISOString().split('T')[0]
+  const startTime = start.toISOString().split('T')[1]?.substring(0, 5) || '00:00'
+  const endTime = end.toISOString().split('T')[1]?.substring(0, 5) || '23:59'
+  return {
+    id: r.id,
+    title: r.title,
+    type: DB_TYPE_TO_APP[r.event_type] || 'internal_activity',
+    description: r.description || '',
+    companyId: r.company_id || '',
+    companyName: '',
+    responsible: r.created_by || r.responsible_user_id || '',
+    location: r.location || '',
+    link: '',
+    eventDate,
+    startTime,
+    endTime,
+    allDay: r.all_day ?? false,
+    status: DB_STATUS_TO_APP[r.status] || 'scheduled',
+    color: r.color || '#3b82f6',
+    notes: '',
+    reminderMinutes: 30,
+    createdAt: r.created_at || new Date().toISOString(),
+    updatedAt: '',
+  }
+}
 
 // ==========================================
 // 1. TYPES
@@ -289,7 +383,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           supabase.from('calendar_reminders').select('*'),
         ])
         if (evts) {
-          setEvents(evts.length ? evts : get('cal_events', generateSeedEvents()))
+          setEvents(evts.length ? evts.map(dbRecordToAppEvent) : get('cal_events', generateSeedEvents()))
           setParticipants(parts?.length ? parts : get('cal_participants', []))
           setReminders(rems?.length ? rems : get('cal_reminders', []))
         } else {
@@ -437,14 +531,20 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     const updated = [ne, ...events]
     setEvents(updated); sync('cal_events', updated)
-    supabase.from('calendar_events').insert(ne).then(({ error }) => error && console.warn(error))
+    supabase.from('calendar_events').insert(appEventToDb(ne)).then(({ error }) => error && console.warn(error))
     return ne
   }
 
   const updateEvent = (id: string, updates: Partial<CalendarEvent>) => {
     const updated = events.map(e => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
     setEvents(updated); sync('cal_events', updated)
-    supabase.from('calendar_events').update(updates).eq('id', id).then(({ error }) => error && console.warn(error))
+    const current = events.find(e => e.id === id)
+    if (current) {
+      const merged = { ...current, ...updates }
+      const dbUpdates = appEventToDb(merged)
+      delete dbUpdates.id
+      supabase.from('calendar_events').update(dbUpdates).eq('id', id).then(({ error }) => error && console.warn(error))
+    }
   }
 
   const deleteEvent = (id: string) => {

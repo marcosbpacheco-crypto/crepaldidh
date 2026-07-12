@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -361,6 +362,64 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.addEventListener('crm:sync-companies', handler)
     return () => window.removeEventListener('crm:sync-companies', handler)
   }, [])
+
+  // Refetch all CRM data from server (overwrites localStorage)
+  const refetchAll = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sync/crm');
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data;
+        if (data) {
+          const overwrite = (key: string, arr: unknown[] | undefined, setter: (v: any) => void) => {
+            if (Array.isArray(arr)) {
+              setter(arr)
+              localStorage.setItem(key, JSON.stringify(arr))
+            }
+          }
+          overwrite('crm_companies', data.companies, setCompanies)
+          overwrite('crm_contacts', data.contacts, setContacts)
+          overwrite('crm_deals', data.deals, setDeals)
+          overwrite('crm_activities', data.activities, setActivities)
+          overwrite('crm_tasks', data.tasks, setTasks)
+          overwrite('crm_proposals', data.proposals, setProposals)
+          overwrite('crm_contracts', data.contracts, setContracts)
+          overwrite('crm_clients', data.clients, setClients)
+          overwrite('crm_diagnostics', data.diagnostics, setDiagnostics)
+          overwrite('crm_units', data.units, setUnits)
+          overwrite('crm_sectors', data.sectors, setSectors)
+          overwrite('crm_risks', data.risks, setRisks)
+          overwrite('crm_evidences', data.evidences, setEvidences)
+          overwrite('crm_actionPlans', data.actionPlans, setActionPlans)
+          overwrite('crm_monitoring', data.monitoring, setMonitoring)
+          overwrite('crm_reports', data.reports, setReports)
+          overwrite('crm_interviews', data.interviews, setInterviews)
+        }
+      }
+    } catch (e) {
+      console.error('CRM load error:', e);
+    }
+  }, [])
+
+  // Load CRM data from Supabase on mount
+  useEffect(() => { refetchAll() }, [refetchAll])
+
+  // Realtime subscription — refresh CRM data when any CRM table changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const supabase = createClient()
+    const channel = supabase
+      .channel('crm-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_companies' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_contacts' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_deals' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_activities' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_proposals' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_contracts' }, () => refetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_tasks' }, () => refetchAll())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [refetchAll])
 
   // Sync to local storage
   const syncStorage = (key: string, value: any) => {
@@ -920,6 +979,22 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'active'
     })
   }
+
+  // Persist CRM data to Supabase whenever any collection changes
+  useEffect(() => {
+    const data = { companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews }
+    ;(async () => {
+      try {
+        await fetch('/api/sync/crm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ merged: data })
+        })
+      } catch (e) {
+        console.error('CRM sync error:', e)
+      }
+    })()
+  }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])
 
   // Helper helper
   function getRoleUserName(role: UserRole): string {
