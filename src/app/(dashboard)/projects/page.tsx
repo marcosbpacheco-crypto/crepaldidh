@@ -10,6 +10,8 @@ const NoAccess = () => (
   <span className="flex items-center gap-1 text-slate-300 font-bold"><Lock className="w-3 h-3" />---</span>
 )
 
+const fmt = (v: number | undefined | null) => `R$ ${(v ?? 0).toLocaleString('pt-BR')}`
+
 interface Project {
   id: string
   name: string
@@ -113,7 +115,7 @@ export default function ProjectsPage() {
   }
 
   const projectEvents = selected ? events.filter(e => e.projectId === selected.id || e.companyId === selected.companyId) : []
-  const totalEventRevenue = projectEvents.reduce((acc, e) => acc + e.cost, 0)
+  const totalEventRevenue = projectEvents.reduce((acc, e) => acc + (e.cost ?? 0), 0)
   const completedEvents = projectEvents.filter(e => e.status === 'realizado' || e.status === 'concluido').length
 
   return (
@@ -139,7 +141,7 @@ export default function ProjectsPage() {
           { label: 'Total de Projetos', value: projects.length, icon: Briefcase, color: 'violet' },
           { label: 'Em Andamento', value: projects.filter(p => p.status === 'em_andamento').length, icon: Clock, color: 'blue' },
           { label: 'Concluídos', value: projects.filter(p => p.status === 'concluido').length, icon: CheckCircle, color: 'emerald' },
-          { label: 'Receita Total', value: hasFinancialAccess ? `R$ ${projects.reduce((acc, p) => acc + p.budget, 0).toLocaleString('pt-BR')}` : <NoAccess />, icon: DollarSign, color: 'amber' },
+          { label: 'Receita Total', value: hasFinancialAccess ? fmt(projects.reduce((acc, p) => acc + (p.budget ?? 0), 0)) : <NoAccess />, icon: DollarSign, color: 'amber' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3">
             <div className={`p-2.5 rounded-xl bg-${kpi.color}-50 text-${kpi.color}-600`}>
@@ -176,7 +178,7 @@ export default function ProjectsPage() {
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-[10px] text-violet-600 font-semibold">
-                  {hasFinancialAccess ? `R$ ${p.budget.toLocaleString('pt-BR')}` : <NoAccess />}
+                  {hasFinancialAccess ? fmt(p.budget) : <NoAccess />}
                 </p>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
               </div>
@@ -221,7 +223,7 @@ export default function ProjectsPage() {
                     </div>
                     <div className="bg-white/5 rounded-xl p-3 border border-white/10">
                       <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Orçamento</p>
-                      <p className="text-sm font-bold mt-0.5">{hasFinancialAccess ? `R$ ${selected.budget.toLocaleString('pt-BR')}` : <NoAccess />}</p>
+                      <p className="text-sm font-bold mt-0.5">{hasFinancialAccess ? fmt(selected.budget) : <NoAccess />}</p>
                     </div>
                   </div>
                 </div>
@@ -236,7 +238,7 @@ export default function ProjectsPage() {
                   </h3>
                   <div className="flex gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" /> {completedEvents} concluídos</span>
-                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-amber-500" /> {hasFinancialAccess ? `R$ ${totalEventRevenue.toLocaleString('pt-BR')}` : <NoAccess />}</span>
+                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-amber-500" /> {hasFinancialAccess ? fmt(totalEventRevenue) : <NoAccess />}</span>
                   </div>
                 </div>
 
@@ -263,7 +265,7 @@ export default function ProjectsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-slate-700">{hasFinancialAccess ? `R$ ${evt.cost.toLocaleString('pt-BR')}` : <NoAccess />}</p>
+                        <p className="text-sm font-bold text-slate-700">{hasFinancialAccess ? fmt(evt.cost) : <NoAccess />}</p>
                         <p className="text-[10px] text-slate-400">{evt.hoursDuration}h</p>
                       </div>
                     </div>

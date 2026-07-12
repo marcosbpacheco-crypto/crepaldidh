@@ -66,7 +66,7 @@ function ClientsMainContent() {
 
   const statusLabel: Record<Client['status'], string> = { active: 'Ativo', suspended: 'Suspenso', churned: 'Cancelado' }
 
-  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const formatCurrency = (v: number | undefined | null) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
   const getClientCalendarEvents = (clientId: string) =>
     calendar.events.filter(e => e.clientId === clientId || (e.companyName && clients.find(c => c.id === clientId && (c.companyName === e.companyName || c.companyTradeName === e.companyName))))
