@@ -96,3 +96,51 @@ Root cause: `loadFromLocal()` era chamado **depois** da API (apenas no `catch`/`
 
 ### Build
 50/50 rotas, TypeScript compilado, sem erros.
+
+## Session 2026-07-12 — Soft delete real + persistência direta no módulo Clientes
+
+### Problema
+Excluir cliente só alterava React state (`status: 'churned'`). No refresh, o cliente voltava porque:
+1. **`deleteClient` não chamava Supabase** — apenas `setClients(prev => prev.map(..., status:'churned'))`
+2. **IDs locais inválidos** — `cli-${Date.now()}` não é UUID; `upsert` no `client_list` falhava silenciosamente
+3. **localStorage escrito só no debounce** — sync effect de 500ms escrevia localStorage; refresh antes do timer perdia a alteração
+4. **Sem coluna `deleted_at`** — não havia soft-delete real no banco
+5. **Sem filtro `deleted_at IS NULL`** — GET trazia todos os registros
+
+### Fix aplicado
+
+**Infra (SQL migration — executar manualmente no Supabase):**
+```sql
+alter table public.client_list add column if not exists deleted_at timestamptz null;
+create index if not exists idx_client_list_deleted_at on client_list(deleted_at);
+```
+
+**API `/api/clients/route.ts`:**
+- `GET` — adicionado `.is('deleted_at', null)` na query `client_list`
+- `DELETE` — agora seta `deleted_at: now()` + `status: 'churned'`
+- `PATCH` — novo dispatchType `'restore'` que zera `deleted_at` e seta `status: 'active'`
+
+**`syncService.ts`:**
+- `loadModuleFromSupabase` — adiciona `.is('deleted_at', null)` para tabelas `client_list` e `crm_companies`
+
+**`ClientsContext.tsx`:**
+- `addClient` — UUID real (`crypto.randomUUID()`) em vez de `cli-${Date.now()}`; escreve localStorage **dentro do `setClients` callback** (imediato, não espera debounce); chama `/api/clients` POST
+- `deleteClient` — `async`, chama `/api/clients` DELETE **com await**, valida resposta, só atualiza state se API confirmar; escreve localStorage imediatamente
+- `restoreClient` — nova função: chama PATCH `/api/clients` com `_type:'restore'`, atualiza state + localStorage
+- `hardDeleteClient` — `async`, atualiza state + localStorage imediatamente
+- `updateClient` — escreve localStorage imediatamente + chama PATCH API
+- Todos os `addContact`/`updateContact`/etc — escrevem localStorage imediatamente dentro do callback do `setState`
+
+**`clients/page.tsx`:**
+- Botão "Restaurar" aparece quando cliente está `churned` (icone `RotateCcw` verde)
+- `isSubmitting` no formulário de novo/editar cliente — previne duplicidade; botão desabilitado durante submit
+- Import de `restoreClient` do context
+
+### SQL a executar manualmente no Supabase SQL Editor
+```sql
+alter table public.client_list add column if not exists deleted_at timestamptz null;
+create index if not exists idx_client_list_deleted_at on client_list(deleted_at);
+```
+
+### Build
+50/50 rotas, TypeScript compilado, sem erros.

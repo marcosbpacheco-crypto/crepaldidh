@@ -210,8 +210,11 @@ CREATE TABLE IF NOT EXISTS client_list (
   monthly_value numeric(12,2) DEFAULT 0,
   total_value numeric(12,2) DEFAULT 0,
   notes text,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  deleted_at timestamptz
 );
+
+CREATE INDEX IF NOT EXISTS idx_client_list_deleted_at ON client_list(deleted_at);
 
 CREATE TABLE IF NOT EXISTS client_contacts (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),

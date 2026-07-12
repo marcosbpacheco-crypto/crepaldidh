@@ -20,7 +20,7 @@ function ClientsMainContent() {
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
   const currentRoleName = admin.currentUser?.roleName || ''
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
-  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, addContact, addInteraction, addFeedback } = useClients()
+  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, restoreClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
@@ -178,6 +178,7 @@ function ClientsMainContent() {
             onClose={() => setSelectedId(null)}
             onDelete={deleteClient}
             onHardDelete={hardDeleteClient}
+            onRestore={restoreClient}
             onEdit={() => setEditingClient(selected)}
             onAddContact={addContact}
             onAddInteraction={addInteraction}
@@ -220,7 +221,7 @@ function ClientsMainContent() {
 
 function ClientDetail({
   client, contacts, interactions, documents, feedbacks, calendarEvents,
-  onClose, onDelete, onHardDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
+  onClose, onDelete, onHardDelete, onRestore, onEdit, onAddContact, onAddInteraction, onAddFeedback,
   showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel,
   hasFinancialAccess, isAdminOrDiretor
 }: {
@@ -234,6 +235,7 @@ function ClientDetail({
   onClose: () => void
   onDelete: (id: string) => void
   onHardDelete: (id: string) => void
+  onRestore: (id: string) => void
   onEdit: () => void
   isAdminOrDiretor: boolean
   onAddContact: (c: any) => void
@@ -320,7 +322,12 @@ function ClientDetail({
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-all">
               <X className="w-4 h-4" />
             </button>
-            {isAdminOrDiretor && (
+            {isAdminOrDiretor && client.status === 'churned' && (
+              <button onClick={() => onRestore(client.id)} className="p-2 rounded-xl hover:bg-emerald-50 text-emerald-400 transition-all" title="Restaurar cliente">
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
+            {isAdminOrDiretor && client.status !== 'churned' && (
               <>
                 <button onClick={() => onHardDelete(client.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-all" title="Excluir permanentemente">
                   <Trash2 className="w-4 h-4" />
@@ -720,6 +727,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
     notes: ''
   }
   const [form, setForm] = useState(initialForm)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const serviceOptions = ['Diagnóstico Psicossocial', 'NR01', 'Palestras', 'Treinamentos', 'SIPAT', 'Mentorias', 'Desenvolvimento de Lideranças', 'Cultura Organizacional', 'PDI', 'Consultoria Estratégica']
 
@@ -736,7 +744,9 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
   }
 
   const handleSave = () => {
+    if (isSubmitting) return
     if (!form.companyName.trim() || !form.companyTradeName.trim()) return
+    setIsSubmitting(true)
     if (isEdit && onUpdate && editData) {
       onUpdate(editData.id, {
         ...form,
@@ -745,8 +755,11 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
           return existing || { name, status: 'not_started' as const, startDate: form.startDate, endDate: form.endDate, progress: 0 }
         })
       })
+      setIsSubmitting(false)
       onClose()
-    } else if (onSave) {
+      return
+    }
+    if (onSave) {
       const clientData = {
         ...form,
         services: form.services.map(name => ({
@@ -758,8 +771,9 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
         }))
       }
       const client = onSave(clientData)
-      if (client) onClose()
+      if (client) { setIsSubmitting(false); onClose(); return }
     }
+    setIsSubmitting(false)
   }
 
   return (
@@ -857,7 +871,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
         </div>
         <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-2.5 text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-100">Cancelar</button>
-          <button onClick={handleSave} className="px-6 py-2.5 bg-brand-teal text-white rounded-xl text-xs font-bold hover:bg-brand-teal/90 shadow-lg shadow-brand-teal/20">Salvar Cliente</button>
+          <button onClick={handleSave} disabled={isSubmitting} className={`px-6 py-2.5 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-teal/20 transition-all ${isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-brand-teal hover:bg-brand-teal/90'}`}>Salvar Cliente</button>
         </div>
       </div>
     </div>

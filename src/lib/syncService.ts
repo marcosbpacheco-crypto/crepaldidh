@@ -189,7 +189,12 @@ export async function loadModuleFromSupabase(moduleKey: string): Promise<Record<
     const result: Record<string, unknown> = {}
     const promises = Object.entries(tableMap).map(async ([key, table]) => {
       try {
-        const { data, error } = await supabase.from(table).select('*')
+        let query = supabase.from(table).select('*')
+        // Soft delete filter: exclude deleted records
+        if (table === 'client_list' || table === 'crm_companies') {
+          query = query.is('deleted_at', null)
+        }
+        const { data, error } = await query
         if (error) {
           console.error(`syncService.loadModule DB select ${table}: ${error.message}`)
           result[key] = []

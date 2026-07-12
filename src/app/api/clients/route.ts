@@ -20,7 +20,7 @@ export async function GET() {
     let documents: any[] | null = null
     let feedbacks: any[] | null = null
 
-    try { const r = await db(admin, 'client_list').select('*').order('created_at', { ascending: false }); clients = r.data; if (r.error) log('GET clients error', r.error.message); else log('GET clients', `${clients?.length || 0} rows`) }
+    try { const r = await db(admin, 'client_list').select('*').is('deleted_at', null).order('created_at', { ascending: false }); clients = r.data; if (r.error) log('GET clients error', r.error.message); else log('GET clients', `${clients?.length || 0} rows`) }
     catch (e: any) { log('GET clients exception', e.message) }
 
     try { const r = await db(admin, 'client_contacts').select('*'); contacts = r.data; if (r.error) log('GET contacts error', r.error.message) }
@@ -188,6 +188,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true })
     }
 
+    if (dispatchType === 'restore') {
+      const { error } = await db(admin, 'client_list').update({ status: 'active', deleted_at: null }).eq('id', id)
+      if (error) { log('PATCH restore error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
+      log('PATCH restore OK', id)
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (err: any) {
     log('PATCH exception', err.message)
@@ -204,8 +211,8 @@ export async function DELETE(request: Request) {
     const admin = getAdminClient()
     if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
-    // Soft delete: mark as churned
-    const { error } = await db(admin, 'client_list').update({ status: 'churned' }).eq('id', id)
+    // Soft delete: mark as churned + set deleted_at
+    const { error } = await db(admin, 'client_list').update({ status: 'churned', deleted_at: new Date().toISOString() }).eq('id', id)
     if (error) { log('DELETE client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
     log('DELETE client OK', id)
     return NextResponse.json({ success: true })

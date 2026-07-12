@@ -84,8 +84,9 @@ interface ClientsContextType {
   feedbacks: ClientFeedback[]
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client
   updateClient: (id: string, updates: Partial<Client>) => void
-  deleteClient: (id: string) => void
-  hardDeleteClient: (id: string) => void
+  deleteClient: (id: string) => Promise<void>
+  hardDeleteClient: (id: string) => Promise<void>
+  restoreClient: (id: string) => Promise<void>
   addContact: (contact: Omit<ClientContact, 'id'>) => void
   updateContact: (id: string, updates: Partial<ClientContact>) => void
   deleteContact: (id: string) => void
@@ -288,17 +289,33 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener('clients:sync-data', handler)
   }, [])
 
-  const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
-    const newClient: Client = { ...c, id: `cli-${Date.now()}`, createdAt: new Date().toISOString() }
-    setClients(prev => [newClient, ...prev])
+  const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  }
 
-    // Cross-sync to CRM companies so it appears in Dashboard, Projects, and CRM
+  const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
+    const newClient: Client = { ...c, id: generateId(), createdAt: new Date().toISOString() }
+    setClients(prev => {
+      const next = [newClient, ...prev]
+      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+      return next
+    })
+    fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'client', ...c }),
+    }).then(r => {
+      if (!r.ok) console.error('[CLIENTS] addClient API error:', r.status)
+    }).catch(err => console.error('[CLIENTS] addClient fetch error:', err))
+
+    // Cross-sync to CRM companies
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('crm_companies')
         const crmCompanies = stored ? JSON.parse(stored) : []
         const newCompany = {
-          id: `comp-${Date.now()}`,
+          id: generateId(),
           name: newClient.companyName,
           tradeName: newClient.companyTradeName || newClient.companyName,
           cnpj: newClient.cnpj,
@@ -321,49 +338,116 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         window.dispatchEvent(new CustomEvent('crm:sync-companies'))
       } catch { /* ignore cross-sync errors */ }
     }
-
     return newClient
   }
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+    setClients(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
+      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+      return next
+    })
+    fetch('/api/clients', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'client', id, ...updates }),
+    }).catch(err => console.error('[CLIENTS] updateClient error:', err))
   }
 
-  const deleteClient = (id: string) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, status: 'churned' } : c))
+  const deleteClient = async (id: string): Promise<void> => {
+    const res = await fetch('/api/clients', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      console.error('[CLIENTS] deleteClient API error:', json.error || res.status)
+      throw new Error(json.error || 'Falha ao excluir cliente')
+    }
+    setClients(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, status: 'churned' as const } : c)
+      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+      return next
+    })
+    console.log('[CLIENTS] deleteClient OK:', id)
   }
 
-  const hardDeleteClient = (id: string) => {
-    setClients(prev => prev.filter(c => c.id !== id))
+  const hardDeleteClient = async (id: string): Promise<void> => {
+    setClients(prev => {
+      const next = prev.filter(c => c.id !== id)
+      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+      return next
+    })
+    console.log('[CLIENTS] hardDeleteClient OK:', id)
+  }
+
+  const restoreClient = async (id: string): Promise<void> => {
+    const res = await fetch('/api/clients', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'restore', id }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      console.error('[CLIENTS] restoreClient API error:', json.error || res.status)
+      throw new Error(json.error || 'Falha ao restaurar cliente')
+    }
+    setClients(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, status: 'active' as const } : c)
+      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+      return next
+    })
+    console.log('[CLIENTS] restoreClient OK:', id)
   }
 
   const addContact = (c: Omit<ClientContact, 'id'>) => {
-    const newContact: ClientContact = { ...c, id: `cc-${Date.now()}` }
-    setContacts(prev => [...prev, newContact])
+    const newContact: ClientContact = { ...c, id: generateId() }
+    setContacts(prev => {
+      const next = [...prev, newContact]
+      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const updateContact = (id: string, updates: Partial<ClientContact>) => {
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+    setContacts(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
+      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const deleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id))
+    setContacts(prev => {
+      const next = prev.filter(c => c.id !== id)
+      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const addInteraction = (i: Omit<ClientInteraction, 'id' | 'date'>) => {
-    const newInt: ClientInteraction = { ...i, id: `ci-${Date.now()}`, date: new Date().toISOString() }
-    setInteractions(prev => [newInt, ...prev])
+    const newInt: ClientInteraction = { ...i, id: generateId(), date: new Date().toISOString() }
+    setInteractions(prev => {
+      const next = [newInt, ...prev]
+      try { localStorage.setItem('clients_interactions', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const addFeedback = (f: Omit<ClientFeedback, 'id' | 'date'>) => {
-    const newFb: ClientFeedback = { ...f, id: `cf-${Date.now()}`, date: new Date().toISOString() }
-    setFeedbacks(prev => [newFb, ...prev])
+    const newFb: ClientFeedback = { ...f, id: generateId(), date: new Date().toISOString() }
+    setFeedbacks(prev => {
+      const next = [newFb, ...prev]
+      try { localStorage.setItem('clients_feedbacks', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   return (
     <ClientsContext.Provider value={{
       clients, contacts, interactions, documents, feedbacks,
-      addClient, updateClient, deleteClient, hardDeleteClient,
+      addClient, updateClient, deleteClient, hardDeleteClient, restoreClient,
       addContact, updateContact, deleteContact,
       addInteraction, addFeedback
     }}>
