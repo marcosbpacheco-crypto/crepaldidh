@@ -156,6 +156,7 @@ interface CrmContextType {
   addCompany: (company: Omit<Company, 'id' | 'createdAt'>) => Company;
   updateCompany: (id: string, updates: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
+  hardDeleteCompany: (id: string) => void;
   addContact: (contact: Omit<Contact, 'id'>) => Contact;
   updateContact: (id: string, updates: Partial<Contact>) => void;
   deleteContact: (id: string) => void;
@@ -174,6 +175,7 @@ interface CrmContextType {
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
   updateClient: (id: string, updates: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+  hardDeleteClient: (id: string) => void;
   getClientByCompanyId: (companyId: string) => Client | undefined;
   convertContractToClient: (contractId: string) => void;
   addDiagnostic: (diag: Omit<Diagnostic, 'id' | 'createdAt'>) => Diagnostic;
@@ -263,7 +265,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentRole, setCurrentRole] = useState<UserRole>('admin')
 
-  // Load from local storage
+  // Load CRM data: Supabase first, localStorage cache as fallback
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -271,82 +273,145 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const stored = localStorage.getItem(key)
         return stored ? JSON.parse(stored) : initial
-      } catch (e) {
-        console.error(`Failed to parse localStorage key: ${key}`, e)
-        return initial
-      }
+      } catch { return initial }
     }
 
-    setCompanies(getStored('crm_companies', INITIAL_COMPANIES))
-    setContacts(getStored('crm_contacts', INITIAL_CONTACTS))
-    setDeals(getStored('crm_deals', INITIAL_DEALS))
-    setActivities(getStored('crm_activities', INITIAL_ACTIVITIES))
-    setTasks(getStored('crm_tasks', INITIAL_TASKS))
-    setProposals(getStored('crm_proposals', INITIAL_PROPOSALS))
-    setContracts(getStored('crm_contracts', INITIAL_CONTRACTS))
-    setClients(getStored('crm_clients', []))
-    setDiagnostics(getStored('crm_diagnostics', []))
-    setUnits(getStored('crm_units', []))
-    setSectors(getStored('crm_sectors', []))
-    setRisks(getStored('crm_risks', []))
-    setEvidences(getStored('crm_evidences', []))
-    setActionPlans(getStored('crm_actionPlans', []))
-    setMonitoring(getStored('crm_monitoring', []))
-    setReports(getStored('crm_reports', []))
-    setInterviews(getStored('crm_interviews', []))
-    
-    const storedRole = localStorage.getItem('crm_current_role')
-    if (storedRole) {
-      setCurrentRole(storedRole as UserRole)
+    const loadFromApi = async () => {
+      try {
+        const res = await fetch('/api/sync/crm')
+        if (!res.ok) throw new Error('API error')
+        const { data } = await res.json()
+        if (!data || !data.companies || data.companies.length === 0) throw new Error('empty')
+        // Use Supabase data, cache in localStorage
+        const apiCompanies = (data.companies || []) as Company[]
+        const seen = new Set<string>()
+        const cleanCompanies = apiCompanies.filter(c => {
+          if (!c || !c.name || !c.name.trim()) return false
+          const key = c.name.trim().toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        setCompanies(cleanCompanies)
+        setContacts((data.contacts || []) as any)
+        setDeals((data.deals || []) as any)
+        setActivities((data.activities || []) as any)
+        setTasks((data.tasks || []) as any)
+        setProposals((data.proposals || []) as any)
+        setContracts((data.contracts || []) as any)
+        localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
+        if (data.contacts) localStorage.setItem('crm_contacts', JSON.stringify(data.contacts))
+        if (data.deals) localStorage.setItem('crm_deals', JSON.stringify(data.deals))
+        if (data.activities) localStorage.setItem('crm_activities', JSON.stringify(data.activities))
+        if (data.tasks) localStorage.setItem('crm_tasks', JSON.stringify(data.tasks))
+        if (data.proposals) localStorage.setItem('crm_proposals', JSON.stringify(data.proposals))
+        if (data.contracts) localStorage.setItem('crm_contracts', JSON.stringify(data.contracts))
+        return true
+      } catch { return false }
     }
+
+    const loadFromCache = () => {
+      const rawCompanies = getStored<any[]>('crm_companies', [])
+      const seen = new Set<string>()
+      const cleanCompanies = rawCompanies.filter(c => {
+        if (!c || !c.name || !c.name.trim()) return false
+        const key = c.name.trim().toLowerCase()
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      if (cleanCompanies.length !== rawCompanies.length) {
+        localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
+      }
+      setCompanies(cleanCompanies as Company[])
+      setContacts(getStored('crm_contacts', INITIAL_CONTACTS))
+      setDeals(getStored('crm_deals', INITIAL_DEALS))
+      setActivities(getStored('crm_activities', INITIAL_ACTIVITIES))
+      setTasks(getStored('crm_tasks', INITIAL_TASKS))
+      setProposals(getStored('crm_proposals', INITIAL_PROPOSALS))
+      setContracts(getStored('crm_contracts', INITIAL_CONTRACTS))
+      setClients(getStored('crm_clients', []))
+      setDiagnostics(getStored('crm_diagnostics', []))
+      setUnits(getStored('crm_units', []))
+      setSectors(getStored('crm_sectors', []))
+      setRisks(getStored('crm_risks', []))
+      setEvidences(getStored('crm_evidences', []))
+      setActionPlans(getStored('crm_actionPlans', []))
+      setMonitoring(getStored('crm_monitoring', []))
+      setReports(getStored('crm_reports', []))
+      setInterviews(getStored('crm_interviews', []))
+    }
+
+    loadFromApi().then(ok => { if (!ok) loadFromCache() })
+
+    const storedRole = localStorage.getItem('crm_current_role')
+    if (storedRole) setCurrentRole(storedRole as UserRole)
   }, [])
 
-  // Backfill: when CRM mounts, ensure any clients from Clients module are also in crm_companies
+  // Backfill removed: auto-creating CRM entries from clients_data caused phantom counts.
+  // New entries are synced via addClient/addCompany cross-sync only.
+
+  // Reconcile: deduplicate crm_companies, rebuild clients_data to match only
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      const clientsRaw = localStorage.getItem('clients_data')
-      if (!clientsRaw) return
-      const clientsData = JSON.parse(clientsRaw) as Array<{
-        companyName: string; companyTradeName?: string; cnpj: string; segment?: string
-        city?: string; state?: string; internalResponsible?: string; notes?: string
-        createdAt: string
-      }>
+      // 1. Deduplicate crm_companies (source of truth)
       const companiesRaw = localStorage.getItem('crm_companies')
-      const crmCompanies = companiesRaw ? JSON.parse(companiesRaw) : []
-      const crmNames = new Set(crmCompanies.map((c: any) => c.name))
-      let changed = false
-      for (const cli of clientsData) {
-        if (!crmNames.has(cli.companyName)) {
-          crmCompanies.unshift({
-            id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            name: cli.companyName,
-            tradeName: cli.companyTradeName || cli.companyName,
-            cnpj: cli.cnpj || '',
-            segment: cli.segment || '',
-            employees: 0,
-            city: cli.city || '',
-            state: cli.state || '',
-            website: '',
-            instagram: '',
-            respPrincipal: cli.internalResponsible || '',
-            respRH: '',
-            respFinanceiro: '',
-            phone: '',
-            email: '',
-            notes: cli.notes || '',
-            status: 'active',
-            createdAt: cli.createdAt || new Date().toISOString(),
-          })
-          crmNames.add(cli.companyName)
-          changed = true
+      let cleanCompanies: any[] = []
+      if (companiesRaw) {
+        const list = JSON.parse(companiesRaw) as any[]
+        const seen = new Set<string>()
+        cleanCompanies = list.filter(c => {
+          if (!c || !c.name || !c.name.trim()) return false
+          const key = c.name.trim().toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        if (cleanCompanies.length !== list.length) {
+          localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
         }
       }
-      if (changed) {
-        localStorage.setItem('crm_companies', JSON.stringify(crmCompanies))
-        setCompanies(crmCompanies)
+
+      // 2. Rebuild clients_data to match only
+      const crmNames = new Set(cleanCompanies.map(c => (c.name || '').trim().toLowerCase()))
+      const clientsRaw = localStorage.getItem('clients_data')
+      let cleanClients: any[] = []
+      if (clientsRaw) {
+        const list = JSON.parse(clientsRaw) as any[]
+        const seen = new Set<string>()
+        for (const cli of list) {
+          if (!cli || !cli.companyName || !cli.companyName.trim()) continue
+          const key = cli.companyName.trim().toLowerCase()
+          if (!crmNames.has(key)) continue // only keep clients that match a CRM company
+          if (seen.has(key)) continue // deduplicate
+          seen.add(key)
+          cleanClients.push({
+            ...cli,
+            // merge CRM data as primary
+            companyName: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.name || cli.companyName,
+            companyTradeName: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.tradeName || cli.companyTradeName || cli.companyName,
+            cnpj: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.cnpj || cli.cnpj || '',
+          })
+        }
+        if (cleanClients.length !== list.length || cleanClients.some((c, i) => JSON.stringify(c) !== JSON.stringify(list[i]))) {
+          localStorage.setItem('clients_data', JSON.stringify(cleanClients))
+        }
       }
-    } catch { /* ignore backfill errors */ }
+
+      // 3. Remove stale localStorage keys from old seeds/mocks
+      const STALE_KEYS = [
+        'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
+        'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
+        'projects_mock', 'portal_mock', 'assessoria_mock',
+      ]
+      for (const key of STALE_KEYS) {
+        try { localStorage.removeItem(key) } catch {}
+      }
+
+      // 4. Reload state
+      setCompanies(cleanCompanies)
+    } catch { /* ignore reconcile errors */ }
   }, [])
 
   // Listen for cross-sync from Clients module
@@ -362,37 +427,31 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('crm:sync-companies', handler)
   }, [])
 
-  // Refetch all CRM data from server (overwrites localStorage)
+  // Refetch all CRM data from Supabase (manual refresh)
   const refetchAll = useCallback(async () => {
     try {
       const res = await fetch('/api/sync/crm');
       if (res.ok) {
         const json = await res.json();
         const data = json.data;
-        if (data) {
-          const overwrite = (key: string, arr: unknown[] | undefined, setter: (v: any) => void) => {
-            if (Array.isArray(arr)) {
-              setter(arr)
-              localStorage.setItem(key, JSON.stringify(arr))
-            }
-          }
-          overwrite('crm_companies', data.companies, setCompanies)
-          overwrite('crm_contacts', data.contacts, setContacts)
-          overwrite('crm_deals', data.deals, setDeals)
-          overwrite('crm_activities', data.activities, setActivities)
-          overwrite('crm_tasks', data.tasks, setTasks)
-          overwrite('crm_proposals', data.proposals, setProposals)
-          overwrite('crm_contracts', data.contracts, setContracts)
-          overwrite('crm_clients', data.clients, setClients)
-          overwrite('crm_diagnostics', data.diagnostics, setDiagnostics)
-          overwrite('crm_units', data.units, setUnits)
-          overwrite('crm_sectors', data.sectors, setSectors)
-          overwrite('crm_risks', data.risks, setRisks)
-          overwrite('crm_evidences', data.evidences, setEvidences)
-          overwrite('crm_actionPlans', data.actionPlans, setActionPlans)
-          overwrite('crm_monitoring', data.monitoring, setMonitoring)
-          overwrite('crm_reports', data.reports, setReports)
-          overwrite('crm_interviews', data.interviews, setInterviews)
+        if (data && data.companies && data.companies.length > 0) {
+          setCompanies(data.companies)
+          if (data.contacts) setContacts(data.contacts)
+          if (data.deals) setDeals(data.deals)
+          if (data.activities) setActivities(data.activities)
+          if (data.tasks) setTasks(data.tasks)
+          if (data.proposals) setProposals(data.proposals)
+          if (data.contracts) setContracts(data.contracts)
+          if (data.clients) setClients(data.clients)
+          if (data.diagnostics) setDiagnostics(data.diagnostics)
+          if (data.units) setUnits(data.units)
+          if (data.sectors) setSectors(data.sectors)
+          if (data.risks) setRisks(data.risks)
+          if (data.evidences) setEvidences(data.evidences)
+          if (data.actionPlans) setActionPlans(data.actionPlans)
+          if (data.monitoring) setMonitoring(data.monitoring)
+          if (data.reports) setReports(data.reports)
+          if (data.interviews) setInterviews(data.interviews)
         }
       }
     } catch (e) {
@@ -400,91 +459,24 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [])
 
-  // Load CRM data from Supabase on mount
-  useEffect(() => { refetchAll() }, [refetchAll])
-
-  // Sync to local storage
-  const syncStorage = (key: string, value: any) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(value))
-    }
-  }
-
-  // Update helper wrappers
-  const updateCompaniesState = (newVal: Company[]) => {
-    setCompanies(newVal)
-    syncStorage('crm_companies', newVal)
-  }
-  const updateDiagnosticsState = (newVal: Diagnostic[]) => {
-    setDiagnostics(newVal)
-    syncStorage('crm_diagnostics', newVal)
-  }
-  const updateUnitsState = (newVal: Unit[]) => {
-    setUnits(newVal)
-    syncStorage('crm_units', newVal)
-  }
-  const updateSectorsState = (newVal: Sector[]) => {
-    setSectors(newVal)
-    syncStorage('crm_sectors', newVal)
-  }
-  const updateRisksState = (newVal: Risk[]) => {
-    setRisks(newVal)
-    syncStorage('crm_risks', newVal)
-  }
-  const updateEvidencesState = (newVal: Evidence[]) => {
-    setEvidences(newVal)
-    syncStorage('crm_evidences', newVal)
-  }
-  const updateActionPlansState = (newVal: ActionPlan[]) => {
-    setActionPlans(newVal)
-    syncStorage('crm_actionPlans', newVal)
-  }
-  const updateMonitoringState = (newVal: MonitoringEntry[]) => {
-    setMonitoring(newVal)
-    syncStorage('crm_monitoring', newVal)
-  }
-  const updateReportsState = (newVal: Report[]) => {
-    setReports(newVal)
-    syncStorage('crm_reports', newVal)
-  }
-  const updateInterviewsState = (newVal: Interview[]) => {
-    setInterviews(newVal)
-    syncStorage('crm_interviews', newVal)
-  }
-  const updateContactsState = (newVal: Contact[]) => {
-    setContacts(newVal)
-    syncStorage('crm_contacts', newVal)
-  }
-
-  const updateDealsState = (newVal: Deal[]) => {
-    setDeals(newVal)
-    syncStorage('crm_deals', newVal)
-  }
-
-  const updateActivitiesState = (newVal: Activity[]) => {
-    setActivities(newVal)
-    syncStorage('crm_activities', newVal)
-  }
-
-  const updateTasksState = (newVal: Task[]) => {
-    setTasks(newVal)
-    syncStorage('crm_tasks', newVal)
-  }
-
-  const updateProposalsState = (newVal: Proposal[]) => {
-    setProposals(newVal)
-    syncStorage('crm_proposals', newVal)
-  }
-
-  const updateContractsState = (newVal: Contract[]) => {
-    setContracts(newVal)
-    syncStorage('crm_contracts', newVal)
-  }
-
-  const updateClientsState = (newVal: Client[]) => {
-    setClients(newVal)
-    syncStorage('crm_clients', newVal)
-  }
+  // Update helper wrappers — Supabase sync happens via effect below
+  const updateCompaniesState = setCompanies
+  const updateDiagnosticsState = setDiagnostics
+  const updateUnitsState = setUnits
+  const updateSectorsState = setSectors
+  const updateRisksState = setRisks
+  const updateEvidencesState = setEvidences
+  const updateActionPlansState = setActionPlans
+  const updateMonitoringState = setMonitoring
+  const updateReportsState = setReports
+  const updateInterviewsState = setInterviews
+  const updateContactsState = setContacts
+  const updateDealsState = setDeals
+  const updateActivitiesState = setActivities
+  const updateTasksState = setTasks
+  const updateProposalsState = setProposals
+  const updateContractsState = setContracts
+  const updateClientsState = setClients
 
   const changeRole = (role: UserRole) => {
     setCurrentRole(role)
@@ -690,6 +682,10 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCompany = (id: string) => {
     updateCompaniesState(companies.map(c => c.id === id ? { ...c, status: 'inactive' } : c))
+  }
+
+  const hardDeleteCompany = (id: string) => {
+    updateCompaniesState(companies.filter(c => c.id !== id))
   }
 
   // Contacts CRUD
@@ -947,6 +943,10 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateClientsState(clients.map(c => c.id === id ? { ...c, status: 'churned' } : c))
   }
 
+  const hardDeleteClient = (id: string) => {
+    updateClientsState(clients.filter(c => c.id !== id))
+  }
+
   const getClientByCompanyId = (companyId: string) => {
     return clients.find(c => c.companyId === companyId)
   }
@@ -1022,6 +1022,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addCompany,
         updateCompany,
         deleteCompany,
+        hardDeleteCompany,
         addContact,
         updateContact,
         deleteContact,
@@ -1041,6 +1042,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addClient,
         updateClient,
         deleteClient,
+        hardDeleteClient,
         getClientByCompanyId,
         convertContractToClient,
         // NR01 mutators

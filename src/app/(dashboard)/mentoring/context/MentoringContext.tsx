@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -223,37 +223,70 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [mentoringReports, setMentoringReports] = useState<MentoringReport[]>([])
 
+  const loadedRef = useRef(false)
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
     const get = <T,>(key: string, fallback: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : fallback
-      } catch { return fallback }
+      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
+      catch { return fallback }
     }
-    setParticipants(get('mentoring_participants', SEED_PARTICIPANTS))
-    setSessions(get('mentoring_sessions', SEED_SESSIONS))
-    setPDIPlans(get('mentoring_pdi', SEED_PDI_PLANS))
-    setCompetencies(get('mentoring_competencies', DEFAULT_COMPETENCIES))
-    setTools(get('mentoring_tools', DEFAULT_TOOLS))
-    setAssessments(get('mentoring_assessments', []))
-    setMentoringReports(get('mentoring_reports', []))
+
+    const loadFromLocal = () => {
+      setParticipants(get('mentoring_participants', SEED_PARTICIPANTS))
+      setSessions(get('mentoring_sessions', SEED_SESSIONS))
+      setPDIPlans(get('mentoring_pdi', SEED_PDI_PLANS))
+      setCompetencies(get('mentoring_competencies', DEFAULT_COMPETENCIES))
+      setTools(get('mentoring_tools', DEFAULT_TOOLS))
+      setAssessments(get('mentoring_assessments', []))
+      setMentoringReports(get('mentoring_reports', []))
+    }
+
+    fetch('/api/sync/mentoring')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as Participant[])
+          if (Array.isArray(d.sessions) && d.sessions.length > 0) setSessions(d.sessions as MentoringSession[])
+          if (Array.isArray(d.pdiPlans) && d.pdiPlans.length > 0) setPDIPlans(d.pdiPlans as PDIPlan[])
+          if (Array.isArray(d.competencies) && d.competencies.length > 0) setCompetencies(d.competencies as Competency[])
+          if (Array.isArray(d.tools) && d.tools.length > 0) setTools(d.tools as DevelopmentTool[])
+          if (Array.isArray(d.assessments) && d.assessments.length > 0) setAssessments(d.assessments as Assessment[])
+          if (Array.isArray(d.mentoringReports) && d.mentoringReports.length > 0) setMentoringReports(d.mentoringReports as MentoringReport[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`mentoring_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  const sync = (key: string, value: unknown) => {
-    if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
-  }
-
-  const setAndSync = <T,>(setter: React.Dispatch<React.SetStateAction<T>>, key: string) =>
-    (val: T) => { setter(val); sync(key, val) }
-
-  const setParticipantsS = setAndSync(setParticipants, 'mentoring_participants')
-  const setSessionsS = setAndSync(setSessions, 'mentoring_sessions')
-  const setPDIPlansS = setAndSync(setPDIPlans, 'mentoring_pdi')
-  const setCompetenciesS = setAndSync(setCompetencies, 'mentoring_competencies')
-  const setToolsS = setAndSync(setTools, 'mentoring_tools')
-  const setAssessmentsS = setAndSync(setAssessments, 'mentoring_assessments')
-  const setMentoringReportsS = setAndSync(setMentoringReports, 'mentoring_reports')
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = participants.length > 0 || sessions.length > 0 || pdiPlans.length > 0 || competencies.length > 0 || tools.length > 0 || assessments.length > 0 || mentoringReports.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { participants, sessions, pdiPlans, competencies, tools, assessments, mentoringReports }
+      fetch('/api/sync/mentoring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('MentoringContext sync error:', err))
+      localStorage.setItem('mentoring_participants', JSON.stringify(participants))
+      localStorage.setItem('mentoring_sessions', JSON.stringify(sessions))
+      localStorage.setItem('mentoring_pdi', JSON.stringify(pdiPlans))
+      localStorage.setItem('mentoring_competencies', JSON.stringify(competencies))
+      localStorage.setItem('mentoring_tools', JSON.stringify(tools))
+      localStorage.setItem('mentoring_assessments', JSON.stringify(assessments))
+      localStorage.setItem('mentoring_reports', JSON.stringify(mentoringReports))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [participants, sessions, pdiPlans, competencies, tools, assessments, mentoringReports])
 
   // Computed
   const now = new Date()
@@ -270,76 +303,76 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Participants
   const addParticipant = (p: Omit<Participant, 'id' | 'createdAt'>): Participant => {
     const np: Participant = { ...p, id: `part-${Date.now()}`, createdAt: new Date().toISOString() }
-    setParticipantsS([np, ...participants])
+    setParticipants([np, ...participants])
     return np
   }
   const updateParticipant = (id: string, updates: Partial<Participant>) =>
-    setParticipantsS(participants.map(p => p.id === id ? { ...p, ...updates } : p))
+    setParticipants(participants.map(p => p.id === id ? { ...p, ...updates } : p))
   const deleteParticipant = (id: string) =>
-    setParticipantsS(participants.filter(p => p.id !== id))
+    setParticipants(participants.filter(p => p.id !== id))
 
   // Sessions
   const addSession = (s: Omit<MentoringSession, 'id' | 'createdAt'>): MentoringSession => {
     const ns: MentoringSession = { ...s, id: `sess-${Date.now()}`, createdAt: new Date().toISOString() }
-    setSessionsS([ns, ...sessions])
+    setSessions([ns, ...sessions])
     return ns
   }
   const updateSession = (id: string, updates: Partial<MentoringSession>) =>
-    setSessionsS(sessions.map(s => s.id === id ? { ...s, ...updates } : s))
+    setSessions(sessions.map(s => s.id === id ? { ...s, ...updates } : s))
   const deleteSession = (id: string) =>
-    setSessionsS(sessions.filter(s => s.id !== id))
+    setSessions(sessions.filter(s => s.id !== id))
 
   // PDI Plans
   const addPDIPlan = (plan: Omit<PDIPlan, 'id' | 'createdAt' | 'updatedAt'>): PDIPlan => {
     const np: PDIPlan = { ...plan, id: `pdi-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    setPDIPlansS([np, ...pdiPlans])
+    setPDIPlans([np, ...pdiPlans])
     return np
   }
   const updatePDIPlan = (id: string, updates: Partial<PDIPlan>) =>
-    setPDIPlansS(pdiPlans.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p))
+    setPDIPlans(pdiPlans.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p))
   const deletePDIPlan = (id: string) =>
-    setPDIPlansS(pdiPlans.filter(p => p.id !== id))
+    setPDIPlans(pdiPlans.filter(p => p.id !== id))
 
   const addPDIGoal = (pdiId: string, goal: Omit<PDIGoal, 'id' | 'pdiId'>): PDIGoal => {
     const ng: PDIGoal = { ...goal, id: `goal-${Date.now()}`, pdiId }
-    setPDIPlansS(pdiPlans.map(p => p.id === pdiId ? { ...p, goals: [...p.goals, ng], updatedAt: new Date().toISOString() } : p))
+    setPDIPlans(pdiPlans.map(p => p.id === pdiId ? { ...p, goals: [...p.goals, ng], updatedAt: new Date().toISOString() } : p))
     return ng
   }
   const updatePDIGoal = (pdiId: string, goalId: string, updates: Partial<PDIGoal>) =>
-    setPDIPlansS(pdiPlans.map(p => p.id === pdiId
+    setPDIPlans(pdiPlans.map(p => p.id === pdiId
       ? { ...p, goals: p.goals.map(g => g.id === goalId ? { ...g, ...updates } : g), updatedAt: new Date().toISOString() }
       : p))
   const deletePDIGoal = (pdiId: string, goalId: string) =>
-    setPDIPlansS(pdiPlans.map(p => p.id === pdiId
+    setPDIPlans(pdiPlans.map(p => p.id === pdiId
       ? { ...p, goals: p.goals.filter(g => g.id !== goalId), updatedAt: new Date().toISOString() }
       : p))
 
   // Competencies
   const addCompetency = (c: Omit<Competency, 'id'>): Competency => {
     const nc: Competency = { ...c, id: `comp-${Date.now()}` }
-    setCompetenciesS([...competencies, nc])
+    setCompetencies([...competencies, nc])
     return nc
   }
   const deleteCompetency = (id: string) =>
-    setCompetenciesS(competencies.filter(c => c.id !== id))
+    setCompetencies(competencies.filter(c => c.id !== id))
 
   // Tools
   const addToolUsage = (toolId: string, usage: Omit<ToolUsage, 'id'>) => {
     const nu: ToolUsage = { ...usage, id: `usage-${Date.now()}` }
-    setToolsS(tools.map(t => t.id === toolId ? { ...t, usageHistory: [...t.usageHistory, nu] } : t))
+    setTools(tools.map(t => t.id === toolId ? { ...t, usageHistory: [...t.usageHistory, nu] } : t))
   }
 
   // Assessments
   const addAssessment = (a: Omit<Assessment, 'id'>): Assessment => {
     const na: Assessment = { ...a, id: `assess-${Date.now()}` }
-    setAssessmentsS([...assessments, na])
+    setAssessments([...assessments, na])
     return na
   }
 
   // Reports
   const addMentoringReport = (r: Omit<MentoringReport, 'id' | 'generatedAt'>): MentoringReport => {
     const nr: MentoringReport = { ...r, id: `mreport-${Date.now()}`, generatedAt: new Date().toISOString() }
-    setMentoringReportsS([nr, ...mentoringReports])
+    setMentoringReports([nr, ...mentoringReports])
     return nr
   }
 

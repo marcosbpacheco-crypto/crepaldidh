@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { setSessionCookie, syncUsersToCookie, getUsersFromCookie } from './actions'
+import { setSessionCookie } from './actions'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 import type { User } from '@/app/(dashboard)/admin/context/AdminContext'
 
@@ -26,19 +26,17 @@ export function LoginForm() {
   const [showForgot, setShowForgot] = useState(false)
   const [recoverySent, setRecoverySent] = useState(false)
 
-  // Fetch users from server store (cross-device sync) on mount
+  // Fetch users from Supabase (source of truth) on mount
   const [serverUsers, setServerUsers] = useState<User[]>([])
   useEffect(() => {
-    getUsersFromCookie().then(json => {
-      if (json) {
-        try {
-          const parsed = JSON.parse(json)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setServerUsers(parsed)
-          }
-        } catch {}
-      }
-    }).catch(() => {})
+    fetch('/api/sync-admin-users')
+      .then(res => res.ok ? res.json() : { users: [] })
+      .then(({ users }) => {
+        if (Array.isArray(users) && users.length > 0) {
+          setServerUsers(users)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,25 +47,16 @@ export function LoginForm() {
     const emailNorm = email.trim().toLowerCase()
     const passNorm = password.trim()
 
-    // Try to fetch latest users from server store in case useEffect hasn't completed yet
+    // Try to fetch latest users from Supabase in case useEffect hasn't completed yet
     let liveServerUsers = serverUsers
     if (liveServerUsers.length === 0) {
       try {
-        const json = await getUsersFromCookie()
-        if (json) {
-          const parsed = JSON.parse(json)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            liveServerUsers = parsed
-          }
+        const res = await fetch('/api/sync-admin-users')
+        if (res.ok) {
+          const { users } = await res.json()
+          if (Array.isArray(users) && users.length > 0) liveServerUsers = users
         }
       } catch {}
-    }
-    // Migracao: limpa IDs do antigo SEED_USERS do servidor tambem
-    if (liveServerUsers.length > 0) {
-      liveServerUsers = liveServerUsers.filter(user => {
-        if (!OLD_SEED_IDS.has(user.id)) return true
-        return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
-      })
     }
 
     // Read users from localStorage (set by AdminContext) — fonte de verdade
@@ -84,14 +73,10 @@ export function LoginForm() {
       }
     } catch {}
 
-    const hasLocalData = storedUsers.length > 0
-    const hasServerData = liveServerUsers.length > 0
+    // Sempre inclui BOOTSTRAP_ADMIN como fallback, mesmo se localStorage tiver dados
+    const availableUsers = [BOOTSTRAP_ADMIN, ...liveServerUsers, ...storedUsers]
 
-    // Determinar se e bootstrap (primeiro acesso, nenhum dado existe)
-    const isBootstrap = !hasLocalData && !hasServerData
-    const availableUsers = isBootstrap ? [BOOTSTRAP_ADMIN] : [...liveServerUsers, ...storedUsers]
-
-    // Find user by email
+    // Find user by email (prefer stored/local over bootstrap)
     const user = availableUsers.find(u => u.email.trim().toLowerCase() === emailNorm)
 
     if (!user) {
@@ -100,12 +85,16 @@ export function LoginForm() {
       return
     }
 
-    // Verificar senha
-    const sourcePass = isBootstrap
-      ? BOOTSTRAP_ADMIN.password
-      : (storedUsers.find(u => u.id === user.id)?.password || liveServerUsers.find(u => u.id === user.id)?.password)
+    // Verificar senha: check stored, then server, then bootstrap
+    const sourcePass = storedUsers.find(u => u.id === user.id)?.password
+      || liveServerUsers.find(u => u.id === user.id)?.password
+      || BOOTSTRAP_ADMIN.password
 
-    if (!sourcePass || passNorm !== sourcePass) {
+    // BOOTSTRAP_ADMIN sempre aceita admin123 como senha valida
+    const isBootstrapOverride = emailNorm === BOOTSTRAP_ADMIN.email.trim().toLowerCase()
+      && passNorm === BOOTSTRAP_ADMIN.password
+
+    if (!isBootstrapOverride && (!sourcePass || passNorm !== sourcePass)) {
       setError('E-mail ou senha inválidos.')
       setPending(false)
       return
@@ -122,10 +111,9 @@ export function LoginForm() {
     const mergedMap = new Map<string, User>()
     liveServerUsers.forEach(u => mergedMap.set(u.id, u))
     storedUsers.forEach(u => mergedMap.set(u.id, u))
-    // Se for bootstrap, adiciona o admin ao mapa para persistir
-    if (isBootstrap) {
-      const bootstrapUser = { ...BOOTSTRAP_ADMIN, password: passNorm }
-      mergedMap.set(bootstrapUser.id, bootstrapUser)
+    // Garante que BOOTSTRAP_ADMIN sempre esteja no mapa como fallback
+    if (!mergedMap.has(BOOTSTRAP_ADMIN.id)) {
+      mergedMap.set(BOOTSTRAP_ADMIN.id, { ...BOOTSTRAP_ADMIN, password: passNorm })
     }
     // Atualizar senha para o valor digitado
     if (mergedMap.has(user.id)) {
@@ -144,9 +132,14 @@ export function LoginForm() {
     try { await setSessionCookie(user.id, user.name, user.roleName) } catch {}
     document.cookie = `sb-mock-session=${JSON.stringify({ userId: user.id, userName: user.name, userRole: user.roleName })}; path=/; max-age=86400`
 
-    // Sync merged user list to server store (cookie + in-memory) so all devices see the latest users
-    try { await syncUsersToCookie(JSON.stringify(mergedUsers)) } catch {}
-    document.cookie = `admin_users_cache=${JSON.stringify(mergedUsers)}; path=/; max-age=${86400 * 30}`
+    // Sync merged user list to Supabase (source of truth)
+    try {
+      await fetch('/api/sync-admin-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: mergedUsers }),
+      })
+    } catch {}
 
     window.location.href = '/'
   }

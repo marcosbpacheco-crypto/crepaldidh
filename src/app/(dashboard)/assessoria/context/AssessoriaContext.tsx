@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 
 export interface Diagnostico {
   id: string
@@ -116,33 +116,71 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
   const [planosAcao, setPlanosAcao] = useState<PlanoAcao[]>([])
   const [kpis, setKpis] = useState<Kpi[]>([])
 
-  // Load + filter on init and whenever CRM companies change
-  const loadAndFilter = useCallback(() => {
-    const companies = getCrmCompanyNames()
-    const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+  const loadedRef = useRef(false)
 
-    try {
-      const d = localStorage.getItem('ass_diagnosticos'); setDiagnosticos(applyFilter(d ? JSON.parse(d) : SEED_DIAGNOSTICOS))
-      const o = localStorage.getItem('ass_okrs'); setOkrs(applyFilter(o ? JSON.parse(o) : SEED_OKRS))
-      const s = localStorage.getItem('ass_swots'); setSwots(applyFilter(s ? JSON.parse(s) : SEED_SWOTS))
-      const p = localStorage.getItem('ass_planos_acao'); setPlanosAcao(applyFilter(p ? JSON.parse(p) : SEED_PLANOS_ACAO))
-      const k = localStorage.getItem('ass_kpis'); setKpis(applyFilter(k ? JSON.parse(k) : SEED_KPIS))
-    } catch {
-      setDiagnosticos(SEED_DIAGNOSTICOS); setOkrs(SEED_OKRS); setSwots(SEED_SWOTS); setPlanosAcao(SEED_PLANOS_ACAO); setKpis(SEED_KPIS)
+  useEffect(() => {
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
+    const get = <T,>(key: string, fallback: T): T => {
+      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
+      catch { return fallback }
     }
+
+    const loadFromLocal = () => {
+      const companies = getCrmCompanyNames()
+      const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+      setDiagnosticos(applyFilter(get('ass_diagnosticos', SEED_DIAGNOSTICOS)))
+      setOkrs(applyFilter(get('ass_okrs', SEED_OKRS)))
+      setSwots(applyFilter(get('ass_swots', SEED_SWOTS)))
+      setPlanosAcao(applyFilter(get('ass_planos_acao', SEED_PLANOS_ACAO)))
+      setKpis(applyFilter(get('ass_kpis', SEED_KPIS)))
+    }
+
+    fetch('/api/sync/assessoria')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          const companies = getCrmCompanyNames()
+          const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+          if (Array.isArray(d.diagnosticos) && d.diagnosticos.length > 0) setDiagnosticos(applyFilter(d.diagnosticos as Diagnostico[]))
+          if (Array.isArray(d.okrs) && d.okrs.length > 0) setOkrs(applyFilter(d.okrs as Okr[]))
+          if (Array.isArray(d.swots) && d.swots.length > 0) setSwots(applyFilter(d.swots as Swot[]))
+          if (Array.isArray(d.planosAcao) && d.planosAcao.length > 0) setPlanosAcao(applyFilter(d.planosAcao as PlanoAcao[]))
+          if (Array.isArray(d.kpis) && d.kpis.length > 0) setKpis(applyFilter(d.kpis as Kpi[]))
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`ass_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
+
+    window.addEventListener('crm:sync-companies', loadFromLocal)
+    return () => window.removeEventListener('crm:sync-companies', loadFromLocal)
   }, [])
 
   useEffect(() => {
-    loadAndFilter()
-    window.addEventListener('crm:sync-companies', loadAndFilter)
-    return () => window.removeEventListener('crm:sync-companies', loadAndFilter)
-  }, [loadAndFilter])
-
-  useEffect(() => { try { localStorage.setItem('ass_diagnosticos', JSON.stringify(diagnosticos)) } catch {} }, [diagnosticos])
-  useEffect(() => { try { localStorage.setItem('ass_okrs', JSON.stringify(okrs)) } catch {} }, [okrs])
-  useEffect(() => { try { localStorage.setItem('ass_swots', JSON.stringify(swots)) } catch {} }, [swots])
-  useEffect(() => { try { localStorage.setItem('ass_planos_acao', JSON.stringify(planosAcao)) } catch {} }, [planosAcao])
-  useEffect(() => { try { localStorage.setItem('ass_kpis', JSON.stringify(kpis)) } catch {} }, [kpis])
+    if (typeof window === 'undefined') return
+    const hasData = diagnosticos.length > 0 || okrs.length > 0 || swots.length > 0 || planosAcao.length > 0 || kpis.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { diagnosticos, okrs, swots, planosAcao, kpis }
+      fetch('/api/sync/assessoria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('AssessoriaContext sync error:', err))
+      localStorage.setItem('ass_diagnosticos', JSON.stringify(diagnosticos))
+      localStorage.setItem('ass_okrs', JSON.stringify(okrs))
+      localStorage.setItem('ass_swots', JSON.stringify(swots))
+      localStorage.setItem('ass_planos_acao', JSON.stringify(planosAcao))
+      localStorage.setItem('ass_kpis', JSON.stringify(kpis))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [diagnosticos, okrs, swots, planosAcao, kpis])
 
   const addDiagnostico = useCallback((d: Omit<Diagnostico, 'id' | 'dataCriacao'>) => { setDiagnosticos(prev => [...prev, { ...d, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
   const updateDiagnostico = useCallback((id: string, updates: Partial<Diagnostico>) => { setDiagnosticos(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d)) }, [])

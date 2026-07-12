@@ -58,4 +58,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
   - **Clientes** (`ClientsContext.tsx`): `deleteClient` faz soft-delete (status → `churned`); contatos, interações, documentos, feedbacks preservados
   - **CRM Companies** (`CrmCompanies.tsx`): Botão "Excluir" só aparece para Admin/Diretor; modal de confirmação customizado com alerta de preservação de dados
   - **Clientes** (`clients/page.tsx`): Botão "Excluir" só aparece para Admin/Diretor; modal de confirmação customizado informando que cliente será marcado como cancelado
-- **Deploy**: `https://crepaldidh-erp.vercel.app` (45 rotas, build limpo)
+- **Deploy**: `https://crepaldidh.vercel.app` (45 rotas, build limpo)
+
+## Session 2026-07-12 — Fix runtime crashes + deploy manual
+
+### Problemas resolvidos
+1. **Loop infinito no CRM** (`CrmContext.tsx`): removida subscription `postgres_changes` Realtime que causava ciclo estado → POST → upsert DB → Realtime → refetchAll → estado, gerando `ERR_INSUFFICIENT_RESOURCES` no navegador
+2. **API `/api/sync/crm` 500**: `syncService.ts` agora trata erro por tabela individualmente (try/catch no `Promise.all`) em vez de jogar exceção que derrubava toda requisição
+3. **API `/api/clients` 500**: cada query de tabela tem try/catch próprio, isolando falhas
+4. **`supabaseClient.ts` crashando página**: `throw new Error()` em módulo substituído por lazy getter — se env vars faltarem, `supabase` vira `null` silenciosamente
+5. **Deploy**: Vercel CLI (`npx vercel --prod`); projeto estava em conta `mbpac-projects`; URL nova: `https://crepaldidh.vercel.app` (antiga `crepaldidh-erp.vercel.app` deletada)

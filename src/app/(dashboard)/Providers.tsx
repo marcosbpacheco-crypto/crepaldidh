@@ -18,6 +18,7 @@ import { AlertsProvider } from './alerts/context/AlertsContext'
 import { AssessoriaProvider } from './assessoria/context/AssessoriaContext'
 import { AcessoTemporarioProvider } from './acesso-temporario/context/AcessoTemporarioContext'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
+import { ToastProvider } from '@/components/ui/Toast'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -38,7 +39,9 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                                 <AssessoriaProvider>
                                   <AcessoTemporarioProvider>
                                     <SidebarProvider>
-                                      {children}
+                                      <ToastProvider>
+                                        {children}
+                                      </ToastProvider>
                                     </SidebarProvider>
                                   </AcessoTemporarioProvider>
                                 </AssessoriaProvider>

@@ -1,8 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import supabase from '@/lib/supabaseClient'
-import { createClient } from '@/lib/supabase/client'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 // ==========================================
 // 0. DB CONVERSION HELPERS
@@ -250,111 +248,7 @@ const CalendarContext = createContext<CalendarContextType | undefined>(undefined
 // ==========================================
 
 function generateSeedEvents(): CalendarEvent[] {
-  const today = new Date()
-  const d = (offset: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
-  const fmtDate = (date: Date) => date.toISOString().split('T')[0]
-
-  return [
-    {
-      id: 'cal-1', title: 'Reunião Comercial - BR Distribuidora', type: 'commercial_meeting',
-      companyId: 'comp-1', companyName: 'BR Distribuidora',
-      clientId: 'cli-1',
-      description: 'Apresentação de proposta de DHO Corporativo',
-      responsible: 'Equipe Comercial', location: 'Escritório Central',
-      eventDate: fmtDate(d(0)), startTime: '09:00', endTime: '10:30',
-      allDay: false, status: 'scheduled', color: '#3b82f6',
-      reminderMinutes: 30, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-2', title: 'Mentoria - Vale S.A.', type: 'mentoring',
-      companyId: 'comp-2', companyName: 'Vale S.A.',
-      clientId: 'cli-2',
-      contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale',
-      description: 'Sessão de mentoria com lideranças regionais',
-      responsible: 'Facilitador Sênior', link: 'https://meet.google.com/abc-defg-hij',
-      eventDate: fmtDate(d(0)), startTime: '14:00', endTime: '16:00',
-      allDay: false, status: 'confirmed', color: '#06b6d4',
-      reminderMinutes: 15, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-3', title: 'Treinamento - NR01 Básico', type: 'training',
-      companyId: 'comp-3', companyName: 'Banco Itaú',
-      clientId: 'cli-3',
-      description: 'Treinamento introdutório de NR01 para novos colaboradores',
-      responsible: 'Instrutor Técnico', location: 'Auditório Itaú - Andar 12',
-      eventDate: fmtDate(d(1)), startTime: '08:00', endTime: '12:00',
-      allDay: false, status: 'scheduled', color: '#10b981',
-      reminderMinutes: 60, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-4', title: 'Entrevista NR01 - Gerdau', type: 'nr01_interview',
-      companyId: 'comp-4', companyName: 'Gerdau',
-      clientId: 'cli-4',
-      description: 'Entrevista de levantamento de riscos psicossociais',
-      responsible: 'Psicóloga do Trabalho', link: 'https://zoom.us/j/123456789',
-      eventDate: fmtDate(d(1)), startTime: '14:30', endTime: '15:30',
-      allDay: false, status: 'confirmed', color: '#ec4899',
-      reminderMinutes: 15, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-5', title: 'Palestra - Segurança Psicológica', type: 'lecture',
-      companyId: 'comp-1', companyName: 'BR Distribuidora',
-      clientId: 'cli-1',
-      description: 'Palestra sobre segurança psicológica no trabalho',
-      responsible: 'Palestrante Convidado', location: 'Auditório BR Distribuidora',
-      eventDate: fmtDate(d(2)), startTime: '10:00', endTime: '11:30',
-      allDay: false, status: 'scheduled', color: '#f59e0b',
-      reminderMinutes: 30, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-6', title: 'SIPAT - Semestre 2026.1', type: 'sipat',
-      companyId: 'comp-2', companyName: 'Vale S.A.',
-      clientId: 'cli-2',
-      description: 'Semana Interna de Prevenção de Acidentes - Abertura',
-      responsible: 'Comissão SIPAT', location: 'Centro de Convenções Vale',
-      eventDate: fmtDate(d(3)), startTime: '08:00', endTime: '17:00',
-      allDay: true, status: 'scheduled', color: '#ef4444',
-      reminderMinutes: 120, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-7', title: 'Visita Técnica - Cliente Potencial', type: 'technical_visit',
-      companyName: 'Cliente Potencial - Indústria ABC',
-      description: 'Visita para levantamento de necessidades de treinamento',
-      responsible: 'Consultor Técnico', location: 'Av. Paulista, 1000',
-      eventDate: fmtDate(d(-1)), startTime: '09:00', endTime: '11:00',
-      allDay: false, status: 'completed', color: '#6366f1',
-      reminderMinutes: 30, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-8', title: 'Atividade Interna - Planejamento Mensal', type: 'internal_activity',
-      description: 'Reunião de planejamento estratégico da equipe',
-      responsible: 'Equipe CrepaldiDH', link: 'https://meet.google.com/xyz-uvw-rst',
-      eventDate: fmtDate(d(-2)), startTime: '08:00', endTime: '09:30',
-      allDay: false, status: 'completed', color: '#64748b',
-      reminderMinutes: 15, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-9', title: 'Reunião com Cliente - Vale (Acompanhamento)', type: 'client_meeting',
-      companyId: 'comp-2', companyName: 'Vale S.A.',
-      clientId: 'cli-2',
-      contractId: 'contr-2', contractName: 'Contrato de Mentoria Regional Vale',
-      description: 'Acompanhamento mensal do contrato de mentoria',
-      responsible: 'Gerente de Contas', link: 'https://zoom.us/j/987654321',
-      eventDate: fmtDate(d(5)), startTime: '10:00', endTime: '11:00',
-      allDay: false, status: 'scheduled', color: '#8b5cf6',
-      reminderMinutes: 30, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'cal-10', title: 'Treinamento - Oratória para Líderes', type: 'training',
-      companyId: 'comp-3', companyName: 'Banco Itaú',
-      projectId: 'proj-3', projectName: 'Workshop de Alta Performance Itaú',
-      description: 'Módulo 3 do programa de desenvolvimento de lideranças',
-      responsible: 'Facilitador Sênior', location: 'Sala de Treinamento - Itaú',
-      eventDate: fmtDate(d(7)), startTime: '13:00', endTime: '18:00',
-      allDay: false, status: 'scheduled', color: '#10b981',
-      reminderMinutes: 60, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-  ]
+  return []
 }
 
 // ==========================================
@@ -368,39 +262,58 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('month')
 
+  const loadedRef = useRef(false)
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
     const get = <T,>(key: string, fallback: T): T => {
       try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
       catch { return fallback }
     }
 
-    const loadData = async () => {
-      try {
-        const [{ data: evts }, { data: parts }, { data: rems }] = await Promise.all([
-          supabase.from('calendar_events').select('*'),
-          supabase.from('calendar_participants').select('*'),
-          supabase.from('calendar_reminders').select('*'),
-        ])
-        if (evts) {
-          setEvents(evts.length ? evts.map(dbRecordToAppEvent) : get('cal_events', generateSeedEvents()))
-          setParticipants(parts?.length ? parts : get('cal_participants', []))
-          setReminders(rems?.length ? rems : get('cal_reminders', []))
-        } else {
-          throw new Error('Fallback')
-        }
-      } catch {
-        setEvents(get('cal_events', generateSeedEvents()))
-        setParticipants(get('cal_participants', []))
-        setReminders(get('cal_reminders', []))
-      }
+    const loadFromLocal = () => {
+      setEvents(get('cal_events', generateSeedEvents()))
+      setParticipants(get('cal_participants', []))
+      setReminders(get('cal_reminders', []))
     }
-    loadData()
+
+    fetch('/api/sync/calendar')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as CalendarEvent[])
+          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as CalendarParticipant[])
+          if (Array.isArray(d.reminders) && d.reminders.length > 0) setReminders(d.reminders as CalendarReminder[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`cal_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  const sync = (key: string, value: unknown) => {
-    if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
-  }
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = events.length > 0 || participants.length > 0 || reminders.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { events, participants, reminders }
+      fetch('/api/sync/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('CalendarContext sync error:', err))
+      localStorage.setItem('cal_events', JSON.stringify(events))
+      localStorage.setItem('cal_participants', JSON.stringify(participants))
+      localStorage.setItem('cal_reminders', JSON.stringify(reminders))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [events, participants, reminders])
 
   // Navigation
   const goToday = () => setCurrentDate(new Date())
@@ -530,27 +443,17 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       ...e, id: `cal-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     }
     const updated = [ne, ...events]
-    setEvents(updated); sync('cal_events', updated)
-    supabase.from('calendar_events').insert(appEventToDb(ne)).then(({ error }) => error && console.warn(error))
+    setEvents(updated)
     return ne
   }
 
   const updateEvent = (id: string, updates: Partial<CalendarEvent>) => {
-    const updated = events.map(e => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
-    setEvents(updated); sync('cal_events', updated)
-    const current = events.find(e => e.id === id)
-    if (current) {
-      const merged = { ...current, ...updates }
-      const dbUpdates = appEventToDb(merged)
-      delete dbUpdates.id
-      supabase.from('calendar_events').update(dbUpdates).eq('id', id).then(({ error }) => error && console.warn(error))
-    }
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e))
   }
 
   const deleteEvent = (id: string) => {
     const updated = events.filter(e => e.id !== id)
-    setEvents(updated); sync('cal_events', updated)
-    supabase.from('calendar_events').delete().eq('id', id).then()
+    setEvents(updated)
   }
 
   const completeEvent = (id: string) => updateEvent(id, { status: 'completed' })
@@ -563,18 +466,18 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addParticipant = (p: Omit<CalendarParticipant, 'id' | 'createdAt'>): CalendarParticipant => {
     const np: CalendarParticipant = { ...p, id: `cp-${Date.now()}`, createdAt: new Date().toISOString() }
     const updated = [np, ...participants]
-    setParticipants(updated); sync('cal_participants', updated)
+    setParticipants(updated)
     return np
   }
 
   const removeParticipant = (id: string) => {
     const updated = participants.filter(p => p.id !== id)
-    setParticipants(updated); sync('cal_participants', updated)
+    setParticipants(updated)
   }
 
   const toggleParticipantConfirmed = (id: string) => {
     const updated = participants.map(p => p.id === id ? { ...p, confirmed: !p.confirmed } : p)
-    setParticipants(updated); sync('cal_participants', updated)
+    setParticipants(updated)
   }
 
   // ==========================================
@@ -584,13 +487,13 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addReminder = (r: Omit<CalendarReminder, 'id' | 'createdAt'>): CalendarReminder => {
     const nr: CalendarReminder = { ...r, id: `cr-${Date.now()}`, createdAt: new Date().toISOString() }
     const updated = [nr, ...reminders]
-    setReminders(updated); sync('cal_reminders', updated)
+    setReminders(updated)
     return nr
   }
 
   const removeReminder = (id: string) => {
     const updated = reminders.filter(r => r.id !== id)
-    setReminders(updated); sync('cal_reminders', updated)
+    setReminders(updated)
   }
 
   // ==========================================

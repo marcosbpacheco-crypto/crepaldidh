@@ -15,6 +15,13 @@ const TABLE_MAP: Record<string, Record<string, string>> = {
     proposals: 'crm_proposals',
     contracts: 'crm_contracts',
   },
+  clients: {
+    clients: 'client_list',
+    contacts: 'client_contacts',
+    interactions: 'client_interactions',
+    documents: 'client_documents',
+    feedbacks: 'client_feedbacks',
+  },
 }
 
 // camelCase ↔ snake_case field mapping per table
@@ -54,12 +61,40 @@ const FIELD_MAP: Record<string, Record<string, string>> = {
   crm_activities: {
     companyId: 'company_id',
     dealId: 'deal_id',
+    createdAt: 'created_at',
   },
   crm_tasks: {
     companyId: 'company_id',
     dealId: 'deal_id',
     dueDate: 'due_date',
     createdAt: 'created_at',
+  },
+  client_list: {
+    companyId: 'company_id',
+    companyName: 'company_name',
+    companyTradeName: 'company_trade_name',
+    contractType: 'contract_type',
+    internalResponsible: 'internal_responsible',
+    startDate: 'start_date',
+    endDate: 'end_date',
+    monthlyValue: 'monthly_value',
+    totalValue: 'total_value',
+    createdAt: 'created_at',
+  },
+  client_contacts: {
+    clientId: 'client_id',
+    isPrimary: 'is_primary',
+    createdAt: 'created_at',
+  },
+  client_interactions: {
+    clientId: 'client_id',
+  },
+  client_documents: {
+    clientId: 'client_id',
+    uploadedAt: 'uploaded_at',
+  },
+  client_feedbacks: {
+    clientId: 'client_id',
   },
 }
 

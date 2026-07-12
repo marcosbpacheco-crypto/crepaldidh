@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 
 export type DocType =
@@ -132,39 +132,74 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [documents, setDocuments] = useState<Document[]>([])
   const [versions, setVersions] = useState<DocumentVersion[]>([])
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([])
+  const loadedRef = useRef(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
+    const get = <T,>(key: string, fallback: T): T => {
+      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
+      catch { return fallback }
+    }
+
+    const loadFromLocal = () => {
+      setDocuments(get('doc_documents', SEED_DOCUMENTS))
+      setVersions(get('doc_versions', SEED_VERSIONS))
+      setAccessLogs(get('doc_access_logs', SEED_LOGS))
+    }
+
+    fetch('/api/sync/documents')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as Document[])
+          if (Array.isArray(d.versions) && d.versions.length > 0) setVersions(d.versions as DocumentVersion[])
+          if (Array.isArray(d.accessLogs) && d.accessLogs.length > 0) setAccessLogs(d.accessLogs as AccessLog[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`doc_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const stored = localStorage.getItem('doc_documents')
-    if (stored) { try { setDocuments(JSON.parse(stored)) } catch {} }
-    else { setDocuments(SEED_DOCUMENTS) }
-    const storedVersions = localStorage.getItem('doc_versions')
-    if (storedVersions) { try { setVersions(JSON.parse(storedVersions)) } catch {} }
-    else { setVersions(SEED_VERSIONS) }
-    const storedLogs = localStorage.getItem('doc_access_logs')
-    if (storedLogs) { try { setAccessLogs(JSON.parse(storedLogs)) } catch {} }
-    else { setAccessLogs(SEED_LOGS) }
-  }, [])
-
-  const syncDocuments = (d: Document[]) => { setDocuments(d); localStorage.setItem('doc_documents', JSON.stringify(d)) }
-  const syncVersions = (v: DocumentVersion[]) => { setVersions(v); localStorage.setItem('doc_versions', JSON.stringify(v)) }
-  const syncLogs = (l: AccessLog[]) => { setAccessLogs(l); localStorage.setItem('doc_access_logs', JSON.stringify(l)) }
+    const hasData = documents.length > 0 || versions.length > 0 || accessLogs.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { documents, versions, accessLogs }
+      fetch('/api/sync/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('DocumentContext sync error:', err))
+      localStorage.setItem('doc_documents', JSON.stringify(documents))
+      localStorage.setItem('doc_versions', JSON.stringify(versions))
+      localStorage.setItem('doc_access_logs', JSON.stringify(accessLogs))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [documents, versions, accessLogs])
 
   const addDocument = useCallback((d: Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'currentVersion'>): Document => {
     const now = new Date().toISOString()
     const doc: Document = { ...d, id: `doc-${Date.now()}`, currentVersion: 1, createdAt: now, updatedAt: now }
-    syncDocuments([doc, ...documents])
+    setDocuments([doc, ...documents])
     logAccess(doc.id, d.createdBy, 'upload')
     return doc
   }, [documents])
 
   const updateDocument = useCallback((id: string, data: Partial<Document>) => {
-    syncDocuments(documents.map(d => d.id === id ? { ...d, ...data, updatedAt: new Date().toISOString() } : d))
+    setDocuments(documents.map(d => d.id === id ? { ...d, ...data, updatedAt: new Date().toISOString() } : d))
   }, [documents])
 
   const deleteDocument = useCallback((id: string) => {
-    syncDocuments(documents.filter(d => d.id !== id))
-    syncVersions(versions.filter(v => v.documentId !== id))
+    setDocuments(documents.filter(d => d.id !== id))
+    setVersions(versions.filter(v => v.documentId !== id))
   }, [documents, versions])
 
   const addVersion = useCallback((docId: string, v: Omit<DocumentVersion, 'id' | 'uploadedAt' | 'versionNumber'>): DocumentVersion => {
@@ -175,7 +210,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       ...v, id: `dv-${Date.now()}`, documentId: docId,
       versionNumber: newVersionNumber, uploadedAt: new Date().toISOString(),
     }
-    syncVersions([nv, ...versions])
+    setVersions(prev => [nv, ...prev])
     updateDocument(docId, { currentVersion: newVersionNumber })
     logAccess(docId, v.uploadedBy, 'version')
     return nv
@@ -189,7 +224,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const logAccess = useCallback((docId: string, userName: string | undefined, action: DocAction) => {
     const entry: AccessLog = { id: `al-${Date.now()}`, documentId: docId, userName, action, createdAt: new Date().toISOString() }
-    syncLogs([entry, ...accessLogs])
+    setAccessLogs(prev => [entry, ...prev])
   }, [accessLogs])
 
   const getAccessLogs = useCallback((docId: string) => accessLogs.filter(l => l.documentId === docId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [accessLogs])

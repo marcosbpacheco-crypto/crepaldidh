@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 export type TenantStatus = 'active' | 'suspended' | 'trial' | 'cancelled'
 export type BillingStatus = 'paid' | 'pending' | 'overdue' | 'cancelled'
@@ -106,20 +106,57 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [filterPlan, setFilterPlan] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<TenantStatus | null>(null)
   const [searchTenant, setSearchTenant] = useState('')
+  const loadedRef = useRef(false)
 
   const plans = SEED_PLANS
 
   useEffect(() => {
-    try {
-      const t = localStorage.getItem('tenant_tenants'); if (t) setTenants(JSON.parse(t)); else setTenants(SEED_TENANTS)
-      const u = localStorage.getItem('tenant_usage'); if (u) setTenantsUsage(JSON.parse(u)); else setTenantsUsage(seedUsage())
-      const b = localStorage.getItem('tenant_billing'); if (b) setBilling(JSON.parse(b)); else setBilling(seedBilling())
-    } catch { setTenants(SEED_TENANTS); setTenantsUsage(seedUsage()); setBilling(seedBilling()) }
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
+    const loadFromLocal = () => {
+      try {
+        const t = localStorage.getItem('tenant_tenants'); if (t) setTenants(JSON.parse(t)); else setTenants(SEED_TENANTS)
+        const u = localStorage.getItem('tenant_usage'); if (u) setTenantsUsage(JSON.parse(u)); else setTenantsUsage(seedUsage())
+        const b = localStorage.getItem('tenant_billing'); if (b) setBilling(JSON.parse(b)); else setBilling(seedBilling())
+      } catch { setTenants(SEED_TENANTS); setTenantsUsage(seedUsage()); setBilling(seedBilling()) }
+    }
+
+    fetch('/api/sync/tenants')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.tenants) && d.tenants.length > 0) setTenants(d.tenants as Tenant[])
+          if (Array.isArray(d.tenantsUsage) && d.tenantsUsage.length > 0) setTenantsUsage(d.tenantsUsage as TenantUsage[])
+          if (Array.isArray(d.billing) && d.billing.length > 0) setBilling(d.billing as TenantBilling[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`tenant_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  useEffect(() => { try { localStorage.setItem('tenant_tenants', JSON.stringify(tenants)) } catch {} }, [tenants])
-  useEffect(() => { try { localStorage.setItem('tenant_usage', JSON.stringify(tenantsUsage)) } catch {} }, [tenantsUsage])
-  useEffect(() => { try { localStorage.setItem('tenant_billing', JSON.stringify(billing)) } catch {} }, [billing])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = tenants.length > 0 || tenantsUsage.length > 0 || billing.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { tenants, tenantsUsage, billing }
+      fetch('/api/sync/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(() => {})
+      localStorage.setItem('tenant_tenants', JSON.stringify(tenants))
+      localStorage.setItem('tenant_usage', JSON.stringify(tenantsUsage))
+      localStorage.setItem('tenant_billing', JSON.stringify(billing))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [tenants, tenantsUsage, billing])
 
   const currentTenant = useMemo(() => tenants.find(t => t.id === currentTenantId) || null, [tenants, currentTenantId])
 

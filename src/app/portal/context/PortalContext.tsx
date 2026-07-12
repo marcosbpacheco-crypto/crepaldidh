@@ -40,34 +40,9 @@ export interface PortalIndicator {
   label: string; value: string | number; icon: string; color: string
 }
 
-const SEED_PORTAL_USERS: PortalUser[] = [
-  { id: 'pu-1', companyId: 'comp-1', name: 'Carlos Silva', email: 'carlos@brdistribuidora.com', role: 'diretoria', phone: '(11) 99999-0001', active: true, lastAccess: new Date().toISOString() },
-  { id: 'pu-2', companyId: 'comp-1', name: 'Ana Oliveira', email: 'ana@brdistribuidora.com', role: 'rh', phone: '(11) 99999-0002', active: true },
-  { id: 'pu-3', companyId: 'comp-2', name: 'Roberto Lima', email: 'roberto@vale.com', role: 'diretoria', phone: '(31) 98888-0001', active: true, lastAccess: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'pu-4', companyId: 'comp-2', name: 'Marina Costa', email: 'marina@vale.com', role: 'lider', active: true },
-  { id: 'pu-5', companyId: 'comp-3', name: 'Pedro Santos', email: 'pedro@itau.com', role: 'financeiro', phone: '(11) 97777-0001', active: true },
-  { id: 'pu-6', companyId: 'comp-4', name: 'João Ferreira', email: 'joao@gerdau.com', role: 'rh', active: false },
-]
+const SEED_PORTAL_USERS: PortalUser[] = []
 
-const SEED_PERMISSIONS: Permission[] = [
-  { id: 'pp-1', userId: 'pu-1', module: 'dashboard', canView: true, canEdit: false },
-  { id: 'pp-2', userId: 'pu-1', module: 'projects', canView: true, canEdit: true },
-  { id: 'pp-3', userId: 'pu-1', module: 'nr01', canView: true, canEdit: false },
-  { id: 'pp-4', userId: 'pu-1', module: 'trainings', canView: true, canEdit: false },
-  { id: 'pp-5', userId: 'pu-1', module: 'documents', canView: true, canEdit: false },
-  { id: 'pp-6', userId: 'pu-1', module: 'agenda', canView: true, canEdit: false },
-  { id: 'pp-7', userId: 'pu-1', module: 'financial', canView: true, canEdit: false },
-  { id: 'pp-8', userId: 'pu-1', module: 'requests', canView: true, canEdit: true },
-  { id: 'pp-9', userId: 'pu-2', module: 'dashboard', canView: true, canEdit: false },
-  { id: 'pp-10', userId: 'pu-2', module: 'nr01', canView: true, canEdit: true },
-  { id: 'pp-11', userId: 'pu-2', module: 'trainings', canView: true, canEdit: true },
-  { id: 'pp-12', userId: 'pu-2', unitId: 'unit-1', module: 'nr01', canView: true, canEdit: false },
-  { id: 'pp-13', userId: 'pu-3', module: 'dashboard', canView: true, canEdit: false },
-  { id: 'pp-14', userId: 'pu-3', module: 'projects', canView: true, canEdit: true },
-  { id: 'pp-15', userId: 'pu-3', module: 'financial', canView: true, canEdit: false },
-  { id: 'pp-16', userId: 'pu-5', module: 'financial', canView: true, canEdit: false },
-  { id: 'pp-17', userId: 'pu-5', module: 'dashboard', canView: true, canEdit: false },
-]
+const SEED_PERMISSIONS: Permission[] = []
 
 const SEED_REQUESTS: ClientRequest[] = []
 

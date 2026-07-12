@@ -36,7 +36,7 @@ export function getRealtimeChannel(moduleKey: string): RealtimeChannel | null {
 
   channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
-      console.debug(`[Realtime] Subscribed to channel: ${channelName}`)
+      if (process.env.NODE_ENV !== 'production') console.debug(`[Realtime] Subscribed to channel: ${channelName}`)
     }
   })
 

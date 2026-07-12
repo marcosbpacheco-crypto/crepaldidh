@@ -23,7 +23,7 @@ export const CrmCompanies: React.FC = () => {
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
   const { 
     companies, contacts, deals, activities,
-    addCompany, updateCompany, deleteCompany,
+    addCompany, updateCompany, deleteCompany, hardDeleteCompany,
     addContact, updateContact, deleteContact
   } = useCrm()
 
@@ -309,14 +309,24 @@ export const CrmCompanies: React.FC = () => {
                   Editar
                 </button>
                 {isAdminOrDiretor && (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="p-2 border border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
-                    title="Excluir Empresa"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Excluir
-                  </button>
+                  <>
+                    <button
+                      onClick={() => { setShowDeleteConfirm(true); }}
+                      className="p-2 border border-amber-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
+                      title="Inativar Empresa"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      Inativar
+                    </button>
+                    <button
+                      onClick={() => { hardDeleteCompany(selectedCompany.id); }}
+                      className="p-2 border border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
+                      title="Excluir Permanentemente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -1217,16 +1227,16 @@ export const CrmCompanies: React.FC = () => {
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5" /></div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Excluir Empresa</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Esta ação não pode ser desfeita.</p>
+                <h3 className="text-sm font-black text-slate-800">Inativar Empresa</h3>
+                <p className="text-xs text-slate-500 mt-0.5">A empresa ficará visível apenas na busca.</p>
               </div>
             </div>
             <p className="text-xs text-slate-600 mb-4">
-              Tem certeza que deseja excluir a empresa <strong>{selectedCompany.tradeName || selectedCompany.name}</strong>?
+              Tem certeza que deseja inativar a empresa <strong>{selectedCompany.tradeName || selectedCompany.name}</strong>?
               A empresa será marcada como <strong>inativa</strong> e todos os dados vinculados (contatos, negócios, propostas, contratos, atividades) serão preservados.
             </p>
             <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-              <button onClick={() => { deleteCompany(selectedCompany.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-all">Confirmar Exclusão</button>
+              <button onClick={() => { deleteCompany(selectedCompany.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-all">Confirmar Inativação</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>

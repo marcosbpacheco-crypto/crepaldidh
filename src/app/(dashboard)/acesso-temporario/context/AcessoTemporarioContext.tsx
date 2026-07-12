@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 export interface TemporaryAccess {
   id: string; companyId: string; companyName: string; token: string
@@ -79,23 +79,61 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([])
   const [responses, setResponses] = useState<QuestionnaireResponse[]>([])
 
+  const loadedRef = useRef(false)
+
   useEffect(() => {
-    try {
-      const a = localStorage.getItem('acesso_temporario_accesses')
-      if (a) setAccesses(JSON.parse(a)); else setAccesses(SEED_ACCESSES)
-      const u = localStorage.getItem('acesso_temporario_users')
-      if (u) setTempUsers(JSON.parse(u)); else setTempUsers(SEED_USERS)
-      const q = localStorage.getItem('acesso_temporario_questionnaires')
-      if (q) setQuestionnaires(JSON.parse(q)); else setQuestionnaires(SEED_QUESTIONNAIRES)
-      const r = localStorage.getItem('acesso_temporario_responses')
-      if (r) setResponses(JSON.parse(r)); else setResponses(SEED_RESPONSES)
-    } catch { setAccesses(SEED_ACCESSES); setTempUsers(SEED_USERS); setQuestionnaires(SEED_QUESTIONNAIRES); setResponses(SEED_RESPONSES) }
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
+    const get = <T,>(key: string, fallback: T): T => {
+      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
+      catch { return fallback }
+    }
+
+    const loadFromLocal = () => {
+      setAccesses(get('acesso_temporario_accesses', SEED_ACCESSES))
+      setTempUsers(get('acesso_temporario_users', SEED_USERS))
+      setQuestionnaires(get('acesso_temporario_questionnaires', SEED_QUESTIONNAIRES))
+      setResponses(get('acesso_temporario_responses', SEED_RESPONSES))
+    }
+
+    fetch('/api/sync/acesso-temporario')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.accesses) && d.accesses.length > 0) setAccesses(d.accesses as TemporaryAccess[])
+          if (Array.isArray(d.tempUsers) && d.tempUsers.length > 0) setTempUsers(d.tempUsers as TempUser[])
+          if (Array.isArray(d.questionnaires) && d.questionnaires.length > 0) setQuestionnaires(d.questionnaires as Questionnaire[])
+          if (Array.isArray(d.responses) && d.responses.length > 0) setResponses(d.responses as QuestionnaireResponse[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`acesso_temporario_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  useEffect(() => { try { localStorage.setItem('acesso_temporario_accesses', JSON.stringify(accesses)) } catch {} }, [accesses])
-  useEffect(() => { try { localStorage.setItem('acesso_temporario_users', JSON.stringify(tempUsers)) } catch {} }, [tempUsers])
-  useEffect(() => { try { localStorage.setItem('acesso_temporario_questionnaires', JSON.stringify(questionnaires)) } catch {} }, [questionnaires])
-  useEffect(() => { try { localStorage.setItem('acesso_temporario_responses', JSON.stringify(responses)) } catch {} }, [responses])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = accesses.length > 0 || tempUsers.length > 0 || questionnaires.length > 0 || responses.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { accesses, tempUsers, questionnaires, responses }
+      fetch('/api/sync/acesso-temporario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('AcessoTemporarioContext sync error:', err))
+      localStorage.setItem('acesso_temporario_accesses', JSON.stringify(accesses))
+      localStorage.setItem('acesso_temporario_users', JSON.stringify(tempUsers))
+      localStorage.setItem('acesso_temporario_questionnaires', JSON.stringify(questionnaires))
+      localStorage.setItem('acesso_temporario_responses', JSON.stringify(responses))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [accesses, tempUsers, questionnaires, responses])
 
   // --- Access Tokens ---
   const createAccess = useCallback((companyId: string, companyName: string, expiresAt: string, createdBy: string) => {

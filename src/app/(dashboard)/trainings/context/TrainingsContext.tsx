@@ -1,7 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import supabase from '@/lib/supabaseClient'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -216,93 +215,70 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [materials, setMaterials] = useState<TrainingMaterial[]>([])
   const [reports, setReports] = useState<TrainingReport[]>([])
 
+  const loadedRef = useRef(false)
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
     const get = <T,>(key: string, fallback: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : fallback
-      } catch {
-        return fallback
-      }
+      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
+      catch { return fallback }
     }
 
-    const loadData = async () => {
-      try {
-        const [
-          { data: sipats },
-          { data: evts },
-          { data: parts },
-          { data: certs },
-          { data: fbs },
-          { data: mats },
-          { data: reps }
-        ] = await Promise.all([
-          supabase.from('sipat_programs').select('*'),
-          supabase.from('training_events').select('*'),
-          supabase.from('training_participants').select('*'),
-          supabase.from('training_certificates').select('*'),
-          supabase.from('training_feedbacks').select('*'),
-          supabase.from('training_materials').select('*'),
-          supabase.from('training_reports').select('*')
-        ])
+    const loadFromLocal = () => {
+      setSipatPrograms(get('tr_sipat_programs', SEED_SIPATS))
+      setEvents(get('tr_events', SEED_EVENTS))
+      setParticipants(get('tr_participants', SEED_PARTICIPANTS))
+      setCertificates(get('tr_certificates', SEED_CERTIFICATES))
+      setFeedbacks(get('tr_feedbacks', SEED_FEEDBACKS))
+      setMaterials(get('tr_materials', []))
+      setReports(get('tr_reports', []))
+    }
 
-        if (sipats && evts && parts) {
-          // Supabase connected successfully
-          setSipatPrograms(sipats.length ? sipats : get('tr_sipat_programs', SEED_SIPATS))
-          setEvents(evts.length ? evts : get('tr_events', SEED_EVENTS))
-          setParticipants(parts.length ? parts : get('tr_participants', SEED_PARTICIPANTS))
-          setCertificates(certs && certs.length ? certs : get('tr_certificates', SEED_CERTIFICATES))
-          setFeedbacks(fbs && fbs.length ? fbs : get('tr_feedbacks', SEED_FEEDBACKS))
-          setMaterials(mats && mats.length ? mats : get('tr_materials', []))
-          setReports(reps && reps.length ? reps : get('tr_reports', []))
+    fetch('/api/sync/trainings')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.sipatPrograms) && d.sipatPrograms.length > 0) setSipatPrograms(d.sipatPrograms as SipatProgram[])
+          if (Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as TrainingEvent[])
+          if (Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as TrainingParticipant[])
+          if (Array.isArray(d.certificates) && d.certificates.length > 0) setCertificates(d.certificates as TrainingCertificate[])
+          if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as TrainingFeedback[])
+          if (Array.isArray(d.materials) && d.materials.length > 0) setMaterials(d.materials as TrainingMaterial[])
+          if (Array.isArray(d.reports) && d.reports.length > 0) setReports(d.reports as TrainingReport[])
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`tr_${k}`, JSON.stringify(v))
+          }
         } else {
-          throw new Error('Fallback to local')
+          loadFromLocal()
         }
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to localStorage:', err)
-        setSipatPrograms(get('tr_sipat_programs', SEED_SIPATS))
-        setEvents(get('tr_events', SEED_EVENTS))
-        setParticipants(get('tr_participants', SEED_PARTICIPANTS))
-        setCertificates(get('tr_certificates', SEED_CERTIFICATES))
-        setFeedbacks(get('tr_feedbacks', SEED_FEEDBACKS))
-        setMaterials(get('tr_materials', []))
-        setReports(get('tr_reports', []))
-      }
-    }
-    loadData()
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  const sync = (key: string, value: unknown) => {
-    if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
-  }
-
-  const setAndSync = <T extends { id?: string },>(
-    setter: React.Dispatch<React.SetStateAction<T[]>>, 
-    key: string, 
-    tableName: string
-  ) => (val: T[]) => { 
-    setter(val); 
-    sync(key, val);
-    
-    // Optional: Sync to Supabase in background
-    if (tableName) {
-      const latest = val[0]
-      if (latest && latest.id) {
-        supabase.from(tableName).upsert(latest as any).then(({error}) => {
-          if (error) console.warn(`Error syncing to ${tableName}:`, error.message)
-        })
-      }
-    }
-  }
-
-  const setSipatProgramsS = setAndSync(setSipatPrograms, 'tr_sipat_programs', 'sipat_programs')
-  const setEventsS = setAndSync(setEvents, 'tr_events', 'training_events')
-  const setParticipantsS = setAndSync(setParticipants, 'tr_participants', 'training_participants')
-  const setCertificatesS = setAndSync(setCertificates, 'tr_certificates', 'training_certificates')
-  const setFeedbacksS = setAndSync(setFeedbacks, 'tr_feedbacks', 'training_feedbacks')
-  const setMaterialsS = setAndSync(setMaterials, 'tr_materials', 'training_materials')
-  const setReportsS = setAndSync(setReports, 'tr_reports', 'training_reports')
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = sipatPrograms.length > 0 || events.length > 0 || participants.length > 0 || certificates.length > 0 || feedbacks.length > 0 || materials.length > 0 || reports.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { sipatPrograms, events, participants, certificates, feedbacks, materials, reports }
+      fetch('/api/sync/trainings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('TrainingsContext sync error:', err))
+      localStorage.setItem('tr_sipat_programs', JSON.stringify(sipatPrograms))
+      localStorage.setItem('tr_events', JSON.stringify(events))
+      localStorage.setItem('tr_participants', JSON.stringify(participants))
+      localStorage.setItem('tr_certificates', JSON.stringify(certificates))
+      localStorage.setItem('tr_feedbacks', JSON.stringify(feedbacks))
+      localStorage.setItem('tr_materials', JSON.stringify(materials))
+      localStorage.setItem('tr_reports', JSON.stringify(reports))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [sipatPrograms, events, participants, certificates, feedbacks, materials, reports])
 
   // Computed KPIs
   const scheduledEvents = events.filter(e => e.status === 'agendado' || e.status === 'planejado').length
@@ -341,41 +317,35 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Events CRUD
   const addEvent = (e: Omit<TrainingEvent, 'id' | 'createdAt'>): TrainingEvent => {
     const ne: TrainingEvent = { ...e, id: `tr-event-${Date.now()}`, createdAt: new Date().toISOString() }
-    setEventsS([ne, ...events])
-    supabase.from('training_events').insert(ne).then(({error}) => error && console.warn(error))
+    setEvents([ne, ...events])
     return ne
   }
 
   const updateEvent = (id: string, updates: Partial<TrainingEvent>) => {
     const updated = events.find(e => e.id === id)
-    setEventsS(events.map(e => e.id === id ? { ...e, ...updates } : e))
+    setEvents(events.map(e => e.id === id ? { ...e, ...updates } : e))
     if (updated) {
-      supabase.from('training_events').update(updates).eq('id', id).then(({error}) => error && console.warn(error))
     }
   }
 
   const deleteEvent = (id: string) => {
-    setEventsS(events.filter(e => e.id !== id))
-    setParticipantsS(participants.filter(p => p.eventId !== id))
-    supabase.from('training_events').delete().eq('id', id).then()
+    setEvents(events.filter(e => e.id !== id))
+    setParticipants(participants.filter(p => p.eventId !== id))
   }
 
   // Participants
   const addParticipant = (p: Omit<TrainingParticipant, 'id'>): TrainingParticipant => {
     const np: TrainingParticipant = { ...p, id: `tpart-${Date.now()}` }
-    setParticipantsS([np, ...participants])
-    supabase.from('training_participants').insert(np).then(({error}) => error && console.warn(error))
+    setParticipants([np, ...participants])
     return np
   }
 
   const updateParticipant = (id: string, updates: Partial<TrainingParticipant>) => {
-    setParticipantsS(participants.map(p => p.id === id ? { ...p, ...updates } : p))
-    supabase.from('training_participants').update(updates).eq('id', id).then(({error}) => error && console.warn(error))
+    setParticipants(participants.map(p => p.id === id ? { ...p, ...updates } : p))
   }
 
   const deleteParticipant = (id: string) => {
-    setParticipantsS(participants.filter(p => p.id !== id))
-    supabase.from('training_participants').delete().eq('id', id).then()
+    setParticipants(participants.filter(p => p.id !== id))
   }
 
   const importParticipantsList = (eventId: string, list: Omit<TrainingParticipant, 'id' | 'eventId'>[]) => {
@@ -384,12 +354,11 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       id: `tpart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       eventId
     }))
-    setParticipantsS([...newItems, ...participants])
-    supabase.from('training_participants').insert(newItems).then(({error}) => error && console.warn(error))
+    setParticipants([...newItems, ...participants])
   }
 
   const confirmAttendance = (participantId: string, entryTime: string, signature: string) => {
-    setParticipantsS(
+    setParticipants(
       participants.map(p =>
         p.id === participantId
           ? {
@@ -402,11 +371,10 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           : p
       )
     )
-    supabase.from('training_attendance').upsert({ participant_id: participantId, event_id: participants.find(p=>p.id===participantId)?.eventId, attendance_status: 'presente', entry_time: entryTime, signature_simple: signature }).then(({error}) => error && console.warn(error))
   }
 
   const recordAbsenceJustification = (participantId: string, justification: string) => {
-    setParticipantsS(
+    setParticipants(
       participants.map(p =>
         p.id === participantId
           ? {
@@ -419,7 +387,6 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           : p
       )
     )
-    supabase.from('training_attendance').upsert({ participant_id: participantId, event_id: participants.find(p=>p.id===participantId)?.eventId, attendance_status: 'justificado', justification }).then(({error}) => error && console.warn(error))
   }
 
   // Certificates
@@ -448,8 +415,7 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       issuedAt: new Date().toISOString()
     }
 
-    setCertificatesS([nc, ...certificates])
-    supabase.from('training_certificates').insert({ id: nc.id, participant_id: nc.participantId, event_id: nc.eventId, validation_code: nc.validationCode, pdf_url: nc.pdfUrl, issued_at: nc.issuedAt }).then(({error}) => error && console.warn(error))
+    setCertificates([nc, ...certificates])
     return nc
   }
 
@@ -474,30 +440,26 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         issuedAt: new Date().toISOString()
       }))
 
-    setCertificatesS([...newCerts, ...certificates])
+    setCertificates([...newCerts, ...certificates])
     const dbCerts = newCerts.map(nc => ({ id: nc.id, participant_id: nc.participantId, event_id: nc.eventId, validation_code: nc.validationCode, issued_at: nc.issuedAt }))
-    supabase.from('training_certificates').insert(dbCerts).then(({error}) => error && console.warn(error))
   }
 
   // Feedbacks
   const addFeedback = (f: Omit<TrainingFeedback, 'id' | 'createdAt'>): TrainingFeedback => {
     const nf: TrainingFeedback = { ...f, id: `tfb-${Date.now()}`, createdAt: new Date().toISOString() }
-    setFeedbacksS([nf, ...feedbacks])
-    supabase.from('training_feedbacks').insert({ id: nf.id, event_id: nf.eventId, participant_id: nf.participantId, rating_general: nf.ratingGeneral, clarity_content: nf.clarityContent, applicability: nf.applicability, didactics: nf.didactics, organization: nf.organization, nps: nf.nps, comments: nf.comments, created_at: nf.createdAt }).then(({error}) => error && console.warn(error))
+    setFeedbacks([nf, ...feedbacks])
     return nf
   }
 
   // Materials
   const addMaterial = (m: Omit<TrainingMaterial, 'id' | 'createdAt'>): TrainingMaterial => {
     const nm: TrainingMaterial = { ...m, id: `tmat-${Date.now()}`, createdAt: new Date().toISOString() }
-    setMaterialsS([nm, ...materials])
-    supabase.from('training_materials').insert({ id: nm.id, event_id: nm.eventId, name: nm.name, type: nm.type, file_url: nm.fileUrl, created_at: nm.createdAt }).then(({error}) => error && console.warn(error))
+    setMaterials([nm, ...materials])
     return nm
   }
 
   const deleteMaterial = (id: string) => {
-    setMaterialsS(materials.filter(m => m.id !== id))
-    supabase.from('training_materials').delete().eq('id', id).then()
+    setMaterials(materials.filter(m => m.id !== id))
   }
 
   // Reports
@@ -509,8 +471,7 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       recommendations: recs,
       generatedAt: new Date().toISOString()
     }
-    setReportsS([nr, ...reports])
-    supabase.from('training_reports').insert({ id: nr.id, event_id: nr.eventId, pdf_url: nr.pdfUrl, recommendations: nr.recommendations, executive_summary: nr.executiveSummary, generated_at: nr.generatedAt }).then(({error}) => error && console.warn(error))
+    setReports([nr, ...reports])
     return nr
   }
 
@@ -530,27 +491,18 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString()
     }
 
-    setSipatProgramsS([ns, ...sipatPrograms])
-    supabase.from('sipat_programs').insert({ id: ns.id, company_id: ns.companyId, title: ns.title, theme: ns.theme, start_date: ns.startDate, end_date: ns.endDate, status: ns.status, observations: ns.observations, created_at: ns.createdAt }).then(({error}) => {
-      if (error) console.warn(error)
-      else {
-        const dbSchedule = fullSchedule.map(ds => ({ id: ds.id, sipat_program_id: ds.sipatProgramId, day_number: ds.dayNumber, schedule_date: ds.date || ns.startDate, start_time: ds.startTime, end_time: ds.endTime, theme: ds.theme, facilitator: ds.facilitator, location: ds.location }))
-        supabase.from('sipat_schedule').insert(dbSchedule).then()
-      }
-    })
+    setSipatPrograms([ns, ...sipatPrograms])
     return ns
   }
 
   const updateSipatStatus = (id: string, status: SipatStatus) => {
-    setSipatProgramsS(
+    setSipatPrograms(
       sipatPrograms.map(s => (s.id === id ? { ...s, status } : s))
     )
-    supabase.from('sipat_programs').update({ status }).eq('id', id).then(({error}) => error && console.warn(error))
   }
 
   const deleteSipatProgram = (id: string) => {
-    setSipatProgramsS(sipatPrograms.filter(s => s.id !== id))
-    supabase.from('sipat_programs').delete().eq('id', id).then()
+    setSipatPrograms(sipatPrograms.filter(s => s.id !== id))
   }
 
   // AI helper functions

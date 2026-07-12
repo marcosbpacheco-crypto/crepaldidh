@@ -81,8 +81,8 @@ export function FinancialIntegrationBridge() {
     syncedRef.current = true
 
     if (newReceivablesCount > 0 || newRulesCount > 0) {
-      console.log(`FinancialIntegration: Synced ${newReceivablesCount} receivable(s) and ${newRulesCount} recurring rule(s) from CRM contracts.`)
-    }
+          }
+
   }, [contracts, companies, fin])
 
   return null

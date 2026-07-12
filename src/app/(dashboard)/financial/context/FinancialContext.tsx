@@ -1,7 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import supabase from '@/lib/supabaseClient'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -334,9 +333,13 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [invoices, setInvoices] = useState<FinancialInvoice[]>([])
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([])
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([])
+  const loadedRef = useRef(false)
 
+  // ---- Load from Supabase API first, fallback localStorage ----
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
     const get = <T,>(key: string, fallback: T): T => {
       try {
         const stored = localStorage.getItem(key)
@@ -344,65 +347,64 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch { return fallback }
     }
 
-    const loadData = async () => {
-      try {
-        const [
-          { data: cats }, { data: methods },
-          { data: recs }, { data: pays },
-          { data: trans }, { data: invs },
-          { data: rrs }
-        ] = await Promise.all([
-          supabase.from('financial_categories').select('*'),
-          supabase.from('financial_payment_methods').select('*'),
-          supabase.from('financial_accounts_receivable').select('*'),
-          supabase.from('financial_accounts_payable').select('*'),
-          supabase.from('financial_transactions').select('*'),
-          supabase.from('financial_invoices').select('*'),
-          supabase.from('financial_recurring_rules').select('*')
-        ])
-
-        if (cats && recs && pays) {
-          setCategories(cats.length ? cats : get('fin_categories', SEED_CATEGORIES))
-          setPaymentMethods(methods?.length ? methods : get('fin_payment_methods', SEED_PAYMENT_METHODS))
-          setReceivables(recs.length ? recs : get('fin_receivables', SEED_RECEIVABLES))
-          setPayables(pays.length ? pays : get('fin_payables', SEED_PAYABLES))
-          setTransactions(trans?.length ? trans : [])
-          setInvoices(invs?.length ? invs : [])
-          setRecurringRules(rrs?.length ? rrs : get('fin_recurring_rules', SEED_RECURRING_RULES))
-        setBankTransactions(get('fin_bank_transactions', []))
-        } else {
-          throw new Error('Fallback to local')
-        }
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to localStorage:', err)
-        setCategories(get('fin_categories', SEED_CATEGORIES))
-        setPaymentMethods(get('fin_payment_methods', SEED_PAYMENT_METHODS))
-        setReceivables(get('fin_receivables', SEED_RECEIVABLES))
-        setPayables(get('fin_payables', SEED_PAYABLES))
-        setTransactions([])
-        setInvoices([])
-        setRecurringRules(get('fin_recurring_rules', SEED_RECURRING_RULES))
-        setBankTransactions(get('fin_bank_transactions', []))
-      }
+    const loadFromLocal = () => {
+      setCategories(get('fin_categories', SEED_CATEGORIES))
+      setPaymentMethods(get('fin_payment_methods', SEED_PAYMENT_METHODS))
+      setReceivables(get('fin_receivables', SEED_RECEIVABLES))
+      setPayables(get('fin_payables', SEED_PAYABLES))
+      setTransactions(get('fin_transactions', []))
+      setInvoices(get('fin_invoices', []))
+      setRecurringRules(get('fin_recurring_rules', SEED_RECURRING_RULES))
+      setBankTransactions(get('fin_bank_transactions', []))
     }
-    loadData()
+
+    fetch('/api/sync/financial')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories as FinancialCategory[])
+          if (Array.isArray(d.paymentMethods) && d.paymentMethods.length > 0) setPaymentMethods(d.paymentMethods as PaymentMethod[])
+          if (Array.isArray(d.receivables) && d.receivables.length > 0) setReceivables(d.receivables as AccountReceivable[])
+          if (Array.isArray(d.payables) && d.payables.length > 0) setPayables(d.payables as AccountPayable[])
+          if (Array.isArray(d.transactions) && d.transactions.length > 0) setTransactions(d.transactions as FinancialTransaction[])
+          if (Array.isArray(d.invoices) && d.invoices.length > 0) setInvoices(d.invoices as FinancialInvoice[])
+          if (Array.isArray(d.recurringRules) && d.recurringRules.length > 0) setRecurringRules(d.recurringRules as RecurringRule[])
+          if (Array.isArray(d.bankTransactions) && d.bankTransactions.length > 0) setBankTransactions(d.bankTransactions as BankTransaction[])
+          // cache to localStorage
+          for (const [k, v] of Object.entries(d)) {
+            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`fin_${k}`, JSON.stringify(v))
+          }
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
   }, [])
 
-  const sync = (key: string, value: unknown) => {
-    if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
-  }
-
-  const setAndSync = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, key: string, _tableName: string) =>
-    (val: T[]) => { setter(val); sync(key, val) }
-
-  const setCategoriesS = setAndSync(setCategories, 'fin_categories', 'financial_categories')
-  const setPaymentMethodsS = setAndSync(setPaymentMethods, 'fin_payment_methods', 'financial_payment_methods')
-  const setReceivablesS = setAndSync(setReceivables, 'fin_receivables', 'financial_accounts_receivable')
-  const setPayablesS = setAndSync(setPayables, 'fin_payables', 'financial_accounts_payable')
-  const setTransactionsS = setAndSync(setTransactions, 'fin_transactions', 'financial_transactions')
-  const setInvoicesS = setAndSync(setInvoices, 'fin_invoices', 'financial_invoices')
-  const setRecurringRulesS = setAndSync(setRecurringRules, 'fin_recurring_rules', 'financial_recurring_rules')
-  const setBankTransactionsS = setAndSync(setBankTransactions, 'fin_bank_transactions', 'financial_bank_transactions')
+  // ---- Sync to Supabase + cache to localStorage on changes ----
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = categories.length > 0 || paymentMethods.length > 0 || receivables.length > 0 || payables.length > 0 || transactions.length > 0 || invoices.length > 0 || recurringRules.length > 0 || bankTransactions.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions }
+      fetch('/api/sync/financial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('FinancialContext sync error:', err))
+      localStorage.setItem('fin_categories', JSON.stringify(categories))
+      localStorage.setItem('fin_payment_methods', JSON.stringify(paymentMethods))
+      localStorage.setItem('fin_receivables', JSON.stringify(receivables))
+      localStorage.setItem('fin_payables', JSON.stringify(payables))
+      localStorage.setItem('fin_transactions', JSON.stringify(transactions))
+      localStorage.setItem('fin_invoices', JSON.stringify(invoices))
+      localStorage.setItem('fin_recurring_rules', JSON.stringify(recurringRules))
+      localStorage.setItem('fin_bank_transactions', JSON.stringify(bankTransactions))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions])
 
   // ==========================================
   // COMPUTED KPIs
@@ -699,14 +701,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addCategory = (c: Omit<FinancialCategory, 'id' | 'createdAt'>): FinancialCategory => {
     const nc: FinancialCategory = { ...c, id: `cat-${Date.now()}`, createdAt: new Date().toISOString() }
-    setCategoriesS([nc, ...categories])
-    supabase.from('financial_categories').insert(nc).then(({ error }) => error && console.warn(error))
+    setCategories(prev => [nc, ...prev])
     return nc
   }
 
   const deleteCategory = (id: string) => {
-    setCategoriesS(categories.filter(c => c.id !== id))
-    supabase.from('financial_categories').delete().eq('id', id).then()
+    setCategories(prev => prev.filter(c => c.id !== id))
   }
 
   // ==========================================
@@ -715,15 +715,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addPaymentMethod = (p: Omit<PaymentMethod, 'id' | 'createdAt'>): PaymentMethod => {
     const np: PaymentMethod = { ...p, id: `pm-${Date.now()}`, createdAt: new Date().toISOString() }
-    setPaymentMethodsS([np, ...paymentMethods])
-    supabase.from('financial_payment_methods').insert(np).then(({ error }) => error && console.warn(error))
+    setPaymentMethods(prev => [np, ...prev])
     return np
   }
 
   const togglePaymentMethod = (id: string) => {
-    const updated = paymentMethods.map(p => p.id === id ? { ...p, active: !p.active } : p)
-    setPaymentMethodsS(updated)
-    supabase.from('financial_payment_methods').update({ active: !paymentMethods.find(p => p.id === id)?.active }).eq('id', id).then()
+    setPaymentMethods(prev => prev.map(p => p.id === id ? { ...p, active: !p.active } : p))
   }
 
   // ==========================================
@@ -732,19 +729,16 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addReceivable = (r: Omit<AccountReceivable, 'id' | 'createdAt'>): AccountReceivable => {
     const nr: AccountReceivable = { ...r, id: `rec-${Date.now()}`, createdAt: new Date().toISOString() }
-    setReceivablesS([nr, ...receivables])
-    supabase.from('financial_accounts_receivable').insert(nr).then(({ error }) => error && console.warn(error))
+    setReceivables(prev => [nr, ...prev])
     return nr
   }
 
   const updateReceivable = (id: string, updates: Partial<AccountReceivable>) => {
-    setReceivablesS(receivables.map(r => r.id === id ? { ...r, ...updates } : r))
-    supabase.from('financial_accounts_receivable').update(updates).eq('id', id).then(({ error }) => error && console.warn(error))
+    setReceivables(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
   }
 
   const deleteReceivable = (id: string) => {
-    setReceivablesS(receivables.filter(r => r.id !== id))
-    supabase.from('financial_accounts_receivable').delete().eq('id', id).then()
+    setReceivables(prev => prev.filter(r => r.id !== id))
   }
 
   const markAsPaid = (id: string, paymentDate: string, paymentMethodId?: string) => {
@@ -752,8 +746,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!rec) return
     const pm = paymentMethods.find(p => p.id === paymentMethodId)
     const updated = { status: 'paid' as const, paymentDate, paymentMethodId, paymentMethodName: pm?.name }
-    setReceivablesS(receivables.map(r => r.id === id ? { ...r, ...updated } : r))
-    supabase.from('financial_accounts_receivable').update(updated).eq('id', id).then()
+    setReceivables(prev => prev.map(r => r.id === id ? { ...r, ...updated } : r))
     
     const tx: FinancialTransaction = {
       id: `tx-${Date.now()}`,
@@ -765,8 +758,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       receivableId: id,
       createdAt: new Date().toISOString()
     }
-    setTransactionsS([tx, ...transactions])
-    supabase.from('financial_transactions').insert(tx).then()
+    setTransactions(prev => [tx, ...prev])
   }
 
   // Integration: Create receivable automatically from a contract
@@ -786,8 +778,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       notes: 'Gerado automaticamente a partir de contrato ativo',
       createdAt: new Date().toISOString()
     }
-    setReceivablesS([nr, ...receivables])
-    supabase.from('financial_accounts_receivable').insert(nr).then(({ error }) => error && console.warn(error))
+    setReceivables(prev => [nr, ...prev])
     return nr
   }
 
@@ -797,27 +788,23 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addPayable = (p: Omit<AccountPayable, 'id' | 'createdAt'>): AccountPayable => {
     const np: AccountPayable = { ...p, id: `pay-${Date.now()}`, createdAt: new Date().toISOString() }
-    setPayablesS([np, ...payables])
-    supabase.from('financial_accounts_payable').insert(np).then(({ error }) => error && console.warn(error))
+    setPayables(prev => [np, ...prev])
     return np
   }
 
   const updatePayable = (id: string, updates: Partial<AccountPayable>) => {
-    setPayablesS(payables.map(p => p.id === id ? { ...p, ...updates } : p))
-    supabase.from('financial_accounts_payable').update(updates).eq('id', id).then()
+    setPayables(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
   }
 
   const deletePayable = (id: string) => {
-    setPayablesS(payables.filter(p => p.id !== id))
-    supabase.from('financial_accounts_payable').delete().eq('id', id).then()
+    setPayables(prev => prev.filter(p => p.id !== id))
   }
 
   const markPayableAsPaid = (id: string, paymentDate: string) => {
     const pay = payables.find(p => p.id === id)
     if (!pay) return
     const updated = { status: 'paid' as const, paymentDate }
-    setPayablesS(payables.map(p => p.id === id ? { ...p, ...updated } : p))
-    supabase.from('financial_accounts_payable').update(updated).eq('id', id).then()
+    setPayables(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p))
 
     const tx: FinancialTransaction = {
       id: `tx-${Date.now()}`,
@@ -829,8 +816,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       categoryId: pay.categoryId,
       createdAt: new Date().toISOString()
     }
-    setTransactionsS([tx, ...transactions])
-    supabase.from('financial_transactions').insert(tx).then()
+    setTransactions(prev => [tx, ...prev])
   }
 
   // ==========================================
@@ -839,19 +825,16 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addRecurringRule = (r: Omit<RecurringRule, 'id' | 'createdAt'>): RecurringRule => {
     const nr: RecurringRule = { ...r, id: `rr-${Date.now()}`, createdAt: new Date().toISOString() }
-    setRecurringRulesS([nr, ...recurringRules])
-    supabase.from('financial_recurring_rules').insert(nr).then(({ error }) => error && console.warn(error))
+    setRecurringRules(prev => [nr, ...prev])
     return nr
   }
 
   const updateRecurringRule = (id: string, updates: Partial<RecurringRule>) => {
-    setRecurringRulesS(recurringRules.map(r => r.id === id ? { ...r, ...updates } : r))
-    supabase.from('financial_recurring_rules').update(updates).eq('id', id).then()
+    setRecurringRules(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
   }
 
   const cancelRecurringRule = (id: string) => {
-    setRecurringRulesS(recurringRules.map(r => r.id === id ? { ...r, status: 'canceled' as const } : r))
-    supabase.from('financial_recurring_rules').update({ status: 'canceled' }).eq('id', id).then()
+    setRecurringRules(prev => prev.map(r => r.id === id ? { ...r, status: 'canceled' as const } : r))
   }
 
   // ==========================================
@@ -860,20 +843,20 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addBankTransaction = (t: Omit<BankTransaction, 'id' | 'createdAt'>): BankTransaction => {
     const nt: BankTransaction = { ...t, id: `bt-${Date.now()}`, createdAt: new Date().toISOString() }
-    setBankTransactionsS([nt, ...bankTransactions])
+    setBankTransactions(prev => [nt, ...prev])
     return nt
   }
 
   const matchBankTransaction = (id: string, matchedId: string, matchedType: 'receivable' | 'payable') => {
-    setBankTransactionsS(bankTransactions.map(t => t.id === id ? { ...t, matchedId, matchedType, reconciled: true } : t))
+    setBankTransactions(prev => prev.map(t => t.id === id ? { ...t, matchedId, matchedType, reconciled: true } : t))
   }
 
   const reconcileBankTransaction = (id: string) => {
-    setBankTransactionsS(bankTransactions.map(t => t.id === id ? { ...t, reconciled: !t.reconciled } : t))
+    setBankTransactions(prev => prev.map(t => t.id === id ? { ...t, reconciled: !t.reconciled } : t))
   }
 
   const deleteBankTransaction = (id: string) => {
-    setBankTransactionsS(bankTransactions.filter(t => t.id !== id))
+    setBankTransactions(prev => prev.filter(t => t.id !== id))
   }
 
   // ==========================================
@@ -882,19 +865,16 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addInvoice = (inv: Omit<FinancialInvoice, 'id' | 'createdAt'>): FinancialInvoice => {
     const ni: FinancialInvoice = { ...inv, id: `finv-${Date.now()}`, createdAt: new Date().toISOString() }
-    setInvoicesS([ni, ...invoices])
-    supabase.from('financial_invoices').insert(ni).then(({ error }) => error && console.warn(error))
+    setInvoices(prev => [ni, ...prev])
     return ni
   }
 
   const updateInvoice = (id: string, updates: Partial<FinancialInvoice>) => {
-    setInvoicesS(invoices.map(inv => inv.id === id ? { ...inv, ...updates } : inv))
-    supabase.from('financial_invoices').update(updates).eq('id', id).then(({ error }) => error && console.warn(error))
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updates } : inv))
   }
 
   const deleteInvoice = (id: string) => {
-    setInvoicesS(invoices.filter(inv => inv.id !== id))
-    supabase.from('financial_invoices').delete().eq('id', id).then()
+    setInvoices(prev => prev.filter(inv => inv.id !== id))
   }
 
   // ==========================================

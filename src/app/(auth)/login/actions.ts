@@ -29,8 +29,8 @@ export async function login(formData: FormData) {
       redirect('/')
     }
   } catch (err: any) {
-    console.log('Tentativa de login via Supabase falhou (provavelmente offline):', err.message)
-  }
+      }
+
 
   return { error: 'Credenciais inválidas.' }
 }

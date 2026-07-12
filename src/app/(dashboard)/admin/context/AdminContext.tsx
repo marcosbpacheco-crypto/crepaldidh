@@ -1,7 +1,6 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { syncUsersToCookie } from '@/app/(auth)/login/actions'
 
 export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
@@ -214,45 +213,96 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     if (loadedRef.current) return
     loadedRef.current = true
 
-    // Load all data from localStorage (synchronous, always preserves local changes)
-    // NUNCA recria usuarios mock/seed — se localStorage estiver vazio, comeca vazio
-    try {
-      const u = localStorage.getItem('admin_users')
-      if (u) {
-        const p: User[] = JSON.parse(u)
-        if (Array.isArray(p)) {
-          // Migracao: remove usuarios com IDs do antigo SEED_USERS (hardcoded)
-          // Preserva apenas usuarios criados dinamicamente (prefixo 'adm-') e o BOOTSTRAP_ADMIN
-          const filtered = p.filter(user => {
-            if (!OLD_SEED_IDS.has(user.id)) return true // ID dinamico (adm-xxx)
-            // ID hardcoded antigo — so mantem se for exatamente o bootstrap admin
-            return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
-          })
-          setUsers(filtered)
-        }
+    // 1. Load from localStorage FIRST (synchronous — menu precisa ver usuarios imediatamente)
+    const loadFromLocal = () => {
+      try {
+        const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
+        const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
+        const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
+        const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
+        const u = localStorage.getItem('admin_users'); if (u) { const p: User[] = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
+      } catch {
+        setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
+        setPrivacyRequests(seedPrivacyRequests())
       }
-    } catch { /* localStorage corrompido — ignora */ }
-
-    try {
-      const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
-      const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
-      const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
-      const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
-      const stored = localStorage.getItem('current_user')
-      if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
-      else setCurrentUserId('user-admin')
-    } catch {
-      setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
-      setPrivacyRequests(seedPrivacyRequests()); setCurrentUserId('user-admin')
+      try {
+        const stored = localStorage.getItem('current_user')
+        if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
+        else setCurrentUserId('user-admin')
+      } catch { setCurrentUserId('user-admin') }
     }
-  }, [])
+    loadFromLocal()
 
-  useEffect(() => { try { localStorage.setItem('admin_users', JSON.stringify(users)) } catch {} }, [users])
-  useEffect(() => { if (users.length > 0) { syncUsersToCookie(JSON.stringify(users)).catch(() => {}) } }, [users])
-  useEffect(() => { try { localStorage.setItem('admin_permissions', JSON.stringify(permissions)) } catch {} }, [permissions])
-  useEffect(() => { try { localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs)) } catch {} }, [auditLogs])
-  useEffect(() => { try { localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents)) } catch {} }, [lgpdConsents])
-  useEffect(() => { try { localStorage.setItem('admin_privacy_requests', JSON.stringify(privacyRequests)) } catch {} }, [privacyRequests])
+    // 2. Load users from API (async — só sobrescreve se API retornar dados não-vazios)
+    // e se o usuario logado ainda estiver presente nos dados remotos
+    const loadUsers = async () => {
+      try {
+        const res = await fetch('/api/sync-admin-users')
+        if (res.ok) {
+          const { users: remoteUsers } = await res.json()
+          if (Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+            // So sobrescreve se usuario logado estiver presente nos dados remotos
+            const stored = localStorage.getItem('current_user')
+            const currentId = stored ? JSON.parse(stored).id : null
+            if (currentId && remoteUsers.some((u: User) => u.id === currentId)) {
+              setUsers(remoteUsers)
+              localStorage.setItem('admin_users', JSON.stringify(remoteUsers))
+            }
+          }
+        }
+      } catch {}
+    }
+    loadUsers()
+
+    // 3. Load admin collections from API (async — só sobrescreve se API retornar dados não-vazios)
+    fetch('/api/sync/admin')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          if (Array.isArray(d.permissions) && d.permissions.length > 0) setPermissions(d.permissions as Permission[])
+          if (Array.isArray(d.auditLogs) && d.auditLogs.length > 0) setAuditLogs(d.auditLogs as AuditLog[])
+          if (Array.isArray(d.lgpdConsents) && d.lgpdConsents.length > 0) setLgpdConsents(d.lgpdConsents as LgpdConsent[])
+          if (Array.isArray(d.privacyRequests) && d.privacyRequests.length > 0) setPrivacyRequests(d.privacyRequests as PrivacyRequest[])
+          for (const [k, v] of Object.entries(d)) { localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
+        }
+      })
+      .catch(() => {})
+
+  }, [])
+  useEffect(() => {
+    if (users.length === 0) return
+    localStorage.setItem('admin_users', JSON.stringify(users))
+    const timer = setTimeout(() => {
+      fetch('/api/sync-admin-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users }),
+      }).catch(() => {})
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [users])
+
+  // Persist admin collections to localStorage + Supabase (via /api/sync/admin)
+  // So persiste se houver dados reais (evita corromper bucket do Supabase com arrays vazios)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasData = permissions.length > 0 || auditLogs.length > 0 || lgpdConsents.length > 0 || privacyRequests.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { permissions, auditLogs, lgpdConsents, privacyRequests }
+      fetch('/api/sync/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(() => {})
+      localStorage.setItem('admin_permissions', JSON.stringify(permissions))
+      localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs))
+      localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents))
+      localStorage.setItem('admin_privacy_requests', JSON.stringify(privacyRequests))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [permissions, auditLogs, lgpdConsents, privacyRequests])
 
   // Cross-device sync is UNIDIRECTIONAL: local → server only.
   // A direcao reversa (server → local) nao deve restaurar usuarios deletados.
@@ -264,32 +314,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const addUser = useCallback((u: Omit<User, 'id' | 'createdAt'>) => {
     const newUser: User = { ...u, id: gid(), createdAt: new Date().toISOString() }
-    setUsers(prev => {
-      const next = [...prev, newUser]
-      localStorage.setItem('admin_users', JSON.stringify(next))
-      return next
-    })
+    setUsers(prev => [...prev, newUser])
     addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'create', entity: 'user', entityId: newUser.id, description: 'Criou usuário: ' + newUser.name, ipAddress: '127.0.0.1' })
     return newUser
   }, [currentUserId, users])
 
   const updateUser = useCallback((id: string, updates: Partial<User>) => {
-    setUsers(prev => {
-      const next = prev.map(u => u.id === id ? { ...u, ...updates } : u)
-      localStorage.setItem('admin_users', JSON.stringify(next))
-      return next
-    })
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u))
   }, [])
 
   const deleteUser = useCallback((id: string) => {
     const user = users.find(u => u.id === id)
     if (!user) return
     // Soft delete: marca como inativo em vez de remover — dados preservados para auditoria
-    setUsers(prev => {
-      const next = prev.map(u => u.id === id ? { ...u, active: false } : u)
-      localStorage.setItem('admin_users', JSON.stringify(next))
-      return next
-    })
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u))
     addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu (desativou) usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
@@ -297,11 +335,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const user = users.find(u => u.id === id)
     if (user) {
       const becomingActive = !user.active
-      setUsers(prev => {
-        const next = prev.map(u => u.id === id ? { ...u, active: becomingActive } : u)
-        localStorage.setItem('admin_users', JSON.stringify(next))
-        return next
-      })
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, active: becomingActive } : u))
       addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
     }
   }, [currentUserId, users])
@@ -313,7 +347,18 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const uid = userId || currentUserId
     if (!uid) return false
     const user = users.find(u => u.id === uid)
-    if (!user) return false
+    // Se usuario esta em localStorage mas ainda nao foi carregado no state, permite acesso
+    if (!user) {
+      try {
+        const stored = localStorage.getItem('admin_users')
+        if (stored) {
+          const localUsers: User[] = JSON.parse(stored)
+          const localUser = localUsers.find(u => u.id === uid)
+          if (localUser && localUser.roleName === 'Administrador') return true
+        }
+      } catch {}
+      return false
+    }
     if (!user.active) return false
     if (user.roleName === 'Administrador') return true
     const rolePerms = getPermissionsForRole(user.roleId).filter(p => p.module === module)

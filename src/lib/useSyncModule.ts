@@ -74,7 +74,7 @@ export function useSyncModule<T>(
     const channel = getRealtimeChannel(moduleKey);
     if (channel) {
       channel.on('broadcast', { event: 'data-changed' }, () => {
-        console.debug(`[Realtime] data-changed received for ${moduleKey}/${storageKey} — re-fetching`);
+        if (process.env.NODE_ENV !== 'production') console.debug(`[Realtime] data-changed received for ${moduleKey}/${storageKey} — re-fetching`);
         fetchFromServer();
       });
     }

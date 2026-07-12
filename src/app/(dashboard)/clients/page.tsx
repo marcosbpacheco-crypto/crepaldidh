@@ -20,7 +20,7 @@ function ClientsMainContent() {
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
   const currentRoleName = admin.currentUser?.roleName || ''
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
-  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, addContact, addInteraction, addFeedback } = useClients()
+  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, addContact, addInteraction, addFeedback } = useClients()
   const calendar = useCalendar()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
@@ -177,6 +177,7 @@ function ClientsMainContent() {
             calendarEvents={getClientCalendarEvents(selected.id)}
             onClose={() => setSelectedId(null)}
             onDelete={deleteClient}
+            onHardDelete={hardDeleteClient}
             onEdit={() => setEditingClient(selected)}
             onAddContact={addContact}
             onAddInteraction={addInteraction}
@@ -219,7 +220,7 @@ function ClientsMainContent() {
 
 function ClientDetail({
   client, contacts, interactions, documents, feedbacks, calendarEvents,
-  onClose, onDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
+  onClose, onDelete, onHardDelete, onEdit, onAddContact, onAddInteraction, onAddFeedback,
   showNewContact, setShowNewContact, formatCurrency, serviceStatusIcon, serviceStatusLabel,
   hasFinancialAccess, isAdminOrDiretor
 }: {
@@ -232,6 +233,7 @@ function ClientDetail({
   calendarEvents: any[]
   onClose: () => void
   onDelete: (id: string) => void
+  onHardDelete: (id: string) => void
   onEdit: () => void
   isAdminOrDiretor: boolean
   onAddContact: (c: any) => void
@@ -297,7 +299,7 @@ function ClientDetail({
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-teal to-brand-blue flex items-center justify-center text-white font-black text-lg flex-shrink-0 shadow-lg shadow-brand-teal/20">
-              {client.companyTradeName.charAt(0)}
+              {(client.companyTradeName || '?').charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -319,9 +321,14 @@ function ClientDetail({
               <X className="w-4 h-4" />
             </button>
             {isAdminOrDiretor && (
-              <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-all">
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <>
+                <button onClick={() => onHardDelete(client.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-all" title="Excluir permanentemente">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-xl hover:bg-amber-50 text-amber-400 transition-all" title="Inativar cliente">
+                  <AlertCircle className="w-4 h-4" />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -645,16 +652,16 @@ function ClientDetail({
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5" /></div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">Excluir Cliente</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Esta ação não pode ser desfeita.</p>
+                <h3 className="text-sm font-black text-slate-800">Inativar Cliente</h3>
+                <p className="text-xs text-slate-500 mt-0.5">O cliente ficará como cancelado no histórico.</p>
               </div>
             </div>
             <p className="text-xs text-slate-600 mb-4">
-              Tem certeza que deseja excluir o cliente <strong>{client.companyTradeName || client.companyName}</strong>?
+              Tem certeza que deseja inativar o cliente <strong>{client.companyTradeName || client.companyName}</strong>?
               O cliente será marcado como <strong>cancelado</strong> e todos os dados vinculados (contatos, interações, documentos, feedbacks) serão preservados.
             </p>
             <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-              <button onClick={() => { onDelete(client.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-all">Confirmar Exclusão</button>
+              <button onClick={() => { onDelete(client.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-all">Confirmar Inativação</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>

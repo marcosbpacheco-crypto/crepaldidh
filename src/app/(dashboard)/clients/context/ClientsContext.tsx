@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -85,6 +85,7 @@ interface ClientsContextType {
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client
   updateClient: (id: string, updates: Partial<Client>) => void
   deleteClient: (id: string) => void
+  hardDeleteClient: (id: string) => void
   addContact: (contact: Omit<ClientContact, 'id'>) => void
   updateContact: (id: string, updates: Partial<ClientContact>) => void
   deleteContact: (id: string) => void
@@ -118,21 +119,109 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [interactions, setInteractions] = useState<ClientInteraction[]>([])
   const [documents, setDocuments] = useState<ClientDocument[]>([])
   const [feedbacks, setFeedbacks] = useState<ClientFeedback[]>([])
+  const loadedRef = useRef(false)
 
+  function sanitizeClients(raw: unknown[]): Client[] {
+    return (raw || []).filter(c => c && (c as any).companyName && (c as any).companyName.trim()).map(c => {
+      const r = c as any
+      return {
+        id: r.id || '',
+        companyId: r.companyId || '',
+        companyName: r.companyName || '',
+        companyTradeName: r.companyTradeName || r.companyName || '',
+        cnpj: r.cnpj || '',
+        segment: r.segment || '',
+        city: r.city || '',
+        state: r.state || '',
+        services: Array.isArray(r.services) ? r.services : [],
+        contractType: r.contractType === 'renewal' ? 'renewal' as const : 'first' as const,
+        internalResponsible: r.internalResponsible || '',
+        status: ['active', 'suspended', 'churned'].includes(r.status) ? r.status : 'active' as ClientStatus,
+        startDate: r.startDate || '',
+        endDate: r.endDate || '',
+        monthlyValue: Number(r.monthlyValue) || 0,
+        totalValue: Number(r.totalValue) || 0,
+        notes: r.notes || '',
+        createdAt: r.createdAt || new Date().toISOString(),
+      }
+    })
+  }
+
+  // ---- Load from Supabase first, fallback localStorage ----
+  useEffect(() => {
+    if (typeof window === 'undefined' || loadedRef.current) return
+    loadedRef.current = true
+
+    const loadFromLocal = () => {
+      const get = <T,>(key: string, fallback: T): T => {
+        try {
+          const stored = localStorage.getItem(key)
+          return stored ? JSON.parse(stored) : fallback
+        } catch { return fallback }
+      }
+      const raw = get<unknown[]>('clients_data', [])
+      const clean = sanitizeClients(raw)
+      setClients(clean)
+      if (clean.length !== raw.length) localStorage.setItem('clients_data', JSON.stringify(clean))
+      setContacts(get('clients_contacts', []))
+      setInteractions(get('clients_interactions', []))
+      setDocuments(get('clients_documents', []))
+      setFeedbacks(get('clients_feedbacks', []))
+    }
+
+    fetch('/api/sync/clients')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.data) {
+          const d = res.data
+          const raw = d.clients || []
+          const clean = sanitizeClients(raw)
+          if (Array.isArray(clean) && clean.length > 0) setClients(clean)
+          if (Array.isArray(d.contacts) && d.contacts.length > 0) setContacts(d.contacts as ClientContact[])
+          if (Array.isArray(d.interactions) && d.interactions.length > 0) setInteractions(d.interactions as ClientInteraction[])
+          if (Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as ClientDocument[])
+          if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as ClientFeedback[])
+          if (Array.isArray(clean) && clean.length > 0) localStorage.setItem('clients_data', JSON.stringify(clean))
+          if (Array.isArray(d.contacts) && d.contacts.length > 0) localStorage.setItem('clients_contacts', JSON.stringify(d.contacts))
+          if (Array.isArray(d.interactions) && d.interactions.length > 0) localStorage.setItem('clients_interactions', JSON.stringify(d.interactions))
+          if (Array.isArray(d.documents) && d.documents.length > 0) localStorage.setItem('clients_documents', JSON.stringify(d.documents))
+          if (Array.isArray(d.feedbacks) && d.feedbacks.length > 0) localStorage.setItem('clients_feedbacks', JSON.stringify(d.feedbacks))
+        } else {
+          loadFromLocal()
+        }
+      })
+      .catch(() => loadFromLocal())
+
+    const STALE_KEYS = [
+      'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
+      'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
+      'projects_mock', 'portal_mock', 'assessoria_mock',
+    ]
+    for (const key of STALE_KEYS) {
+      try { localStorage.removeItem(key) } catch {}
+    }
+  }, [])
+
+  // ---- Sync to Supabase + cache to localStorage on changes ----
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const get = <T,>(key: string, fallback: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : fallback
-      } catch { return fallback }
-    }
-    setClients(get('clients_data', INITIAL_CLIENTS))
-    setContacts(get('clients_contacts', INITIAL_CONTACTS))
-    setInteractions(get('clients_interactions', INITIAL_INTERACTIONS))
-    setDocuments(get('clients_documents', INITIAL_DOCUMENTS))
-    setFeedbacks(get('clients_feedbacks', INITIAL_FEEDBACKS))
-  }, [])
+    const hasData = clients.length > 0 || contacts.length > 0 || interactions.length > 0 || documents.length > 0 || feedbacks.length > 0
+    if (!hasData) return
+    const timer = setTimeout(() => {
+      const payload = { clients, contacts, interactions, documents, feedbacks }
+      fetch('/api/sync/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merged: payload }),
+      }).catch(err => console.error('ClientsContext sync error:', err))
+      localStorage.setItem('clients_data', JSON.stringify(clients))
+      localStorage.setItem('clients_contacts', JSON.stringify(contacts))
+      localStorage.setItem('clients_interactions', JSON.stringify(interactions))
+      localStorage.setItem('clients_documents', JSON.stringify(documents))
+      localStorage.setItem('clients_feedbacks', JSON.stringify(feedbacks))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [clients, contacts, interactions, documents, feedbacks])
 
   // Backfill: when Clients module mounts, ensure any companies from CRM are also in clients_data
   useEffect(() => {
@@ -147,10 +236,12 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }>
       const clientsRaw = localStorage.getItem('clients_data')
       const clientsData = clientsRaw ? JSON.parse(clientsRaw) : []
-      const clientNames = new Set(clientsData.map((c: any) => c.companyName))
+      const clientNames = new Set(clientsData.map((c: any) => (c.companyName || '').trim().toLowerCase()))
       let changed = false
       for (const comp of crmCompanies) {
-        if (!clientNames.has(comp.name)) {
+        if (!comp || !comp.name || !comp.name.trim()) continue
+        const compKey = comp.name.trim().toLowerCase()
+        if (!clientNames.has(compKey)) {
           clientsData.unshift({
             id: `cli-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             companyId: `cli-comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -171,7 +262,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             notes: comp.notes || '',
             createdAt: comp.createdAt || new Date().toISOString(),
           })
-          clientNames.add(comp.name)
+          clientNames.add(compKey)
           changed = true
         }
       }
@@ -195,19 +286,9 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener('clients:sync-data', handler)
   }, [])
 
-  const sync = (key: string, value: any) => {
-    if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(value))
-  }
-
-  const syncClients = (v: Client[]) => { setClients(v); sync('clients_data', v) }
-  const syncContacts = (v: ClientContact[]) => { setContacts(v); sync('clients_contacts', v) }
-  const syncInteractions = (v: ClientInteraction[]) => { setInteractions(v); sync('clients_interactions', v) }
-  const syncDocuments = (v: ClientDocument[]) => { setDocuments(v); sync('clients_documents', v) }
-  const syncFeedbacks = (v: ClientFeedback[]) => { setFeedbacks(v); sync('clients_feedbacks', v) }
-
   const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
     const newClient: Client = { ...c, id: `cli-${Date.now()}`, createdAt: new Date().toISOString() }
-    syncClients([newClient, ...clients])
+    setClients(prev => [newClient, ...prev])
 
     // Cross-sync to CRM companies so it appears in Dashboard, Projects, and CRM
     if (typeof window !== 'undefined') {
@@ -243,40 +324,44 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    syncClients(clients.map(c => c.id === id ? { ...c, ...updates } : c))
+    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
   }
 
   const deleteClient = (id: string) => {
-    syncClients(clients.map(c => c.id === id ? { ...c, status: 'churned' } : c))
+    setClients(prev => prev.map(c => c.id === id ? { ...c, status: 'churned' } : c))
+  }
+
+  const hardDeleteClient = (id: string) => {
+    setClients(prev => prev.filter(c => c.id !== id))
   }
 
   const addContact = (c: Omit<ClientContact, 'id'>) => {
     const newContact: ClientContact = { ...c, id: `cc-${Date.now()}` }
-    syncContacts([...contacts, newContact])
+    setContacts(prev => [...prev, newContact])
   }
 
   const updateContact = (id: string, updates: Partial<ClientContact>) => {
-    syncContacts(contacts.map(c => c.id === id ? { ...c, ...updates } : c))
+    setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
   }
 
   const deleteContact = (id: string) => {
-    syncContacts(contacts.filter(c => c.id !== id))
+    setContacts(prev => prev.filter(c => c.id !== id))
   }
 
   const addInteraction = (i: Omit<ClientInteraction, 'id' | 'date'>) => {
     const newInt: ClientInteraction = { ...i, id: `ci-${Date.now()}`, date: new Date().toISOString() }
-    syncInteractions([newInt, ...interactions])
+    setInteractions(prev => [newInt, ...prev])
   }
 
   const addFeedback = (f: Omit<ClientFeedback, 'id' | 'date'>) => {
     const newFb: ClientFeedback = { ...f, id: `cf-${Date.now()}`, date: new Date().toISOString() }
-    syncFeedbacks([newFb, ...feedbacks])
+    setFeedbacks(prev => [newFb, ...prev])
   }
 
   return (
     <ClientsContext.Provider value={{
       clients, contacts, interactions, documents, feedbacks,
-      addClient, updateClient, deleteClient,
+      addClient, updateClient, deleteClient, hardDeleteClient,
       addContact, updateContact, deleteContact,
       addInteraction, addFeedback
     }}>
