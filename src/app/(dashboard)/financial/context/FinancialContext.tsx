@@ -379,7 +379,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[FinancialContext] load error:', err))
   }, [])
 
   // ---- Sync to Supabase + cache to localStorage on changes ----

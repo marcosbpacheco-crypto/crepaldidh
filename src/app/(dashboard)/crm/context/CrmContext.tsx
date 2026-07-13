@@ -292,22 +292,15 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           seen.add(key)
           return true
         })
-        if (getStored<any[]>('crm_companies', []).length === 0) setCompanies(cleanCompanies)
-        if (getStored('crm_contacts', []).length === 0) setContacts((data.contacts || []) as any)
-        if (getStored('crm_deals', []).length === 0) setDeals((data.deals || []) as any)
-        if (getStored('crm_activities', []).length === 0) setActivities((data.activities || []) as any)
-        if (getStored('crm_tasks', []).length === 0) setTasks((data.tasks || []) as any)
-        if (getStored('crm_proposals', []).length === 0) setProposals((data.proposals || []) as any)
-        if (getStored('crm_contracts', []).length === 0) setContracts((data.contracts || []) as any)
-        localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
-        if (data.contacts) localStorage.setItem('crm_contacts', JSON.stringify(data.contacts))
-        if (data.deals) localStorage.setItem('crm_deals', JSON.stringify(data.deals))
-        if (data.activities) localStorage.setItem('crm_activities', JSON.stringify(data.activities))
-        if (data.tasks) localStorage.setItem('crm_tasks', JSON.stringify(data.tasks))
-        if (data.proposals) localStorage.setItem('crm_proposals', JSON.stringify(data.proposals))
-        if (data.contracts) localStorage.setItem('crm_contracts', JSON.stringify(data.contracts))
+        if (getStored<any[]>('crm_companies', []).length === 0) { setCompanies(cleanCompanies); localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies)) }
+        if (getStored('crm_contacts', []).length === 0) { setContacts((data.contacts || []) as any); if (data.contacts) localStorage.setItem('crm_contacts', JSON.stringify(data.contacts)) }
+        if (getStored('crm_deals', []).length === 0) { setDeals((data.deals || []) as any); if (data.deals) localStorage.setItem('crm_deals', JSON.stringify(data.deals)) }
+        if (getStored('crm_activities', []).length === 0) { setActivities((data.activities || []) as any); if (data.activities) localStorage.setItem('crm_activities', JSON.stringify(data.activities)) }
+        if (getStored('crm_tasks', []).length === 0) { setTasks((data.tasks || []) as any); if (data.tasks) localStorage.setItem('crm_tasks', JSON.stringify(data.tasks)) }
+        if (getStored('crm_proposals', []).length === 0) { setProposals((data.proposals || []) as any); if (data.proposals) localStorage.setItem('crm_proposals', JSON.stringify(data.proposals)) }
+        if (getStored('crm_contracts', []).length === 0) { setContracts((data.contracts || []) as any); if (data.contracts) localStorage.setItem('crm_contracts', JSON.stringify(data.contracts)) }
         return true
-      } catch { return false }
+      } catch (e) { console.error('[CRM] API load error:', e); return false }
     }
 
     const loadFromCache = () => {
@@ -987,7 +980,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merged: data })
-      }).catch(() => {})
+      }).catch((err) => console.error('[CRM] sync error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])

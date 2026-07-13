@@ -91,10 +91,10 @@ interface AdminContextType {
   currentUserId: string | null
   setCurrentUserId: (id: string | null) => void
   currentUser: User | null
-  addUser: (u: Omit<User, 'id' | 'createdAt'>) => User
-  updateUser: (id: string, updates: Partial<User>) => void
-  deleteUser: (id: string) => void
-  toggleUserActive: (id: string) => void
+  addUser: (u: Omit<User, 'id' | 'createdAt'>) => Promise<void>
+  updateUser: (id: string, updates: Partial<User>) => Promise<void>
+  deleteUser: (id: string) => Promise<void>
+  toggleUserActive: (id: string) => Promise<void>
   getPermissionsForRole: (roleId: string) => Permission[]
   getPermissionsForUser: (userId: string) => Permission[]
   checkPermission: (module: ModuleName, action: 'view' | 'create' | 'edit' | 'delete' | 'export', userId?: string) => boolean
@@ -270,7 +270,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           for (const [k, v] of Object.entries(d)) { if (Array.isArray(v) && v.length > 0) localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[AdminContext] load admin collections error:', err))
 
   }, [])
   useEffect(() => {
@@ -281,7 +281,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ users }),
-      }).catch(() => {})
+      }).catch((err) => console.error('[AdminContext] sync users error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [users])
@@ -298,7 +298,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merged: payload }),
-      }).catch(() => {})
+      }).catch((err) => console.error('[AdminContext] sync permissions error:', err))
       localStorage.setItem('admin_permissions', JSON.stringify(permissions))
       localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs))
       localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents))
@@ -315,32 +315,112 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const currentUser = useMemo(() => users.find(u => u.id === currentUserId) || null, [users, currentUserId])
 
-  const addUser = useCallback((u: Omit<User, 'id' | 'createdAt'>) => {
-    const newUser: User = { ...u, id: gid(), createdAt: new Date().toISOString() }
+  const addUser = useCallback(async (u: Omit<User, 'id' | 'createdAt'>) => {
+    // Try API first
+    let createdUserId: string | null = null
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: u.email,
+          password: u.password,
+          name: u.name,
+          phone: u.phone,
+          avatar: u.avatar,
+          role_id: u.roleId,
+          role_name: u.roleName,
+          is_external: u.isExternal,
+          company_id: u.companyId,
+          company_name: u.companyName,
+          active: u.active,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        createdUserId = data.user.id
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        console.warn('API create user failed, falling back to local:', errData.error || res.status)
+      }
+    } catch (err) {
+      console.warn('Network error creating user, falling back to local:', err)
+    }
+
+    // Create user in local state
+    const newUser: User = {
+      ...u,
+      id: createdUserId || gid(),
+      createdAt: new Date().toISOString(),
+    }
     setUsers(prev => [...prev, newUser])
-    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'create', entity: 'user', entityId: newUser.id, description: 'Criou usuário: ' + newUser.name, ipAddress: '127.0.0.1' })
-    return newUser
+    addAuditLogLocal({
+      userId: currentUserId || '',
+      userName: users.find(x => x.id === currentUserId)?.name || 'Sistema',
+      userRole: 'admin', action: 'create', entity: 'user',
+      entityId: newUser.id,
+      description: 'Criou usuário: ' + newUser.name,
+      ipAddress: '127.0.0.1',
+    })
   }, [currentUserId, users])
 
-  const updateUser = useCallback((id: string, updates: Partial<User>) => {
+  const updateUser = useCallback(async (id: string, updates: Partial<User>) => {
+    try {
+      await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          email: updates.email,
+          name: updates.name,
+          phone: updates.phone,
+          avatar: updates.avatar,
+          role_id: updates.roleId,
+          role_name: updates.roleName,
+          is_external: updates.isExternal,
+          company_id: updates.companyId,
+          company_name: updates.companyName,
+          active: updates.active,
+        }),
+      })
+    } catch (err) {
+      console.warn('API update user failed, falling back to local:', err)
+    }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u))
   }, [])
 
-  const deleteUser = useCallback((id: string) => {
+  const deleteUser = useCallback(async (id: string) => {
     const user = users.find(u => u.id === id)
     if (!user) return
+    try {
+      await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+    } catch (err) {
+      console.warn('API delete user failed, falling back to local:', err)
+    }
     // Soft delete: marca como inativo em vez de remover — dados preservados para auditoria
     setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u))
     addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu (desativou) usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
-  const toggleUserActive = useCallback((id: string) => {
+  const toggleUserActive = useCallback(async (id: string) => {
     const user = users.find(u => u.id === id)
-    if (user) {
-      const becomingActive = !user.active
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, active: becomingActive } : u))
-      addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
+    if (!user) return
+    const becomingActive = !user.active
+    try {
+      await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, active: becomingActive }),
+      })
+    } catch (err) {
+      console.warn('API toggle active failed, falling back to local:', err)
     }
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: becomingActive } : u))
+    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
   const getPermissionsForRole = useCallback((roleId: string) => permissions.filter(p => p.roleId === roleId), [permissions])

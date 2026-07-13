@@ -54,7 +54,9 @@ export default function AdminPage() {
   const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [privacyForm, setPrivacyForm] = useState({ userId: '', requestType: 'access', description: '' })
-  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', password: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const filteredUsers = useMemo(() =>
     admin.users.filter(u => {
@@ -80,36 +82,52 @@ export default function AdminPage() {
     setShowEditUser(true)
   }
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!editUserId || !editUserForm.name.trim() || !editUserForm.email.trim()) return
-    const role = admin.roles.find(r => r.id === editUserForm.roleId)
-    const originalUser = admin.users.find(u => u.id === editUserId)
-    admin.updateUser(editUserId, {
-      name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
-      avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
-      roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
-      companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
-    })
-    admin.addAuditLog({
-      userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
-      action: 'update', entity: 'user', entityId: editUserId,
-      description: `Editou usuário: ${originalUser?.name || 'N/A'}`,
-      ipAddress: '127.0.0.1',
-    })
-    setShowEditUser(false)
-    setEditUserId(null)
+    setIsSubmitting(true)
+    try {
+      const role = admin.roles.find(r => r.id === editUserForm.roleId)
+      const originalUser = admin.users.find(u => u.id === editUserId)
+      await admin.updateUser(editUserId, {
+        name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
+        avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+        roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
+        companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
+      })
+      admin.addAuditLog({
+        userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
+        action: 'update', entity: 'user', entityId: editUserId,
+        description: `Editou usuário: ${originalUser?.name || 'N/A'}`,
+        ipAddress: '127.0.0.1',
+      })
+      setShowEditUser(false)
+      setEditUserId(null)
+    } catch (err) {
+      console.error('Erro ao editar usuário:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleAddUser = () => {
-    if (!newUserForm.name.trim() || !newUserForm.email.trim()) return
-    const role = admin.roles.find(r => r.id === newUserForm.roleId)
-    admin.addUser({
-      name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone, avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
-      roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
-      companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
-      active: true, password: '123456', loginAttempts: 0, mfaEnabled: false,
-    })
-    setShowAddUser(false); setNewUserForm({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  const handleAddUser = async () => {
+    if (!newUserForm.name.trim() || !newUserForm.email.trim() || !newUserForm.password.trim()) return
+    setIsSubmitting(true)
+    try {
+      const role = admin.roles.find(r => r.id === newUserForm.roleId)
+      await admin.addUser({
+        name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone,
+        avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+        roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
+        companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
+        active: true, password: newUserForm.password, loginAttempts: 0, mfaEnabled: false,
+      })
+      setShowAddUser(false)
+      setNewUserForm({ name: '', email: '', phone: '', password: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+    } catch (err) {
+      console.error('Erro ao criar usuário:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handlePrivacyRequest = () => {
@@ -165,7 +183,7 @@ export default function AdminPage() {
                       {admin.checkPermission('admin', 'edit') && <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
                         {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                       </button>}
-                      {admin.checkPermission('admin', 'delete') && <button onClick={() => admin.deleteUser(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>}
+                      {admin.checkPermission('admin', 'delete') && <button onClick={() => setShowDeleteConfirm(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                   </td>
                 </tr>
@@ -190,6 +208,7 @@ export default function AdminPage() {
             <div className="space-y-3">
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nome</label><input value={newUserForm.name} onChange={e => setNewUserForm(p => ({ ...p, name: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200" /></div>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Email</label><input value={newUserForm.email} onChange={e => setNewUserForm(p => ({ ...p, email: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200" /></div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Senha</label><input type="password" value={newUserForm.password} onChange={e => setNewUserForm(p => ({ ...p, password: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200" /></div>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Telefone</label><input value={newUserForm.phone} onChange={e => setNewUserForm(p => ({ ...p, phone: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200" /></div>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Perfil</label>
                 <select value={newUserForm.roleId} onChange={e => setNewUserForm(p => ({ ...p, roleId: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200">
@@ -201,7 +220,7 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
-              <button onClick={handleAddUser} className="flex-1 px-3 py-2 bg-violet-600 text-white text-[11px] font-bold rounded-xl hover:bg-violet-700 transition-colors">Criar Usuário</button>
+              <button onClick={handleAddUser} disabled={isSubmitting} className="flex-1 px-3 py-2 bg-violet-600 text-white text-[11px] font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">{isSubmitting ? 'Criando...' : 'Criar Usuário'}</button>
               <button onClick={() => setShowAddUser(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>
@@ -226,8 +245,31 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
-              <button onClick={handleEditUser} className="flex-1 px-3 py-2 bg-violet-600 text-white text-[11px] font-bold rounded-xl hover:bg-violet-700 transition-colors">Salvar Alterações</button>
+              <button onClick={handleEditUser} disabled={isSubmitting} className="flex-1 px-3 py-2 bg-violet-600 text-white text-[11px] font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">{isSubmitting ? 'Salvando...' : 'Salvar Alterações'}</button>
               <button onClick={() => { setShowEditUser(false); setEditUserId(null) }} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-500" /></div>
+              <div><h3 className="text-sm font-black text-slate-800">Excluir Usuário</h3><p className="text-[10px] text-slate-500">Esta ação desativará o usuário</p></div>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4">
+              <p className="text-[10px] text-amber-700">O usuário será marcado como <strong>inativo</strong> e não poderá acessar o sistema. Os dados históricos (logins, logs, registros) serão preservados para auditoria. É possível reativá-lo depois.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={async () => {
+                const id = showDeleteConfirm
+                setShowDeleteConfirm(null)
+                await admin.deleteUser(id)
+              }} className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-colors">Confirmar Exclusão</button>
+              <button onClick={() => setShowDeleteConfirm(null)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>
         </div>

@@ -181,7 +181,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Carrega localStorage como fallback visual inicial
     loadFromLocal()
 
-    // API Supabase sempre vence (fonte oficial)
+    // API Supabase — Só sobrescreve se localStorage estiver vazio (localStorage SEMPRE vence)
     fetch('/api/sync/clients')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
@@ -189,23 +189,18 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const d = res.data
           const raw = d.clients || []
           const clean = sanitizeClients(raw)
-          if (Array.isArray(clean)) setClients(clean)
-          if (Array.isArray(d.contacts)) setContacts(d.contacts as ClientContact[])
-          if (Array.isArray(d.interactions)) setInteractions(d.interactions as ClientInteraction[])
-          if (Array.isArray(d.documents)) setDocuments(d.documents as ClientDocument[])
-          if (Array.isArray(d.feedbacks)) setFeedbacks(d.feedbacks as ClientFeedback[])
-          // Cache em localStorage para fallback offline
-          localStorage.setItem('clients_data', JSON.stringify(clean))
-          if (Array.isArray(d.contacts)) localStorage.setItem('clients_contacts', JSON.stringify(d.contacts))
-          if (Array.isArray(d.interactions)) localStorage.setItem('clients_interactions', JSON.stringify(d.interactions))
-          if (Array.isArray(d.documents)) localStorage.setItem('clients_documents', JSON.stringify(d.documents))
-          if (Array.isArray(d.feedbacks)) localStorage.setItem('clients_feedbacks', JSON.stringify(d.feedbacks))
+          if (get('clients_data', []).length === 0 && Array.isArray(clean)) setClients(clean)
+          if (get('clients_contacts', []).length === 0 && Array.isArray(d.contacts)) setContacts(d.contacts as ClientContact[])
+          if (get('clients_interactions', []).length === 0 && Array.isArray(d.interactions)) setInteractions(d.interactions as ClientInteraction[])
+          if (get('clients_documents', []).length === 0 && Array.isArray(d.documents)) setDocuments(d.documents as ClientDocument[])
+          if (get('clients_feedbacks', []).length === 0 && Array.isArray(d.feedbacks)) setFeedbacks(d.feedbacks as ClientFeedback[])
           logLoad('Supabase client_list', clean.length, clean.map(c => c.id))
         } else {
           logLoad('localStorage (API vazio)', clients.length, clients.map(c => c.id))
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[ClientsContext] API load error:', err)
         logLoad('localStorage (API erro)', clients.length, clients.map(c => c.id))
       })
 

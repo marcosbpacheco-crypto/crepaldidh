@@ -294,7 +294,7 @@ export const CalendarProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[CalendarContext] load error:', err))
   }, [])
 
   useEffect(() => {

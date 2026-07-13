@@ -113,7 +113,7 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[AcessoTemporarioContext] load error:', err))
   }, [])
 
   useEffect(() => {

@@ -156,9 +156,9 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
           }
         }
       })
-      .catch(() => {})
-
-    window.addEventListener('crm:sync-companies', loadFromLocal)
+      .catch((err) => console.error('[AssessoriaContext] load error:', err))
+ 
+     window.addEventListener('crm:sync-companies', loadFromLocal)
     return () => window.removeEventListener('crm:sync-companies', loadFromLocal)
   }, [])
 

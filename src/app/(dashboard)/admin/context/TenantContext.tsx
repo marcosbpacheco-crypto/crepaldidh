@@ -150,7 +150,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merged: payload }),
-      }).catch(() => {})
+      }).catch((err) => console.error('[TenantContext] sync error:', err))
       localStorage.setItem('tenant_tenants', JSON.stringify(tenants))
       localStorage.setItem('tenant_usage', JSON.stringify(tenantsUsage))
       localStorage.setItem('tenant_billing', JSON.stringify(billing))

@@ -92,40 +92,38 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [projects])
 
   const createProject = useCallback(async (data: Partial<Project>) => {
-    const { error } = await supabase.current.from('projects').insert({
-      ...data,
-    })
-    if (error) throw error
+    const { error } = await supabase.current.from('projects').insert({ ...data })
+    if (error) { console.error('[ProjectContext] create project error:', error); return }
     await load()
   }, [load])
 
   const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
     const { error } = await supabase.current.from('projects').update(data).eq('id', id)
-    if (error) throw error
+    if (error) { console.error('[ProjectContext] update project error:', error); return }
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } as Project : p))
   }, [])
 
   const deleteProject = useCallback(async (id: string) => {
     const { error } = await supabase.current.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) throw error
+    if (error) { console.error('[ProjectContext] delete project error:', error); return }
     setProjects(prev => prev.filter(p => p.id !== id))
   }, [])
 
   const createTask = useCallback(async (data: Partial<ProjectTask>) => {
     const { error } = await supabase.current.from('project_tasks').insert(data)
-    if (error) throw error
+    if (error) { console.error('[ProjectContext] create task error:', error); return }
     await load()
   }, [load])
 
   const updateTask = useCallback(async (id: string, data: Partial<ProjectTask>) => {
     const { error } = await supabase.current.from('project_tasks').update(data).eq('id', id)
-    if (error) throw error
+    if (error) { console.error('[ProjectContext] update task error:', error); return }
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } as ProjectTask : t))
   }, [])
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.current.from('project_tasks').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) throw error
+    if (error) { console.error('[ProjectContext] delete task error:', error); return }
     setTasks(prev => prev.filter(t => t.id !== id))
   }, [])
 

@@ -263,7 +263,7 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[MentoringContext] load error:', err))
   }, [])
 
   useEffect(() => {

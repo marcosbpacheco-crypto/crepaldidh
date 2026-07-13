@@ -91,9 +91,11 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
       notes: data.notes
     }
     if (company?.id) {
-      await supabase.from('companies').update(payload).eq('id', company.id)
+      const { error } = await supabase.from('companies').update(payload).eq('id', company.id)
+      if (error) { console.error('[CompanyForm] update error:', error); return }
     } else {
-      await supabase.from('companies').insert(payload)
+      const { error } = await supabase.from('companies').insert(payload)
+      if (error) { console.error('[CompanyForm] insert error:', error); return }
     }
     if (onSuccess) onSuccess()
   }

@@ -255,7 +255,7 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[TrainingsContext] load error:', err))
   }, [])
 
   useEffect(() => {

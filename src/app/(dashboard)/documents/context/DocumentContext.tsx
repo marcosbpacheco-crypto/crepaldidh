@@ -164,7 +164,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[DocumentContext] load error:', err))
   }, [])
 
   useEffect(() => {

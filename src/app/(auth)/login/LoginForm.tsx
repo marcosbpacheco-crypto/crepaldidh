@@ -36,7 +36,7 @@ export function LoginForm() {
           setServerUsers(users)
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[LoginForm] load users error:', err))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
