@@ -342,14 +342,14 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (storedRole) setCurrentRole(storedRole as UserRole)
   }, [])
 
-  // Backfill removed: auto-creating CRM entries from clients_data caused phantom counts.
-  // New entries are synced via addClient/addCompany cross-sync only.
+  // Atencao: CrmContext NAO deve manipular clients_data.
+  // O ClientsContext e o unico responsavel por gerenciar clients_data.
+  // Cross-sync e feito exclusivamente via API routes (POST /api/clients → syncClientToCRM).
 
-  // Reconcile: deduplicate crm_companies, rebuild clients_data to match only
+  // Deduplicate crm_companies (source of truth) on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      // 1. Deduplicate crm_companies (source of truth)
       const companiesRaw = localStorage.getItem('crm_companies')
       let cleanCompanies: any[] = []
       if (companiesRaw) {
@@ -367,33 +367,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 2. Rebuild clients_data to match only
-      const crmNames = new Set(cleanCompanies.map(c => (c.name || '').trim().toLowerCase()))
-      const clientsRaw = localStorage.getItem('clients_data')
-      let cleanClients: any[] = []
-      if (clientsRaw) {
-        const list = JSON.parse(clientsRaw) as any[]
-        const seen = new Set<string>()
-        for (const cli of list) {
-          if (!cli || !cli.companyName || !cli.companyName.trim()) continue
-          const key = cli.companyName.trim().toLowerCase()
-          if (!crmNames.has(key)) continue // only keep clients that match a CRM company
-          if (seen.has(key)) continue // deduplicate
-          seen.add(key)
-          cleanClients.push({
-            ...cli,
-            // merge CRM data as primary
-            companyName: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.name || cli.companyName,
-            companyTradeName: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.tradeName || cli.companyTradeName || cli.companyName,
-            cnpj: cleanCompanies.find((c: any) => (c.name || '').trim().toLowerCase() === key)?.cnpj || cli.cnpj || '',
-          })
-        }
-        if (cleanClients.length !== list.length || cleanClients.some((c, i) => JSON.stringify(c) !== JSON.stringify(list[i]))) {
-          localStorage.setItem('clients_data', JSON.stringify(cleanClients))
-        }
-      }
-
-      // 3. Remove stale localStorage keys from old seeds/mocks
+      // Remove stale localStorage keys from old seeds/mocks
       const STALE_KEYS = [
         'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
         'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
@@ -403,7 +377,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try { localStorage.removeItem(key) } catch {}
       }
 
-      // 4. Reload state
+      // Reload state
       setCompanies(cleanCompanies)
     } catch { /* ignore reconcile errors */ }
   }, [])
@@ -626,36 +600,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const updated = [newCompany, ...companies]
     updateCompaniesState(updated)
-
-    // Cross-sync to Clients module so it appears there too
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('clients_data')
-        const clientsData = stored ? JSON.parse(stored) : []
-        const newClient = {
-          id: `cli-${Date.now()}`,
-          companyId: `cli-comp-${Date.now()}`,
-          companyName: newCompany.name,
-          companyTradeName: newCompany.tradeName || newCompany.name,
-          cnpj: newCompany.cnpj,
-          segment: newCompany.segment || '',
-          city: newCompany.city || '',
-          state: newCompany.state || '',
-          services: [],
-          contractType: 'first' as const,
-          internalResponsible: newCompany.respPrincipal || '',
-          status: (newCompany.status === 'active' ? 'active' : 'suspended') as 'active' | 'suspended' | 'churned',
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: '',
-          monthlyValue: 0,
-          totalValue: 0,
-          notes: newCompany.notes || '',
-          createdAt: newCompany.createdAt,
-        }
-        localStorage.setItem('clients_data', JSON.stringify([newClient, ...clientsData]))
-        window.dispatchEvent(new CustomEvent('clients:sync-data'))
-      } catch { /* ignore cross-sync errors */ }
-    }
 
     // Log Activity
     addActivity({

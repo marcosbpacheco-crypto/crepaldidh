@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       const admin = getAdminClient()
       if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
-      const { data, error } = await db(admin, 'client_list').insert({
+      const clientInsert: any = {
         company_id: body.companyId || null,
         company_name: body.companyName || '',
         company_trade_name: body.companyTradeName || '',
@@ -74,7 +74,9 @@ export async function POST(request: Request) {
         monthly_value: body.monthlyValue || 0,
         total_value: body.totalValue || 0,
         notes: body.notes || null,
-      }).select()
+      }
+      if (body.id) clientInsert.id = body.id
+      const { data, error } = await db(admin, 'client_list').insert(clientInsert).select()
 
       if (error) { log('POST client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
       log('POST client OK', data?.[0]?.id)
@@ -92,14 +94,16 @@ export async function POST(request: Request) {
     if (dispatchType === 'contact') {
       const admin = getAdminClient()
       if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const { data, error } = await db(admin, 'client_contacts').insert({
+      const contactInsert: any = {
         client_id: body.clientId,
         name: body.name || '',
         role: body.role || '',
         phone: body.phone || '',
         email: body.email || '',
         is_primary: body.isPrimary ?? false,
-      }).select()
+      }
+      if (body.id) contactInsert.id = body.id
+      const { data, error } = await db(admin, 'client_contacts').insert(contactInsert).select()
       if (error) { log('POST contact error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
       log('POST contact OK', data?.[0]?.id)
       return NextResponse.json({ contact: data?.[0] || null })
@@ -108,13 +112,15 @@ export async function POST(request: Request) {
     if (dispatchType === 'interaction') {
       const admin = getAdminClient()
       if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const { data, error } = await db(admin, 'client_interactions').insert({
+      const interactionInsert: any = {
         client_id: body.clientId,
         type: body.type || 'call',
         title: body.title || '',
         description: body.description || '',
         author: body.author || '',
-      }).select()
+      }
+      if (body.id) interactionInsert.id = body.id
+      const { data, error } = await db(admin, 'client_interactions').insert(interactionInsert).select()
       if (error) { log('POST interaction error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
       log('POST interaction OK', data?.[0]?.id)
       return NextResponse.json({ interaction: data?.[0] || null })
@@ -123,11 +129,13 @@ export async function POST(request: Request) {
     if (dispatchType === 'feedback') {
       const admin = getAdminClient()
       if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const { data, error } = await db(admin, 'client_feedbacks').insert({
+      const feedbackInsert: any = {
         client_id: body.clientId,
         score: body.score ?? 5,
         comment: body.comment || '',
-      }).select()
+      }
+      if (body.id) feedbackInsert.id = body.id
+      const { data, error } = await db(admin, 'client_feedbacks').insert(feedbackInsert).select()
       if (error) { log('POST feedback error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
       log('POST feedback OK', data?.[0]?.id)
       return NextResponse.json({ feedback: data?.[0] || null })

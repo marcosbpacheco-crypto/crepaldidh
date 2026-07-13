@@ -693,8 +693,8 @@ function ClientDetail({
 // ==========================================
 
 function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, hasFinancialAccess }: {
-  onSave?: (c: any) => any
-  onUpdate?: (id: string, updates: Partial<Client>) => void
+  onSave?: (c: any) => Promise<any>
+  onUpdate?: (id: string, updates: Partial<Client>) => Promise<void>
   onClose: () => void
   formatCurrency: (v: number) => string
   editData?: Client
@@ -753,12 +753,12 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
     if (months > 0) setForm(f => ({ ...f, totalValue: f.monthlyValue * months }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isSubmitting) return
     if (!form.companyName.trim() || !form.companyTradeName.trim()) return
     setIsSubmitting(true)
     if (isEdit && onUpdate && editData) {
-      onUpdate(editData.id, {
+      await onUpdate(editData.id, {
         ...form,
         services: form.services.map(name => {
           const existing = editData.services.find(s => s.name === name)
@@ -780,7 +780,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
           progress: 0
         }))
       }
-      const client = onSave(clientData)
+      const client = await onSave(clientData)
       if (client) { setIsSubmitting(false); onClose(); return }
     }
     setIsSubmitting(false)

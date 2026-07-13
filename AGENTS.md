@@ -210,3 +210,22 @@ create index if not exists idx_client_list_deleted_at on public.client_list (del
 - Todos os contexts em client-side usam `console.error` nos catch blocks (nunca `.catch(() => {})`)
 - Direct Supabase writes (CompanyForm, ProjectContext) checam `{ data, error }` e logam erro em vez de `throw`
 - Build: 50/50 rotas, sem erros
+
+## Session 2026-07-12 — Auditoria final: eliminacao de fontes concorrentes + cache + SQL migration
+
+### Ghost clients
+Problema: clientes deletados reapareciam apos refresh porque **CrmContext reconciler relia localStorage.clients_data e recriava clientes ausentes em clients_data**.
+
+### Fix
+1. **REMOVIDO** CrmContext reconciler section that filtered clients_data to only match CRM companies (CrmContext.tsx:345-394). Causa raiz: se `crm_companies` estiver vazio, TODOS os clientes sao filtrados e `clients_data` e sobrescrito com `[]`.
+2. **REMOVIDO** Cross-sync em `addCompany` que escrevia em `clients_data` (CrmContext.tsx:631-658). CrmContext NAO deve manipular clients_data.
+3. **addClient**: agora passa `id` no body do POST (`JSON.stringify({ _type: 'client', id: newClient.id, ...c })`) — DB usa o MESMO UUID do client-side. Aguarda resposta da API (`await`).
+4. **updateClient/deleteClient**: agora usam `await` + `console.log(data/error)` — erro aparece no console do navegador.
+5. **addContact/addInteraction/addFeedback**: agora chamam `POST /api/clients` com `_type: 'contact'|'interaction'|'feedback'` — antes so escreviam em localStorage.
+6. **API POST /api/clients**: endpoints para client, contact, interaction, feedback aceitam `body.id` opcional — se fornecido, usa no INSERT em vez de auto-generar UUID.
+7. **page.tsx handleSave**: agora `async`, faz `await onSave()` e `await onUpdate()` — antes nao aguardava Promise.
+8. **Console.log temporario**: adicionado em addClient, updateClient, deleteClient, hardDeleteClient, addContact, updateContact, deleteContact, addInteraction, addFeedback.
+
+### Status
+- Build: 50/50 rotas, sem erros
+- Deploy pendente

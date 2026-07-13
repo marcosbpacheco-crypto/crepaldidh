@@ -82,17 +82,17 @@ interface ClientsContextType {
   interactions: ClientInteraction[]
   documents: ClientDocument[]
   feedbacks: ClientFeedback[]
-  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client
-  updateClient: (id: string, updates: Partial<Client>) => void
+  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Promise<Client>
+  updateClient: (id: string, updates: Partial<Client>) => Promise<void>
   deleteClient: (id: string) => Promise<void>
   hardDeleteClient: (id: string) => Promise<void>
   restoreClient: (id: string) => Promise<void>
   refreshClients: () => Promise<void>
-  addContact: (contact: Omit<ClientContact, 'id'>) => void
-  updateContact: (id: string, updates: Partial<ClientContact>) => void
-  deleteContact: (id: string) => void
-  addInteraction: (interaction: Omit<ClientInteraction, 'id' | 'date'>) => void
-  addFeedback: (feedback: Omit<ClientFeedback, 'id' | 'date'>) => void
+  addContact: (contact: Omit<ClientContact, 'id'>) => Promise<void>
+  updateContact: (id: string, updates: Partial<ClientContact>) => Promise<void>
+  deleteContact: (id: string) => Promise<void>
+  addInteraction: (interaction: Omit<ClientInteraction, 'id' | 'date'>) => Promise<void>
+  addFeedback: (feedback: Omit<ClientFeedback, 'id' | 'date'>) => Promise<void>
 }
 
 // ==========================================
@@ -260,66 +260,87 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
 
-  const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
+  const addClient = async (c: Omit<Client, 'id' | 'createdAt'>) => {
     const newClient: Client = { ...c, id: generateId(), createdAt: new Date().toISOString() }
-    setClients(prev => {
-      const next = [newClient, ...prev]
-      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-      return next
-    })
-    fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'client', ...c }),
-    }).then(r => {
-      if (!r.ok) console.error('[CLIENTS] addClient API error:', r.status)
-    }).catch(err => console.error('[CLIENTS] addClient fetch error:', err))
+    console.log('[CLIENTS] addClient tentando criar ID:', newClient.id, 'companyName:', newClient.companyName)
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'client', id: newClient.id, ...c }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        console.log('[CLIENTS] addClient API OK:', json?.client?.id || json)
+        setClients(prev => {
+          const next = [newClient, ...prev]
+          try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+          return next
+        })
+      } else {
+        console.error('[CLIENTS] addClient API error:', json?.error || res.status)
+      }
+    } catch (err) {
+      console.error('[CLIENTS] addClient fetch error:', err)
+    }
     return newClient
   }
 
-  const updateClient = (id: string, updates: Partial<Client>) => {
-    setClients(prev => {
-      const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-      return next
-    })
-    fetch('/api/clients', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'client', id, ...updates }),
-    }).catch(err => console.error('[CLIENTS] updateClient error:', err))
+  const updateClient = async (id: string, updates: Partial<Client>) => {
+    console.log('[CLIENTS] updateClient ID:', id, 'updates:', JSON.stringify(updates).slice(0, 200))
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'client', id, ...updates }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        console.log('[CLIENTS] updateClient API OK:', id)
+        setClients(prev => {
+          const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
+          try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
+          return next
+        })
+      } else {
+        console.error('[CLIENTS] updateClient API error:', json?.error || res.status)
+      }
+    } catch (err) {
+      console.error('[CLIENTS] updateClient fetch error:', err)
+    }
   }
 
   const deleteClient = async (id: string): Promise<void> => {
-    // Otimista: remove imediatamente do state + localStorage
+    console.log('[CLIENTS] deleteClient ID:', id)
     setClients(prev => {
       const next = prev.filter(c => c.id !== id)
       try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
       return next
     })
-    console.log('[CLIENTS] deleteClient (otimista) OK:', id)
-
-    // Chama API para persistir soft-delete no Supabase
-    const res = await fetch('/api/clients', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) {
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
       const json = await res.json().catch(() => ({}))
-      console.error('[CLIENTS] deleteClient API error:', json.error || res.status)
-    } else {
-      console.log('[CLIENTS] deleteClient Supabase OK:', id)
+      if (res.ok) {
+        console.log('[CLIENTS] deleteClient API OK:', id)
+      } else {
+        console.error('[CLIENTS] deleteClient API error:', json?.error || res.status)
+      }
+    } catch (err) {
+      console.error('[CLIENTS] deleteClient fetch error:', err)
     }
   }
 
   const hardDeleteClient = async (id: string): Promise<void> => {
+    console.log('[CLIENTS] hardDeleteClient ID:', id)
     setClients(prev => {
       const next = prev.filter(c => c.id !== id)
       try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
       return next
     })
-    console.log('[CLIENTS] hardDeleteClient OK:', id)
   }
 
   const refreshClients = async () => {
@@ -359,24 +380,49 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     console.log('[CLIENTS] restoreClient OK:', id)
   }
 
-  const addContact = (c: Omit<ClientContact, 'id'>) => {
+  const addContact = async (c: Omit<ClientContact, 'id'>) => {
     const newContact: ClientContact = { ...c, id: generateId() }
+    console.log('[CLIENTS] addContact ID:', newContact.id)
     setContacts(prev => {
       const next = [...prev, newContact]
       try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
       return next
     })
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'contact', id: newContact.id, ...c }),
+      })
+      if (res.ok) console.log('[CLIENTS] addContact API OK:', newContact.id)
+      else console.error('[CLIENTS] addContact API error:', res.status)
+    } catch (err) { console.error('[CLIENTS] addContact fetch error:', err) }
   }
 
-  const updateContact = (id: string, updates: Partial<ClientContact>) => {
-    setContacts(prev => {
-      const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
-      return next
-    })
+  const updateContact = async (id: string, updates: Partial<ClientContact>) => {
+    console.log('[CLIENTS] updateContact ID:', id)
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'contact', id, ...updates }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok) {
+        console.log('[CLIENTS] updateContact API OK:', id)
+        setContacts(prev => {
+          const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
+          try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
+          return next
+        })
+      } else {
+        console.error('[CLIENTS] updateContact API error:', json?.error || res.status)
+      }
+    } catch (err) { console.error('[CLIENTS] updateContact fetch error:', err) }
   }
 
-  const deleteContact = (id: string) => {
+  const deleteContact = async (id: string) => {
+    console.log('[CLIENTS] deleteContact ID:', id)
     setContacts(prev => {
       const next = prev.filter(c => c.id !== id)
       try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
@@ -384,22 +430,42 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })
   }
 
-  const addInteraction = (i: Omit<ClientInteraction, 'id' | 'date'>) => {
+  const addInteraction = async (i: Omit<ClientInteraction, 'id' | 'date'>) => {
     const newInt: ClientInteraction = { ...i, id: generateId(), date: new Date().toISOString() }
+    console.log('[CLIENTS] addInteraction ID:', newInt.id)
     setInteractions(prev => {
       const next = [newInt, ...prev]
       try { localStorage.setItem('clients_interactions', JSON.stringify(next)) } catch {}
       return next
     })
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'interaction', ...i }),
+      })
+      if (res.ok) console.log('[CLIENTS] addInteraction API OK:', newInt.id)
+      else console.error('[CLIENTS] addInteraction API error:', res.status)
+    } catch (err) { console.error('[CLIENTS] addInteraction fetch error:', err) }
   }
 
-  const addFeedback = (f: Omit<ClientFeedback, 'id' | 'date'>) => {
+  const addFeedback = async (f: Omit<ClientFeedback, 'id' | 'date'>) => {
     const newFb: ClientFeedback = { ...f, id: generateId(), date: new Date().toISOString() }
+    console.log('[CLIENTS] addFeedback ID:', newFb.id)
     setFeedbacks(prev => {
       const next = [newFb, ...prev]
       try { localStorage.setItem('clients_feedbacks', JSON.stringify(next)) } catch {}
       return next
     })
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'feedback', ...f }),
+      })
+      if (res.ok) console.log('[CLIENTS] addFeedback API OK:', newFb.id)
+      else console.error('[CLIENTS] addFeedback API error:', res.status)
+    } catch (err) { console.error('[CLIENTS] addFeedback fetch error:', err) }
   }
 
   return (
