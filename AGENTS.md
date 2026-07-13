@@ -291,3 +291,22 @@ Problema: clientes deletados reapareciam apos refresh porque **CrmContext reconc
 
 ### Build
 50/50 rotas, TypeScript compilado, sem erros.
+
+## Session 2026-07-13 � Fix Realtime channel collision + sync-admin-users 500
+
+### Problema 1: Realtime channel error
+**Erro**: `Uncaught Error: cannot add 'postgres_changes' callbacks for realtime:client_list-changes after 'subscribe()'`
+**Causa**: O client do Supabase faz cache de canais por nome. React Strict Mode desmonta/remonta o componente; o cleanup removeChannel pode nao ser sincrono. No segundo mount, supabase.channel('client_list-changes') retorna o canal J� INSCRITO, e `.on('postgres_changes')` e chamado depois de `.subscribe()`.
+**Fix** (ClientsContext.tsx):
+- Antes de criar um canal, remove qualquer existente com o mesmo nome (supabase.getChannels().find(...))
+- Cria novo canal limpo e registra listeners + subscribe
+- Cleanup com 	ry/catch em emoveChannel`n
+### Problema 2: /api/sync-admin-users retornando 500
+**Causa provavel**: SUPABASE_SERVICE_ROLE_KEY ausente no ambiente Vercel.
+
+**Fix** (sync-admin-users/route.ts):
+- getServiceClient() loga qual env var esta faltando
+- POST: se service client for null, retorna { success: true, count: 0, skipped: true } em vez de 500
+
+### Build
+50/50 rotas, TypeScript compilado, sem erros.

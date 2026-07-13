@@ -234,20 +234,26 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ==========================================
   useEffect(() => {
     if (!supabase) return
+
+    function getOrCreateChannel(name: string) {
+      const existing = supabase.getChannels().find((c: any) => c.topic === `realtime:${name}`)
+      if (existing) supabase.removeChannel(existing)
+      return supabase.channel(name)
+    }
+
     const tables = ['client_list', 'client_contacts', 'client_interactions', 'client_documents', 'client_feedbacks']
     const channels = tables.map(table => {
-      return supabase
-        .channel(`${table}-changes`)
-        .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+      const name = `${table}-changes`
+      return getOrCreateChannel(name)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, (payload: any) => {
           console.log(`[AUDIT] Realtime recebeu evento em ${table}:`, payload.eventType, 'id:', (payload.new as any)?.id || (payload.old as any)?.id)
-          // Recarrega tudo quando qualquer mudança ocorrer
           loadFromAPI().catch(() => {})
         })
         .subscribe()
     })
 
     return () => {
-      channels.forEach(ch => supabase.removeChannel(ch))
+      channels.forEach(ch => { try { supabase.removeChannel(ch) } catch {} })
     }
   }, [supabase, loadFromAPI])
 

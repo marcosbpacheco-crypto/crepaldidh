@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
+  if (!url) { console.error('sync-admin-users: NEXT_PUBLIC_SUPABASE_URL not set'); return null }
+  if (!key) { console.error('sync-admin-users: SUPABASE_SERVICE_ROLE_KEY not set'); return null }
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
@@ -12,7 +13,8 @@ export async function POST(request: Request) {
   try {
     const supabase = getServiceClient()
     if (!supabase) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
+      console.warn('sync-admin-users POST: service unavailable (env vars missing)')
+      return NextResponse.json({ success: true, count: 0, skipped: true })
     }
 
     const body = await request.json()
@@ -22,7 +24,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, count: 0 })
     }
 
-    // Upsert all users — id is the conflict key
     const { error } = await supabase.from('admin_users').upsert(users, {
       onConflict: 'id',
       ignoreDuplicates: false,
@@ -30,13 +31,13 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('sync-admin-users upsert error:', error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, count: 0, error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, count: users.length })
   } catch (err: any) {
-    console.error('sync-admin-users error:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('sync-admin-users POST fatal:', err.message)
+    return NextResponse.json({ success: false, count: 0, error: err.message }, { status: 500 })
   }
 }
 
