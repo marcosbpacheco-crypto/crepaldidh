@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { loadModuleFromSupabase, saveModuleToSupabase } from '@/lib/syncService';
 
+function safeLen(arr: unknown): number {
+  return Array.isArray(arr) ? arr.length : 0;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ moduleKey: string }> }
@@ -14,10 +18,9 @@ export async function GET(
     }
 
     const data = await loadModuleFromSupabase(moduleKey);
-    const clientCount = data?.clients?.length ?? 0;
-    const companyCount = data?.companies?.length ?? 0;
-    console.log(`[AUDIT-API] GET /api/sync/${moduleKey} — clients:${clientCount} companies:${companyCount}`, data ? Object.keys(data) : 'null');
-    return NextResponse.json({ data: data || {} });
+    const d: Record<string, unknown> = data || {};
+    console.log(`[AUDIT-API] GET /api/sync/${moduleKey} — keys: ${Object.keys(d).join(', ')}` + (Array.isArray(d.clients) ? ` clients:${d.clients.length}` : ''));
+    return NextResponse.json({ data: d });
   } catch (error: any) {
     console.error(`API GET /sync error:`, error);
     return NextResponse.json({ error: error.message || 'Failed to load module' }, { status: 500 });
