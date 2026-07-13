@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase/admin'
 
-function log(operation: string, result: any) {
-  console.log(`[CLIENTS API] ${operation}:`, result)
+function log(op: string, msg: any) {
+  console.log(`[CLIENTS API] ${op}:`, typeof msg === 'object' ? JSON.stringify(msg).slice(0, 300) : msg)
 }
 
 function db(admin: any, table: string) {
@@ -13,37 +13,38 @@ export async function GET() {
   try {
     const admin = getAdminClient()
     if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+    const sb = admin // non-nullable alias
 
-    let clients: any[] | null = null
-    let contacts: any[] | null = null
-    let interactions: any[] | null = null
-    let documents: any[] | null = null
-    let feedbacks: any[] | null = null
+    const results: Record<string, any[]> = {}
 
-    try { const r = await db(admin, 'client_list').select('*').is('deleted_at', null).order('created_at', { ascending: false }); clients = r.data; if (r.error) log('GET clients error', r.error.message); else log('GET clients', `${clients?.length || 0} rows`) }
-    catch (e: any) { log('GET clients exception', e.message) }
+    async function q(table: string, filterDeleted = false) {
+      try {
+      let query = sb.from(table).select('*')
+      if (filterDeleted) query = query.is('deleted_at', null)
+      const { data, error } = await query
+      if (error) { log(`GET ${table} error`, error.message); results[table] = [] }
+      else results[table] = (data as any[]) || []
+      } catch (e: any) { log(`GET ${table} exception`, e.message); results[table] = [] }
+    }
 
-    try { const r = await db(admin, 'client_contacts').select('*'); contacts = r.data; if (r.error) log('GET contacts error', r.error.message) }
-    catch (e: any) { log('GET contacts exception', e.message) }
+    await Promise.all([
+      q('client_list', true),
+      q('client_contacts'),
+      q('client_interactions'),
+      q('client_documents'),
+      q('client_feedbacks'),
+    ])
 
-    try { const r = await db(admin, 'client_interactions').select('*'); interactions = r.data; if (r.error) log('GET interactions error', r.error.message) }
-    catch (e: any) { log('GET interactions exception', e.message) }
-
-    try { const r = await db(admin, 'client_documents').select('*'); documents = r.data; if (r.error) log('GET documents error', r.error.message) }
-    catch (e: any) { log('GET documents exception', e.message) }
-
-    try { const r = await db(admin, 'client_feedbacks').select('*'); feedbacks = r.data; if (r.error) log('GET feedbacks error', r.error.message) }
-    catch (e: any) { log('GET feedbacks exception', e.message) }
-
+    log('GET done', `${results.client_list?.length || 0} clients`)
     return NextResponse.json({
-      clients: clients || [],
-      contacts: contacts || [],
-      interactions: interactions || [],
-      documents: documents || [],
-      feedbacks: feedbacks || [],
+      clients: results.client_list || [],
+      contacts: results.client_contacts || [],
+      interactions: results.client_interactions || [],
+      documents: results.client_documents || [],
+      feedbacks: results.client_feedbacks || [],
     })
   } catch (err: any) {
-    log('GET exception', err.message)
+    log('GET fatal', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
@@ -51,99 +52,114 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    const admin = getAdminClient()
+    if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+
     const dispatchType = body._type || body.type
 
     if (dispatchType === 'client') {
-      const admin = getAdminClient()
-      if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+      // === VALIDACAO ===
+      if (!body.companyName?.trim()) {
+        return NextResponse.json({ error: 'companyName é obrigatório' }, { status: 400 })
+      }
 
-      const clientInsert: any = {
+      const payload: Record<string, any> = {
         company_id: body.companyId || null,
-        company_name: body.companyName || '',
-        company_trade_name: body.companyTradeName || '',
+        company_name: body.companyName.trim(),
+        company_trade_name: body.companyTradeName?.trim() || '',
         cnpj: body.cnpj || null,
         segment: body.segment || null,
         city: body.city || null,
         state: body.state || null,
-        services: body.services || [],
+        services: Array.isArray(body.services) ? body.services : [],
         contract_type: body.contractType || 'first',
         internal_responsible: body.internalResponsible || null,
         status: body.status || 'active',
         start_date: body.startDate || null,
         end_date: body.endDate || null,
-        monthly_value: body.monthlyValue || 0,
-        total_value: body.totalValue || 0,
+        monthly_value: Number(body.monthlyValue) || 0,
+        total_value: Number(body.totalValue) || 0,
         notes: body.notes || null,
       }
-      if (body.id) clientInsert.id = body.id
-      const { data, error } = await db(admin, 'client_list').insert(clientInsert).select()
+      if (body.id) payload.id = body.id
 
-      if (error) { log('POST client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
-      log('POST client OK', data?.[0]?.id)
+      const { data, error } = await (db(admin, 'client_list') as any).insert(payload).select()
 
-      // Cross-sync to CRM
-      try {
-        await syncClientToCRM(admin, data![0], body)
-      } catch (e: any) {
-        log('POST client cross-sync warning', e.message)
+      if (error) {
+        log('POST client error', error.message)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      if (!data || data.length === 0) {
+        log('POST client RLS block', 'data vazio — possivel bloqueio de RLS')
+        return NextResponse.json({ error: 'Permissão negada (RLS)' }, { status: 403 })
       }
 
-      return NextResponse.json({ client: data?.[0] || null })
+      log('POST client OK', data[0].id)
+      return NextResponse.json({ client: data[0] })
     }
 
     if (dispatchType === 'contact') {
-      const admin = getAdminClient()
-      if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const contactInsert: any = {
+      if (!body.clientId || !body.name?.trim()) {
+        return NextResponse.json({ error: 'clientId e name são obrigatórios' }, { status: 400 })
+      }
+      const payload: Record<string, any> = {
         client_id: body.clientId,
-        name: body.name || '',
-        role: body.role || '',
-        phone: body.phone || '',
-        email: body.email || '',
+        name: body.name.trim(),
+        role: body.role || null,
+        phone: body.phone || null,
+        email: body.email || null,
         is_primary: body.isPrimary ?? false,
       }
-      if (body.id) contactInsert.id = body.id
-      const { data, error } = await db(admin, 'client_contacts').insert(contactInsert).select()
+      if (body.id) payload.id = body.id
+
+      const { data, error } = await db(admin, 'client_contacts').insert(payload).select()
       if (error) { log('POST contact error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
-      log('POST contact OK', data?.[0]?.id)
-      return NextResponse.json({ contact: data?.[0] || null })
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Permissão negada (RLS)' }, { status: 403 })
+      log('POST contact OK', data[0].id)
+      return NextResponse.json({ contact: data[0] })
     }
 
     if (dispatchType === 'interaction') {
-      const admin = getAdminClient()
-      if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const interactionInsert: any = {
+      if (!body.clientId || !body.title?.trim()) {
+        return NextResponse.json({ error: 'clientId e title são obrigatórios' }, { status: 400 })
+      }
+      const payload: Record<string, any> = {
         client_id: body.clientId,
         type: body.type || 'call',
-        title: body.title || '',
-        description: body.description || '',
-        author: body.author || '',
+        title: body.title.trim(),
+        description: body.description || null,
+        author: body.author || 'Sistema',
       }
-      if (body.id) interactionInsert.id = body.id
-      const { data, error } = await db(admin, 'client_interactions').insert(interactionInsert).select()
+      if (body.id) payload.id = body.id
+
+      const { data, error } = await db(admin, 'client_interactions').insert(payload).select()
       if (error) { log('POST interaction error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
-      log('POST interaction OK', data?.[0]?.id)
-      return NextResponse.json({ interaction: data?.[0] || null })
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Permissão negada (RLS)' }, { status: 403 })
+      log('POST interaction OK', data[0].id)
+      return NextResponse.json({ interaction: data[0] })
     }
 
     if (dispatchType === 'feedback') {
-      const admin = getAdminClient()
-      if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
-      const feedbackInsert: any = {
-        client_id: body.clientId,
-        score: body.score ?? 5,
-        comment: body.comment || '',
+      if (!body.clientId || body.score == null) {
+        return NextResponse.json({ error: 'clientId e score são obrigatórios' }, { status: 400 })
       }
-      if (body.id) feedbackInsert.id = body.id
-      const { data, error } = await db(admin, 'client_feedbacks').insert(feedbackInsert).select()
+      const payload: Record<string, any> = {
+        client_id: body.clientId,
+        score: body.score,
+        comment: body.comment || null,
+      }
+      if (body.id) payload.id = body.id
+
+      const { data, error } = await db(admin, 'client_feedbacks').insert(payload).select()
       if (error) { log('POST feedback error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
-      log('POST feedback OK', data?.[0]?.id)
-      return NextResponse.json({ feedback: data?.[0] || null })
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Permissão negada (RLS)' }, { status: 403 })
+      log('POST feedback OK', data[0].id)
+      return NextResponse.json({ feedback: data[0] })
     }
 
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+    return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
   } catch (err: any) {
-    log('POST exception', err.message)
+    log('POST fatal', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
@@ -151,15 +167,16 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json()
-    const dispatchType = body._type || body.type
-    const { id } = body
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+    const { id, _type } = body
+    if (!id) return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 })
 
     const admin = getAdminClient()
     if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
+    const dispatchType = _type || body.type
+
     if (dispatchType === 'client') {
-      const updates: any = {}
+      const updates: Record<string, any> = {}
       if (body.companyName !== undefined) updates.company_name = body.companyName
       if (body.companyTradeName !== undefined) updates.company_trade_name = body.companyTradeName
       if (body.cnpj !== undefined) updates.cnpj = body.cnpj
@@ -176,36 +193,43 @@ export async function PATCH(request: Request) {
       if (body.totalValue !== undefined) updates.total_value = body.totalValue
       if (body.notes !== undefined) updates.notes = body.notes
 
-      const { error } = await db(admin, 'client_list').update(updates).eq('id', id)
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ error: 'Nenhum campo para atualizar' }, { status: 400 })
+      }
+
+      const { data, error } = await db(admin, 'client_list').update(updates).eq('id', id).select()
       if (error) { log('PATCH client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Registro não encontrado ou permissão negada' }, { status: 404 })
       log('PATCH client OK', id)
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ client: data[0] })
     }
 
     if (dispatchType === 'contact') {
-      const updates: any = {}
+      const updates: Record<string, any> = {}
       if (body.name !== undefined) updates.name = body.name
       if (body.role !== undefined) updates.role = body.role
       if (body.phone !== undefined) updates.phone = body.phone
       if (body.email !== undefined) updates.email = body.email
       if (body.isPrimary !== undefined) updates.is_primary = body.isPrimary
 
-      const { error } = await db(admin, 'client_contacts').update(updates).eq('id', id)
+      const { data, error } = await db(admin, 'client_contacts').update(updates).eq('id', id).select()
       if (error) { log('PATCH contact error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Registro não encontrado' }, { status: 404 })
       log('PATCH contact OK', id)
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ contact: data[0] })
     }
 
     if (dispatchType === 'restore') {
-      const { error } = await db(admin, 'client_list').update({ status: 'active', deleted_at: null }).eq('id', id)
+      const { data, error } = await db(admin, 'client_list').update({ status: 'active', deleted_at: null }).eq('id', id).select()
       if (error) { log('PATCH restore error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
+      if (!data || data.length === 0) return NextResponse.json({ error: 'Registro não encontrado' }, { status: 404 })
       log('PATCH restore OK', id)
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ client: data[0] })
     }
 
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+    return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
   } catch (err: any) {
-    log('PATCH exception', err.message)
+    log('PATCH fatal', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
@@ -214,43 +238,25 @@ export async function DELETE(request: Request) {
   try {
     const body = await request.json()
     const { id } = body
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+    if (!id) return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 })
 
     const admin = getAdminClient()
     if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
-    // Soft delete: mark as churned + set deleted_at
-    const { error } = await db(admin, 'client_list').update({ status: 'churned', deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) { log('DELETE client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }
+    // Hard delete: remove definitivamente
+    const { data, error } = await db(admin, 'client_list').delete().eq('id', id).select()
+    if (error) {
+      log('DELETE client error', error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: 'Registro não encontrado ou permissão negada' }, { status: 404 })
+    }
+
     log('DELETE client OK', id)
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, deleted: data[0] })
   } catch (err: any) {
-    log('DELETE exception', err.message)
+    log('DELETE fatal', err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
-}
-
-async function syncClientToCRM(admin: any, client: any, body: any) {
-  const { data: existing } = await db(admin, 'crm_companies').select('id').eq('cnpj', body.cnpj || '').limit(1)
-  if (existing && existing.length > 0) return // already synced
-
-  const { error } = await db(admin, 'crm_companies').insert({
-    name: body.companyName || '',
-    trade_name: body.companyTradeName || body.companyName || '',
-    cnpj: body.cnpj || '',
-    segment: body.segment || '',
-    city: body.city || '',
-    state: body.state || '',
-    phone: '',
-    email: '',
-    website: '',
-    instagram: '',
-    employees: 0,
-    resp_principal: body.internalResponsible || '',
-    resp_rh: '',
-    resp_financeiro: '',
-    notes: body.notes || '',
-    status: 'active',
-  })
-  if (error) log('cross-sync insert error', error.message)
 }

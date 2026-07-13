@@ -1,9 +1,10 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
+import { useSupabase } from '../../crm/context/SupabaseProvider'
 
 // ==========================================
-// 1. INTERFACES & TYPES
+// 1. TYPES
 // ==========================================
 
 export type ClientStatus = 'active' | 'suspended' | 'churned'
@@ -76,193 +77,197 @@ export interface ClientFeedback {
   date: string
 }
 
+export type OperationStatus = 'idle' | 'loading' | 'success' | 'error'
+
 interface ClientsContextType {
   clients: Client[]
   contacts: ClientContact[]
   interactions: ClientInteraction[]
   documents: ClientDocument[]
   feedbacks: ClientFeedback[]
-  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Promise<Client>
+  addClient: (c: Omit<Client, 'id' | 'createdAt'>) => Promise<Client>
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>
   deleteClient: (id: string) => Promise<void>
   hardDeleteClient: (id: string) => Promise<void>
   restoreClient: (id: string) => Promise<void>
   refreshClients: () => Promise<void>
-  addContact: (contact: Omit<ClientContact, 'id'>) => Promise<void>
+  addContact: (c: Omit<ClientContact, 'id'>) => Promise<void>
   updateContact: (id: string, updates: Partial<ClientContact>) => Promise<void>
   deleteContact: (id: string) => Promise<void>
-  addInteraction: (interaction: Omit<ClientInteraction, 'id' | 'date'>) => Promise<void>
-  addFeedback: (feedback: Omit<ClientFeedback, 'id' | 'date'>) => Promise<void>
+  addInteraction: (i: Omit<ClientInteraction, 'id' | 'date'>) => Promise<void>
+  addFeedback: (f: Omit<ClientFeedback, 'id' | 'date'>) => Promise<void>
+  status: OperationStatus
+  errorMessage: string | null
+  clearError: () => void
 }
 
 // ==========================================
-// 2. SEED DATA
-// ==========================================
-
-const INITIAL_CLIENTS: Client[] = []
-
-const INITIAL_CONTACTS: ClientContact[] = []
-
-const INITIAL_INTERACTIONS: ClientInteraction[] = []
-
-const INITIAL_DOCUMENTS: ClientDocument[] = []
-
-const INITIAL_FEEDBACKS: ClientFeedback[] = []
-
-// ==========================================
-// 3. CONTEXT
+// 2. CONTEXT
 // ==========================================
 
 const ClientsContext = createContext<ClientsContextType | undefined>(undefined)
 
 export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { supabase } = useSupabase()
   const [clients, setClients] = useState<Client[]>([])
   const [contacts, setContacts] = useState<ClientContact[]>([])
   const [interactions, setInteractions] = useState<ClientInteraction[]>([])
   const [documents, setDocuments] = useState<ClientDocument[]>([])
   const [feedbacks, setFeedbacks] = useState<ClientFeedback[]>([])
+  const [status, setStatus] = useState<OperationStatus>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const loadedRef = useRef(false)
+
+  const clearError = useCallback(() => setErrorMessage(null), [])
+
+  function setError(msg: string) {
+    console.error('[CLIENTS]', msg)
+    setErrorMessage(msg)
+    setStatus('error')
+  }
 
   function sanitizeClients(raw: unknown[]): Client[] {
     return (raw || []).filter(c => c && (c as any).companyName && (c as any).companyName.trim()).map(c => {
       const r = c as any
       return {
         id: r.id || '',
-        companyId: r.companyId || '',
-        companyName: r.companyName || '',
-        companyTradeName: r.companyTradeName || r.companyName || '',
+        companyId: r.companyId || r.company_id || '',
+        companyName: r.companyName || r.company_name || '',
+        companyTradeName: r.companyTradeName || r.company_trade_name || r.companyName || '',
         cnpj: r.cnpj || '',
         segment: r.segment || '',
         city: r.city || '',
         state: r.state || '',
         services: Array.isArray(r.services) ? r.services : [],
-        contractType: r.contractType === 'renewal' ? 'renewal' as const : 'first' as const,
-        internalResponsible: r.internalResponsible || '',
+        contractType: r.contractType === 'renewal' || r.contract_type === 'renewal' ? 'renewal' as const : 'first' as const,
+        internalResponsible: r.internalResponsible || r.internal_responsible || '',
         status: ['active', 'suspended', 'churned'].includes(r.status) ? r.status : 'active' as ClientStatus,
-        startDate: r.startDate || '',
-        endDate: r.endDate || '',
-        monthlyValue: Number(r.monthlyValue) || 0,
-        totalValue: Number(r.totalValue) || 0,
+        startDate: r.startDate || r.start_date || '',
+        endDate: r.endDate || r.end_date || '',
+        monthlyValue: Number(r.monthlyValue ?? r.monthly_value) || 0,
+        totalValue: Number(r.totalValue ?? r.total_value) || 0,
         notes: r.notes || '',
-        createdAt: r.createdAt || new Date().toISOString(),
+        createdAt: r.createdAt || r.created_at || new Date().toISOString(),
       }
     })
   }
 
-  // ---- Load from Supabase via API (fonte oficial), fallback localStorage ----
+  function sanitizeContacts(raw: unknown[]): ClientContact[] {
+    return (raw || []).filter(c => c && (c as any).name?.trim()).map(c => {
+      const r = c as any
+      return {
+        id: r.id || '',
+        clientId: r.clientId || r.client_id || '',
+        name: r.name || '',
+        role: r.role || '',
+        phone: r.phone || '',
+        email: r.email || '',
+        isPrimary: r.isPrimary ?? r.is_primary ?? false,
+      }
+    })
+  }
+
+  function sanitizeInteractions(raw: unknown[]): ClientInteraction[] {
+    return (raw || []).filter(c => c && (c as any).title?.trim()).map(c => {
+      const r = c as any
+      return {
+        id: r.id || '',
+        clientId: r.clientId || r.client_id || '',
+        type: r.type || 'call',
+        title: r.title || '',
+        description: r.description || '',
+        date: r.date || r.created_at || new Date().toISOString(),
+        author: r.author || '',
+      }
+    })
+  }
+
+  function sanitizeFeedbacks(raw: unknown[]): ClientFeedback[] {
+    return (raw || []).filter(c => c && (c as any).score != null).map(c => {
+      const r = c as any
+      return {
+        id: r.id || '',
+        clientId: r.clientId || r.client_id || '',
+        score: r.score ?? 0,
+        comment: r.comment || '',
+        date: r.date || r.created_at || new Date().toISOString(),
+      }
+    })
+  }
+
+  // ==========================================
+  // LOAD inicial (única fonte da verdade = Supabase)
+  // ==========================================
+  const loadFromAPI = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sync/clients')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      const d = json?.data || json
+      if (d?.clients) {
+        setClients(sanitizeClients(d.clients))
+        setContacts(sanitizeContacts(d.contacts || []))
+        setInteractions(sanitizeInteractions(d.interactions || []))
+        setDocuments((d.documents || []) as ClientDocument[])
+        setFeedbacks(sanitizeFeedbacks(d.feedbacks || []))
+      }
+      return d
+    } catch (err: any) {
+      console.error('[CLIENTS] load error:', err)
+      throw err
+    }
+  }, [])
+
   useEffect(() => {
     if (typeof window === 'undefined' || loadedRef.current) return
     loadedRef.current = true
+    setStatus('loading')
+    loadFromAPI()
+      .then(() => setStatus('idle'))
+      .catch(() => setStatus('idle'))
+  }, [loadFromAPI])
 
-    const get = <T,>(key: string, fallback: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : fallback
-      } catch { return fallback }
-    }
-
-    // Log helper temporário
-    const logLoad = (source: string, count: number, ids: string[]) => {
-      console.log(`[CLIENTS LOAD] origem: ${source} | qtd: ${count} | ids: [${ids.slice(0, 5).join(', ')}${ids.length > 5 ? '...' : ''}]`)
-    }
-
-    const loadFromLocal = () => {
-      const raw = get<unknown[]>('clients_data', [])
-      const clean = sanitizeClients(raw)
-      setClients(clean)
-      if (clean.length !== raw.length) localStorage.setItem('clients_data', JSON.stringify(clean))
-      setContacts(get('clients_contacts', []))
-      setInteractions(get('clients_interactions', []))
-      setDocuments(get('clients_documents', []))
-      setFeedbacks(get('clients_feedbacks', []))
-      logLoad('localStorage', clean.length, clean.map(c => c.id))
-    }
-
-    // Carrega localStorage como fallback visual inicial
-    loadFromLocal()
-
-    // API Supabase — Só sobrescreve se localStorage estiver vazio (localStorage SEMPRE vence)
-    fetch('/api/sync/clients')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          const raw = d.clients || []
-          const clean = sanitizeClients(raw)
-          if (get('clients_data', []).length === 0 && Array.isArray(clean)) setClients(clean)
-          if (get('clients_contacts', []).length === 0 && Array.isArray(d.contacts)) setContacts(d.contacts as ClientContact[])
-          if (get('clients_interactions', []).length === 0 && Array.isArray(d.interactions)) setInteractions(d.interactions as ClientInteraction[])
-          if (get('clients_documents', []).length === 0 && Array.isArray(d.documents)) setDocuments(d.documents as ClientDocument[])
-          if (get('clients_feedbacks', []).length === 0 && Array.isArray(d.feedbacks)) setFeedbacks(d.feedbacks as ClientFeedback[])
-          logLoad('Supabase client_list', clean.length, clean.map(c => c.id))
-        } else {
-          logLoad('localStorage (API vazio)', clients.length, clients.map(c => c.id))
-        }
-      })
-      .catch((err) => {
-        console.error('[ClientsContext] API load error:', err)
-        logLoad('localStorage (API erro)', clients.length, clients.map(c => c.id))
-      })
-
-    // Limpeza de chaves obsoletas (mock/seed)
-    const STALE_KEYS = [
-      'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
-      'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
-      'projects_mock', 'portal_mock', 'assessoria_mock',
-    ]
-    for (const key of STALE_KEYS) {
-      try { localStorage.removeItem(key) } catch {}
-    }
-
-    // Helper console para limpeza manual de dados de clientes
-    console.log('[CLIENTS] Para limpar cache local de clientes, execute no console:')
-    console.log('  localStorage.removeItem("clients_data")')
-    console.log('  localStorage.removeItem("clients_contacts")')
-    console.log('  localStorage.removeItem("clients_interactions")')
-    console.log('  localStorage.removeItem("clients_documents")')
-    console.log('  localStorage.removeItem("clients_feedbacks")')
-    ;(window as any).__clearClientsCache = () => {
-      try {
-        localStorage.removeItem('clients_data')
-        localStorage.removeItem('clients_contacts')
-        localStorage.removeItem('clients_interactions')
-        localStorage.removeItem('clients_documents')
-        localStorage.removeItem('clients_feedbacks')
-        console.log('[CLIENTS] Cache limpo. Recarregue a pagina.')
-      } catch (e) { console.error('[CLIENTS] Erro ao limpar cache:', e) }
-    }
-    console.log('[CLIENTS] Ou execute: __clearClientsCache()')
-  }, [])
-
-  // ---- Sync to Supabase + cache to localStorage on changes ----
+  // ==========================================
+  // REALTIME — Sincroniza automaticamente entre abas
+  // ==========================================
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = clients.length > 0 || contacts.length > 0 || interactions.length > 0 || documents.length > 0 || feedbacks.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      const payload = { clients, contacts, interactions, documents, feedbacks }
-      fetch('/api/sync/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('ClientsContext sync error:', err))
-      localStorage.setItem('clients_data', JSON.stringify(clients))
-      localStorage.setItem('clients_contacts', JSON.stringify(contacts))
-      localStorage.setItem('clients_interactions', JSON.stringify(interactions))
-      localStorage.setItem('clients_documents', JSON.stringify(documents))
-      localStorage.setItem('clients_feedbacks', JSON.stringify(feedbacks))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [clients, contacts, interactions, documents, feedbacks])
+    if (!supabase) return
+    const tables = ['client_list', 'client_contacts', 'client_interactions', 'client_documents', 'client_feedbacks']
+    const channels = tables.map(table => {
+      return supabase
+        .channel(`${table}-changes`)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+          // Recarrega tudo quando qualquer mudança ocorrer
+          loadFromAPI().catch(() => {})
+        })
+        .subscribe()
+    })
+
+    return () => {
+      channels.forEach(ch => supabase.removeChannel(ch))
+    }
+  }, [supabase, loadFromAPI])
+
+  // ==========================================
+  // CRUD OPERATIONS (NUNCA otimistas — só atualiza após confirmação da API)
+  // ==========================================
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
 
-  const addClient = async (c: Omit<Client, 'id' | 'createdAt'>) => {
+  const addClient = async (c: Omit<Client, 'id' | 'createdAt'>): Promise<Client> => {
+    setStatus('loading')
+    setErrorMessage(null)
     const newClient: Client = { ...c, id: generateId(), createdAt: new Date().toISOString() }
-    console.log('[CLIENTS] addClient tentando criar ID:', newClient.id, 'companyName:', newClient.companyName)
+
+    // === VALIDACAO ===
+    if (!c.companyName?.trim()) {
+      setError('Nome da empresa é obrigatório')
+      throw new Error('companyName é obrigatório')
+    }
+
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
@@ -270,24 +275,24 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         body: JSON.stringify({ _type: 'client', id: newClient.id, ...c }),
       })
       const json = await res.json()
-      if (res.ok) {
-        console.log('[CLIENTS] addClient API OK:', json?.client?.id || json)
-        setClients(prev => {
-          const next = [newClient, ...prev]
-          try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-          return next
-        })
-      } else {
-        console.error('[CLIENTS] addClient API error:', json?.error || res.status)
+      if (!res.ok) {
+        setError(json?.error || `Erro ${res.status}`)
+        throw new Error(json?.error || 'Falha ao criar cliente')
       }
-    } catch (err) {
-      console.error('[CLIENTS] addClient fetch error:', err)
+      // Atualiza estado SOMENTE após confirmação
+      setClients(prev => [newClient, ...prev])
+      setStatus('success')
+      return newClient
+    } catch (err: any) {
+      if (!errorMessage) setError(err.message)
+      throw err
     }
-    return newClient
   }
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
-    console.log('[CLIENTS] updateClient ID:', id, 'updates:', JSON.stringify(updates).slice(0, 200))
+    setStatus('loading')
+    setErrorMessage(null)
+
     try {
       const res = await fetch('/api/clients', {
         method: 'PATCH',
@@ -295,177 +300,168 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         body: JSON.stringify({ _type: 'client', id, ...updates }),
       })
       const json = await res.json()
-      if (res.ok) {
-        console.log('[CLIENTS] updateClient API OK:', id)
-        setClients(prev => {
-          const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-          try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-          return next
-        })
-      } else {
-        console.error('[CLIENTS] updateClient API error:', json?.error || res.status)
+      if (!res.ok) {
+        setError(json?.error || `Erro ${res.status}`)
+        throw new Error(json?.error || 'Falha ao atualizar cliente')
       }
-    } catch (err) {
-      console.error('[CLIENTS] updateClient fetch error:', err)
+      setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+      setStatus('success')
+    } catch (err: any) {
+      if (!errorMessage) setError(err.message)
+      throw err
     }
   }
 
-  const deleteClient = async (id: string): Promise<void> => {
-    console.log('[CLIENTS] deleteClient ID:', id)
-    setClients(prev => {
-      const next = prev.filter(c => c.id !== id)
-      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-      return next
-    })
+  const deleteClient = async (id: string) => {
+    setStatus('loading')
+    setErrorMessage(null)
+
     try {
       const res = await fetch('/api/clients', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (res.ok) {
-        console.log('[CLIENTS] deleteClient API OK:', id)
-      } else {
-        console.error('[CLIENTS] deleteClient API error:', json?.error || res.status)
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json?.error || `Erro ${res.status}`)
+        throw new Error(json?.error || 'Falha ao excluir cliente')
       }
-    } catch (err) {
-      console.error('[CLIENTS] deleteClient fetch error:', err)
+      setClients(prev => prev.filter(c => c.id !== id))
+      setContacts(prev => prev.filter(c => c.clientId !== id))
+      setInteractions(prev => prev.filter(i => i.clientId !== id))
+      setFeedbacks(prev => prev.filter(f => f.clientId !== id))
+      setStatus('success')
+    } catch (err: any) {
+      if (!errorMessage) setError(err.message)
+      throw err
     }
   }
 
-  const hardDeleteClient = async (id: string): Promise<void> => {
-    console.log('[CLIENTS] hardDeleteClient ID:', id)
-    setClients(prev => {
-      const next = prev.filter(c => c.id !== id)
-      try { localStorage.setItem('clients_data', JSON.stringify(next)) } catch {}
-      return next
-    })
+  const hardDeleteClient = async (id: string) => {
+    // hardDelete é apenas local (remove da lista em memória)
+    setClients(prev => prev.filter(c => c.id !== id))
   }
 
   const refreshClients = async () => {
+    setStatus('loading')
     try {
-      const res = await fetch('/api/sync/clients')
-      if (!res.ok) return
-      const { data } = await res.json()
-      if (!data) return
-      const clean = sanitizeClients(data.clients || [])
-      setClients(clean)
-      setContacts((data.contacts || []) as ClientContact[])
-      setInteractions((data.interactions || []) as ClientInteraction[])
-      setDocuments((data.documents || []) as ClientDocument[])
-      setFeedbacks((data.feedbacks || []) as ClientFeedback[])
-      localStorage.setItem('clients_data', JSON.stringify(clean))
-      if (data.contacts) localStorage.setItem('clients_contacts', JSON.stringify(data.contacts))
-      if (data.interactions) localStorage.setItem('clients_interactions', JSON.stringify(data.interactions))
-      if (data.documents) localStorage.setItem('clients_documents', JSON.stringify(data.documents))
-      if (data.feedbacks) localStorage.setItem('clients_feedbacks', JSON.stringify(data.feedbacks))
-      console.log('[CLIENTS] refresh OK:', clean.length, 'clientes')
-    } catch { /* ignore */ }
+      await loadFromAPI()
+      setStatus('success')
+    } catch {
+      setError('Falha ao recarregar clientes')
+    }
   }
 
-  const restoreClient = async (id: string): Promise<void> => {
-    const res = await fetch('/api/clients', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'restore', id }),
-    })
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}))
-      console.error('[CLIENTS] restoreClient API error:', json.error || res.status)
-      throw new Error(json.error || 'Falha ao restaurar cliente')
+  const restoreClient = async (id: string) => {
+    setStatus('loading')
+    setErrorMessage(null)
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'restore', id }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json?.error || `Erro ${res.status}`)
+        throw new Error(json?.error || 'Falha ao restaurar cliente')
+      }
+      await refreshClients()
+      setStatus('success')
+    } catch (err: any) {
+      if (!errorMessage) setError(err.message)
+      throw err
     }
-    // Recarrega do Supabase para trazer o cliente restaurado de volta à lista
-    await refreshClients()
-    console.log('[CLIENTS] restoreClient OK:', id)
   }
 
   const addContact = async (c: Omit<ClientContact, 'id'>) => {
+    if (!c.clientId || !c.name?.trim()) {
+      setError('clientId e nome são obrigatórios')
+      return
+    }
     const newContact: ClientContact = { ...c, id: generateId() }
-    console.log('[CLIENTS] addContact ID:', newContact.id)
-    setContacts(prev => {
-      const next = [...prev, newContact]
-      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
-      return next
-    })
+
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'contact', id: newContact.id, ...c }),
       })
-      if (res.ok) console.log('[CLIENTS] addContact API OK:', newContact.id)
-      else console.error('[CLIENTS] addContact API error:', res.status)
-    } catch (err) { console.error('[CLIENTS] addContact fetch error:', err) }
+      const json = await res.json()
+      if (!res.ok) {
+        console.error('[CLIENTS] addContact error:', json?.error || res.status)
+        return
+      }
+      setContacts(prev => [...prev, newContact])
+    } catch (err) {
+      console.error('[CLIENTS] addContact fetch error:', err)
+    }
   }
 
   const updateContact = async (id: string, updates: Partial<ClientContact>) => {
-    console.log('[CLIENTS] updateContact ID:', id)
     try {
       const res = await fetch('/api/clients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'contact', id, ...updates }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (res.ok) {
-        console.log('[CLIENTS] updateContact API OK:', id)
-        setContacts(prev => {
-          const next = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-          try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
-          return next
-        })
-      } else {
-        console.error('[CLIENTS] updateContact API error:', json?.error || res.status)
+      const json = await res.json()
+      if (!res.ok) {
+        console.error('[CLIENTS] updateContact error:', json?.error || res.status)
+        return
       }
-    } catch (err) { console.error('[CLIENTS] updateContact fetch error:', err) }
+      setContacts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+    } catch (err) {
+      console.error('[CLIENTS] updateContact fetch error:', err)
+    }
   }
 
   const deleteContact = async (id: string) => {
-    console.log('[CLIENTS] deleteContact ID:', id)
-    setContacts(prev => {
-      const next = prev.filter(c => c.id !== id)
-      try { localStorage.setItem('clients_contacts', JSON.stringify(next)) } catch {}
-      return next
-    })
+    setContacts(prev => prev.filter(c => c.id !== id))
+    // NOTE: sem endpoint de DELETE para contacts na API atual
   }
 
   const addInteraction = async (i: Omit<ClientInteraction, 'id' | 'date'>) => {
+    if (!i.clientId || !i.title?.trim()) return
     const newInt: ClientInteraction = { ...i, id: generateId(), date: new Date().toISOString() }
-    console.log('[CLIENTS] addInteraction ID:', newInt.id)
-    setInteractions(prev => {
-      const next = [newInt, ...prev]
-      try { localStorage.setItem('clients_interactions', JSON.stringify(next)) } catch {}
-      return next
-    })
+
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'interaction', ...i }),
       })
-      if (res.ok) console.log('[CLIENTS] addInteraction API OK:', newInt.id)
-      else console.error('[CLIENTS] addInteraction API error:', res.status)
-    } catch (err) { console.error('[CLIENTS] addInteraction fetch error:', err) }
+      const json = await res.json()
+      if (!res.ok) {
+        console.error('[CLIENTS] addInteraction error:', json?.error || res.status)
+        return
+      }
+      setInteractions(prev => [newInt, ...prev])
+    } catch (err) {
+      console.error('[CLIENTS] addInteraction fetch error:', err)
+    }
   }
 
   const addFeedback = async (f: Omit<ClientFeedback, 'id' | 'date'>) => {
+    if (f.score == null) return
     const newFb: ClientFeedback = { ...f, id: generateId(), date: new Date().toISOString() }
-    console.log('[CLIENTS] addFeedback ID:', newFb.id)
-    setFeedbacks(prev => {
-      const next = [newFb, ...prev]
-      try { localStorage.setItem('clients_feedbacks', JSON.stringify(next)) } catch {}
-      return next
-    })
+
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'feedback', ...f }),
       })
-      if (res.ok) console.log('[CLIENTS] addFeedback API OK:', newFb.id)
-      else console.error('[CLIENTS] addFeedback API error:', res.status)
-    } catch (err) { console.error('[CLIENTS] addFeedback fetch error:', err) }
+      const json = await res.json()
+      if (!res.ok) {
+        console.error('[CLIENTS] addFeedback error:', json?.error || res.status)
+        return
+      }
+      setFeedbacks(prev => [newFb, ...prev])
+    } catch (err) {
+      console.error('[CLIENTS] addFeedback fetch error:', err)
+    }
   }
 
   return (
@@ -473,7 +469,8 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       clients, contacts, interactions, documents, feedbacks,
       addClient, updateClient, deleteClient, hardDeleteClient, restoreClient, refreshClients,
       addContact, updateContact, deleteContact,
-      addInteraction, addFeedback
+      addInteraction, addFeedback,
+      status, errorMessage, clearError,
     }}>
       {children}
     </ClientsContext.Provider>

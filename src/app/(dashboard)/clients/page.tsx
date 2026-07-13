@@ -9,7 +9,7 @@ import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
   Star, Activity, Trash2, X, Clock, Edit2,
-  CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw, Lock
+  CheckCircle, AlertCircle, PauseCircle, Play, RotateCcw, Lock, Loader2
 } from 'lucide-react'
 
 const NoAccess = () => (
@@ -22,7 +22,7 @@ function ClientsMainContent() {
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
   const currentRoleName = admin.currentUser?.roleName || ''
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
-  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, restoreClient, addContact, addInteraction, addFeedback } = useClients()
+  const { clients, contacts, interactions, documents, feedbacks, addClient, updateClient, deleteClient, hardDeleteClient, restoreClient, addContact, addInteraction, addFeedback, status, errorMessage, clearError } = useClients()
   const calendar = useCalendar()
 
   const handleDelete = useCallback(async (id: string) => {
@@ -99,6 +99,20 @@ function ClientsMainContent() {
           Novo Cliente
         </button>
       </div>
+
+      {/* Loading + Error states */}
+      {status === 'loading' && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Salvando...
+        </div>
+      )}
+      {errorMessage && (
+        <div className="flex items-center justify-between px-4 py-2 bg-red-50 text-red-700 rounded-xl text-xs font-bold">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4" />{errorMessage}</span>
+          <button onClick={clearError} className="p-1 hover:bg-red-100 rounded-lg"><X className="w-3 h-3" /></button>
+        </div>
+      )}
 
       <div className="flex gap-6">
         <div className={`${selectedId ? 'w-[420px]' : 'flex-1'} transition-all duration-300 flex-shrink-0`}>
