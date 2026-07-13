@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { acessoService } from '@/services/acessoService'
 
 export interface TemporaryAccess {
   id: string; companyId: string; companyName: string; token: string
@@ -79,41 +81,34 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([])
   const [responses, setResponses] = useState<QuestionnaireResponse[]>([])
 
-  const loadedRef = useRef(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
-
+    if (typeof window === 'undefined') return
     const get = <T,>(key: string, fallback: T): T => {
       try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
       catch { return fallback }
     }
+    setAccesses(get('acesso_temporario_accesses', SEED_ACCESSES))
+    setTempUsers(get('acesso_temporario_users', SEED_USERS))
+    setQuestionnaires(get('acesso_temporario_questionnaires', SEED_QUESTIONNAIRES))
+    setResponses(get('acesso_temporario_responses', SEED_RESPONSES))
 
-    const loadFromLocal = () => {
-      setAccesses(get('acesso_temporario_accesses', SEED_ACCESSES))
-      setTempUsers(get('acesso_temporario_users', SEED_USERS))
-      setQuestionnaires(get('acesso_temporario_questionnaires', SEED_QUESTIONNAIRES))
-      setResponses(get('acesso_temporario_responses', SEED_RESPONSES))
-    }
-
-    loadFromLocal()
-
-    fetch('/api/sync/acesso-temporario')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (get('acesso_temporario_accesses', []).length === 0 && Array.isArray(d.accesses) && d.accesses.length > 0) setAccesses(d.accesses as TemporaryAccess[])
-          if (get('acesso_temporario_users', []).length === 0 && Array.isArray(d.tempUsers) && d.tempUsers.length > 0) setTempUsers(d.tempUsers as TempUser[])
-          if (get('acesso_temporario_questionnaires', []).length === 0 && Array.isArray(d.questionnaires) && d.questionnaires.length > 0) setQuestionnaires(d.questionnaires as Questionnaire[])
-          if (get('acesso_temporario_responses', []).length === 0 && Array.isArray(d.responses) && d.responses.length > 0) setResponses(d.responses as QuestionnaireResponse[])
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`acesso_temporario_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[AcessoTemporarioContext] load error:', err))
+    Promise.all([
+      acessoService.listAccesses(),
+      acessoService.listUsers(),
+      acessoService.listQuestionnaires(),
+      acessoService.listResponses(),
+    ]).then(([accs, usrs, qs, rsps]) => {
+      if (accs.length > 0) setAccesses(accs as TemporaryAccess[])
+      if (usrs.length > 0) setTempUsers(usrs as TempUser[])
+      if (qs.length > 0) setQuestionnaires(qs as Questionnaire[])
+      if (rsps.length > 0) setResponses(rsps as QuestionnaireResponse[])
+      const d = { accesses: accs, tempUsers: usrs, questionnaires: qs, responses: rsps }
+      for (const [k, v] of Object.entries(d)) {
+        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`acesso_temporario_${k}`, JSON.stringify(v))
+      }
+    }).catch((err) => console.error('[AcessoTemporarioContext] load error:', err))
   }, [])
 
   useEffect(() => {
@@ -121,12 +116,8 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
     const hasData = accesses.length > 0 || tempUsers.length > 0 || questionnaires.length > 0 || responses.length > 0
     if (!hasData) return
     const timer = setTimeout(() => {
-      const payload = { accesses, tempUsers, questionnaires, responses }
-      fetch('/api/sync/acesso-temporario', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('AcessoTemporarioContext sync error:', err))
+      acessoService.saveAll({ accesses, tempUsers, questionnaires, responses })
+        .catch(err => console.error('AcessoTemporarioContext saveAll error:', err))
       localStorage.setItem('acesso_temporario_accesses', JSON.stringify(accesses))
       localStorage.setItem('acesso_temporario_users', JSON.stringify(tempUsers))
       localStorage.setItem('acesso_temporario_questionnaires', JSON.stringify(questionnaires))

@@ -2,9 +2,10 @@
 
 import React, { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ClientsProvider, useClients, Client, ClientService, ContractType } from './context/ClientsContext'
-import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
+import type { Client, ClientService, ContractType } from '@/types/clients'
+import { useClients } from './hooks/useClientsHooks'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
+import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
@@ -903,9 +904,5 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
 }
 
 export default function ClientsPage() {
-  return (
-    <ClientsProvider>
-      <ClientsMainContent />
-    </ClientsProvider>
-  )
+  return <ClientsMainContent />
 }

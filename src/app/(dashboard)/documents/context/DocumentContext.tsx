@@ -1,73 +1,21 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { documentService } from '@/services/documentService'
+import type { Document as DocT, DocumentVersion as DocVersionT, DocumentAccessLog, DocType, DocVisibility, DocStatus, DocApproval, DocAction } from '@/types/documents'
 
-export type DocType =
-  'contract' | 'proposal' | 'report' | 'diagnostic' | 'inventory' |
-  'action_plan' | 'certificate' | 'attendance_list' | 'training_material' |
-  'evidence' | 'meeting_minutes' | 'financial'
-
-export type DocVisibility = 'internal' | 'portal' | 'restricted' | 'financial' | 'technical'
-export type DocStatus = 'draft' | 'approved' | 'rejected' | 'archived' | 'expired'
-export type DocApproval = 'pending' | 'approved' | 'rejected'
-export type DocAction = 'view' | 'download' | 'edit' | 'delete' | 'share' | 'upload' | 'version'
+// Re-export types (backward compat with pages)
+export type { DocType, DocVisibility, DocStatus, DocApproval, DocAction }
 export type DocViewMode = 'cards' | 'table'
 
-export interface Document {
-  id: string
-  name: string
-  type: DocType
-  description?: string
-  companyId?: string
-  companyName?: string
-  projectId?: string
-  projectName?: string
-  module?: string
-  visibility: DocVisibility
-  status: DocStatus
-  fileUrl?: string
-  fileSize?: number
-  fileType?: string
-  currentVersion: number
-  signatureCode?: string
-  signedAt?: string
-  signedBy?: string
-  validUntil?: string
-  approvalStatus: DocApproval
-  createdBy?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface DocumentVersion {
-  id: string
-  documentId: string
-  versionNumber: number
-  fileUrl?: string
-  fileSize?: number
-  fileType?: string
-  changeDescription?: string
-  uploadedBy?: string
-  uploadedAt: string
-}
-
+export interface Document extends DocT {}
+export interface DocumentVersion extends DocVersionT {}
 export interface AccessLog {
-  id: string
-  documentId: string
-  userId?: string
-  userName?: string
-  action: DocAction
-  createdAt: string
+  id: string; documentId: string; userId?: string; userName?: string; action: DocAction; accessedAt: string; createdAt: string
 }
-
 export interface DocFilter {
-  search: string
-  type: DocType | 'all'
-  companyId: string | 'all'
-  projectId: string | 'all'
-  status: DocStatus | 'all'
-  visibility: DocVisibility | 'all'
+  search: string; type: DocType | 'all'; companyId: string | 'all'; projectId: string | 'all'; status: DocStatus | 'all'; visibility: DocVisibility | 'all'
 }
 
 const DOC_TYPE_CONFIG: Record<DocType, { label: string; color: string; bg: string }> = {
@@ -101,19 +49,9 @@ const STATUS_CONFIG: Record<DocStatus, { label: string; color: string }> = {
   expired: { label: 'Expirado', color: 'text-orange-600 bg-orange-100' },
 }
 
-const SEED_DOCUMENTS: Document[] = []
-
-const SEED_VERSIONS: DocumentVersion[] = []
-
-const SEED_LOGS: AccessLog[] = []
-
 interface DocumentContextType {
-  documents: Document[]
-  versions: DocumentVersion[]
-  accessLogs: AccessLog[]
-  docTypeConfig: typeof DOC_TYPE_CONFIG
-  visibilityConfig: typeof VISIBILITY_CONFIG
-  statusConfig: typeof STATUS_CONFIG
+  documents: Document[]; versions: DocumentVersion[]; accessLogs: AccessLog[]
+  docTypeConfig: typeof DOC_TYPE_CONFIG; visibilityConfig: typeof VISIBILITY_CONFIG; statusConfig: typeof STATUS_CONFIG
   addDocument: (d: Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'currentVersion'>) => Document
   updateDocument: (id: string, data: Partial<Document>) => void
   deleteDocument: (id: string) => void
@@ -129,105 +67,55 @@ interface DocumentContextType {
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined)
 
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [versions, setVersions] = useState<DocumentVersion[]>([])
-  const [accessLogs, setAccessLogs] = useState<AccessLog[]>([])
-  const loadedRef = useRef(false)
+  const qc = useQueryClient()
+  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ['documents'] }), [qc])
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
+  const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => documentService.list() })
+  const { data: versions = [] } = useQuery({ queryKey: ['documents', 'versions'], queryFn: () => documentService.listVersions() })
+  const { data: accessLogs = [] } = useQuery({ queryKey: ['documents', 'accessLogs'], queryFn: () => documentService.listAccessLogs() })
 
-    const get = <T,>(key: string, fallback: T): T => {
-      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
-      catch { return fallback }
-    }
-
-    const loadFromLocal = () => {
-      setDocuments(get('doc_documents', SEED_DOCUMENTS))
-      setVersions(get('doc_versions', SEED_VERSIONS))
-      setAccessLogs(get('doc_access_logs', SEED_LOGS))
-    }
-
-    loadFromLocal()
-
-    fetch('/api/sync/documents')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (get('doc_documents', []).length === 0 && Array.isArray(d.documents) && d.documents.length > 0) setDocuments(d.documents as Document[])
-          if (get('doc_versions', []).length === 0 && Array.isArray(d.versions) && d.versions.length > 0) setVersions(d.versions as DocumentVersion[])
-          if (get('doc_access_logs', []).length === 0 && Array.isArray(d.accessLogs) && d.accessLogs.length > 0) setAccessLogs(d.accessLogs as AccessLog[])
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`doc_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[DocumentContext] load error:', err))
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = documents.length > 0 || versions.length > 0 || accessLogs.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      const payload = { documents, versions, accessLogs }
-      fetch('/api/sync/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('DocumentContext sync error:', err))
-      localStorage.setItem('doc_documents', JSON.stringify(documents))
-      localStorage.setItem('doc_versions', JSON.stringify(versions))
-      localStorage.setItem('doc_access_logs', JSON.stringify(accessLogs))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [documents, versions, accessLogs])
+  const addDocMut = useMutation({ mutationFn: (input: any) => documentService.create(input), onSuccess: invalidate })
+  const updateDocMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => documentService.update(id, i), onSuccess: invalidate })
+  const deleteDocMut = useMutation({ mutationFn: (id: string) => documentService.remove(id), onSuccess: invalidate })
+  const addVerMut = useMutation({ mutationFn: (input: any) => documentService.createVersion(input), onSuccess: invalidate })
+  const logAccessMut = useMutation({ mutationFn: (input: any) => documentService.logAccess(input), onSuccess: invalidate })
 
   const addDocument = useCallback((d: Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'currentVersion'>): Document => {
     const now = new Date().toISOString()
     const doc: Document = { ...d, id: `doc-${Date.now()}`, currentVersion: 1, createdAt: now, updatedAt: now }
-    setDocuments([doc, ...documents])
-    logAccess(doc.id, d.createdBy, 'upload')
+    addDocMut.mutate(doc)
+    logAccessMut.mutate({ documentId: doc.id, userName: d.createdBy, action: 'upload' as DocAction })
     return doc
-  }, [documents])
+  }, [addDocMut, logAccessMut])
 
   const updateDocument = useCallback((id: string, data: Partial<Document>) => {
-    setDocuments(documents.map(d => d.id === id ? { ...d, ...data, updatedAt: new Date().toISOString() } : d))
-  }, [documents])
+    updateDocMut.mutate({ id, ...data })
+  }, [updateDocMut])
 
   const deleteDocument = useCallback((id: string) => {
-    setDocuments(documents.filter(d => d.id !== id))
-    setVersions(versions.filter(v => v.documentId !== id))
-  }, [documents, versions])
+    deleteDocMut.mutate(id)
+  }, [deleteDocMut])
 
   const addVersion = useCallback((docId: string, v: Omit<DocumentVersion, 'id' | 'uploadedAt' | 'versionNumber'>): DocumentVersion => {
     const doc = documents.find(d => d.id === docId)
     if (!doc) throw new Error('Documento não encontrado')
-    const newVersionNumber = doc.currentVersion + 1
-    const nv: DocumentVersion = {
-      ...v, id: `dv-${Date.now()}`, documentId: docId,
-      versionNumber: newVersionNumber, uploadedAt: new Date().toISOString(),
-    }
-    setVersions(prev => [nv, ...prev])
-    updateDocument(docId, { currentVersion: newVersionNumber })
-    logAccess(docId, v.uploadedBy, 'version')
+    const newVersionNumber = (doc.currentVersion || 1) + 1
+    const nv: DocumentVersion = { ...v, id: `dv-${Date.now()}`, documentId: docId, versionNumber: newVersionNumber, uploadedAt: new Date().toISOString() }
+    addVerMut.mutate(nv)
+    updateDocMut.mutate({ id: docId, currentVersion: newVersionNumber })
+    logAccessMut.mutate({ documentId: docId, userName: v.uploadedBy, action: 'version' as DocAction })
     return nv
-  }, [documents, versions])
+  }, [documents, addVerMut, updateDocMut, logAccessMut])
 
-  const getVersions = useCallback((docId: string) => versions.filter(v => v.documentId === docId).sort((a, b) => b.versionNumber - a.versionNumber), [versions])
-
+  const getVersions = useCallback((docId: string) => versions.filter(v => v.documentId === docId).sort((a, b) => (b.versionNumber || 0) - (a.versionNumber || 0)), [versions])
   const getDocumentsByCompany = useCallback((companyId: string) => documents.filter(d => d.companyId === companyId).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [documents])
-
   const getDocumentsByProject = useCallback((projectId: string) => documents.filter(d => d.projectId === projectId).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [documents])
 
   const logAccess = useCallback((docId: string, userName: string | undefined, action: DocAction) => {
-    const entry: AccessLog = { id: `al-${Date.now()}`, documentId: docId, userName, action, createdAt: new Date().toISOString() }
-    setAccessLogs(prev => [entry, ...prev])
-  }, [accessLogs])
+    logAccessMut.mutate({ documentId: docId, userName, action, createdAt: new Date().toISOString(), id: `al-${Date.now()}` })
+  }, [logAccessMut])
 
-  const getAccessLogs = useCallback((docId: string) => accessLogs.filter(l => l.documentId === docId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [accessLogs])
+  const getAccessLogs = useCallback((docId: string) => (accessLogs as AccessLog[]).filter(l => l.documentId === docId).sort((a, b) => new Date(b.accessedAt || b.createdAt || 0).getTime() - new Date(a.accessedAt || a.createdAt || 0).getTime()), [accessLogs])
 
   const saveFile = useCallback(async (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -240,14 +128,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <DocumentContext.Provider value={{
       documents, versions, accessLogs,
-      docTypeConfig: DOC_TYPE_CONFIG,
-      visibilityConfig: VISIBILITY_CONFIG,
-      statusConfig: STATUS_CONFIG,
-      addDocument, updateDocument, deleteDocument,
-      addVersion, getVersions,
-      getDocumentsByCompany, getDocumentsByProject,
-      logAccess, getAccessLogs,
-      saveFile,
+      docTypeConfig: DOC_TYPE_CONFIG, visibilityConfig: VISIBILITY_CONFIG, statusConfig: STATUS_CONFIG,
+      addDocument, updateDocument, deleteDocument, addVersion, getVersions,
+      getDocumentsByCompany, getDocumentsByProject, logAccess, getAccessLogs, saveFile,
     }}>
       {children}
     </DocumentContext.Provider>

@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { assessoriaService } from '@/services/assessoriaService'
 
 export interface Diagnostico {
   id: string
@@ -116,49 +118,47 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
   const [planosAcao, setPlanosAcao] = useState<PlanoAcao[]>([])
   const [kpis, setKpis] = useState<Kpi[]>([])
 
-  const loadedRef = useRef(false)
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
-
+  const loadFromLocal = () => {
     const get = <T,>(key: string, fallback: T): T => {
       try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
       catch { return fallback }
     }
+    const companies = getCrmCompanyNames()
+    const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+    setDiagnosticos(applyFilter(get('ass_diagnosticos', SEED_DIAGNOSTICOS)))
+    setOkrs(applyFilter(get('ass_okrs', SEED_OKRS)))
+    setSwots(applyFilter(get('ass_swots', SEED_SWOTS)))
+    setPlanosAcao(applyFilter(get('ass_planos_acao', SEED_PLANOS_ACAO)))
+    setKpis(applyFilter(get('ass_kpis', SEED_KPIS)))
+  }
 
-    const loadFromLocal = () => {
-      const companies = getCrmCompanyNames()
-      const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
-      setDiagnosticos(applyFilter(get('ass_diagnosticos', SEED_DIAGNOSTICOS)))
-      setOkrs(applyFilter(get('ass_okrs', SEED_OKRS)))
-      setSwots(applyFilter(get('ass_swots', SEED_SWOTS)))
-      setPlanosAcao(applyFilter(get('ass_planos_acao', SEED_PLANOS_ACAO)))
-      setKpis(applyFilter(get('ass_kpis', SEED_KPIS)))
-    }
-
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     loadFromLocal()
 
-    fetch('/api/sync/assessoria')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          const companies = getCrmCompanyNames()
-          const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
-          if (get('ass_diagnosticos', []).length === 0 && Array.isArray(d.diagnosticos) && d.diagnosticos.length > 0) setDiagnosticos(applyFilter(d.diagnosticos as Diagnostico[]))
-          if (get('ass_okrs', []).length === 0 && Array.isArray(d.okrs) && d.okrs.length > 0) setOkrs(applyFilter(d.okrs as Okr[]))
-          if (get('ass_swots', []).length === 0 && Array.isArray(d.swots) && d.swots.length > 0) setSwots(applyFilter(d.swots as Swot[]))
-          if (get('ass_planos_acao', []).length === 0 && Array.isArray(d.planosAcao) && d.planosAcao.length > 0) setPlanosAcao(applyFilter(d.planosAcao as PlanoAcao[]))
-          if (get('ass_kpis', []).length === 0 && Array.isArray(d.kpis) && d.kpis.length > 0) setKpis(applyFilter(d.kpis as Kpi[]))
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`ass_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[AssessoriaContext] load error:', err))
- 
-     window.addEventListener('crm:sync-companies', loadFromLocal)
+    Promise.all([
+      assessoriaService.listDiagnosticos(),
+      assessoriaService.listOkrs(),
+      assessoriaService.listSwots(),
+      assessoriaService.listPlanos(),
+      assessoriaService.listKpis(),
+    ]).then(([diag, okrList, swotList, planos, kpiList]) => {
+      const companies = getCrmCompanyNames()
+      const applyFilter = <T extends { empresa: string }>(items: T[]) => filterOrphans(items, companies)
+      if (diag.length > 0) setDiagnosticos(applyFilter(diag))
+      if (okrList.length > 0) setOkrs(applyFilter(okrList))
+      if (swotList.length > 0) setSwots(applyFilter(swotList))
+      if (planos.length > 0) setPlanosAcao(applyFilter(planos))
+      if (kpiList.length > 0) setKpis(applyFilter(kpiList))
+      const d = { diagnosticos: diag, okrs: okrList, swots: swotList, planosAcao: planos, kpis: kpiList }
+      for (const [k, v] of Object.entries(d)) {
+        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`ass_${k}`, JSON.stringify(v))
+      }
+    }).catch((err) => console.error('[AssessoriaContext] load error:', err))
+
+    window.addEventListener('crm:sync-companies', loadFromLocal)
     return () => window.removeEventListener('crm:sync-companies', loadFromLocal)
   }, [])
 
@@ -167,12 +167,8 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
     const hasData = diagnosticos.length > 0 || okrs.length > 0 || swots.length > 0 || planosAcao.length > 0 || kpis.length > 0
     if (!hasData) return
     const timer = setTimeout(() => {
-      const payload = { diagnosticos, okrs, swots, planosAcao, kpis }
-      fetch('/api/sync/assessoria', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('AssessoriaContext sync error:', err))
+      assessoriaService.saveAll({ diagnosticos, okrs, swots, planosAcao, kpis })
+        .catch(err => console.error('AssessoriaContext saveAll error:', err))
       localStorage.setItem('ass_diagnosticos', JSON.stringify(diagnosticos))
       localStorage.setItem('ass_okrs', JSON.stringify(okrs))
       localStorage.setItem('ass_swots', JSON.stringify(swots))

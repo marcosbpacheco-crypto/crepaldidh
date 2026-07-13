@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { financeService } from '@/services/financeService'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -333,67 +335,61 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [invoices, setInvoices] = useState<FinancialInvoice[]>([])
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([])
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([])
-  const loadedRef = useRef(false)
+  const queryClient = useQueryClient()
 
-  // ---- Load from Supabase API first, fallback localStorage ----
+  // ---- Load from financeService + localStorage fallback ----
   useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
-
+    if (typeof window === 'undefined') return
     const get = <T,>(key: string, fallback: T): T => {
       try {
         const stored = localStorage.getItem(key)
         return stored ? JSON.parse(stored) : fallback
       } catch { return fallback }
     }
-
-    const loadFromLocal = () => {
-      setCategories(get('fin_categories', SEED_CATEGORIES))
-      setPaymentMethods(get('fin_payment_methods', SEED_PAYMENT_METHODS))
-      setReceivables(get('fin_receivables', SEED_RECEIVABLES))
-      setPayables(get('fin_payables', SEED_PAYABLES))
-      setTransactions(get('fin_transactions', []))
-      setInvoices(get('fin_invoices', []))
-      setRecurringRules(get('fin_recurring_rules', SEED_RECURRING_RULES))
-      setBankTransactions(get('fin_bank_transactions', []))
-    }
-
-    loadFromLocal()
-
-    fetch('/api/sync/financial')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (get('fin_categories', []).length === 0 && Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories as FinancialCategory[])
-          if (get('fin_payment_methods', []).length === 0 && Array.isArray(d.paymentMethods) && d.paymentMethods.length > 0) setPaymentMethods(d.paymentMethods as PaymentMethod[])
-          if (get('fin_receivables', []).length === 0 && Array.isArray(d.receivables) && d.receivables.length > 0) setReceivables(d.receivables as AccountReceivable[])
-          if (get('fin_payables', []).length === 0 && Array.isArray(d.payables) && d.payables.length > 0) setPayables(d.payables as AccountPayable[])
-          if (get('fin_transactions', []).length === 0 && Array.isArray(d.transactions) && d.transactions.length > 0) setTransactions(d.transactions as FinancialTransaction[])
-          if (get('fin_invoices', []).length === 0 && Array.isArray(d.invoices) && d.invoices.length > 0) setInvoices(d.invoices as FinancialInvoice[])
-          if (get('fin_recurring_rules', []).length === 0 && Array.isArray(d.recurringRules) && d.recurringRules.length > 0) setRecurringRules(d.recurringRules as RecurringRule[])
-          if (get('fin_bank_transactions', []).length === 0 && Array.isArray(d.bankTransactions) && d.bankTransactions.length > 0) setBankTransactions(d.bankTransactions as BankTransaction[])
-          // cache to localStorage
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`fin_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[FinancialContext] load error:', err))
+    // localStorage first for instant display
+    setCategories(get('fin_categories', SEED_CATEGORIES))
+    setPaymentMethods(get('fin_payment_methods', SEED_PAYMENT_METHODS))
+    setReceivables(get('fin_receivables', SEED_RECEIVABLES))
+    setPayables(get('fin_payables', SEED_PAYABLES))
+    setTransactions(get('fin_transactions', []))
+    setInvoices(get('fin_invoices', []))
+    setRecurringRules(get('fin_recurring_rules', SEED_RECURRING_RULES))
+    setBankTransactions(get('fin_bank_transactions', []))
+    // then fetch from Supabase
+    Promise.all([
+      financeService.listCategories(),
+      financeService.listPaymentMethods(),
+      financeService.listReceivables(),
+      financeService.listPayables(),
+      financeService.listTransactions(),
+      financeService.listInvoices(),
+      financeService.listRecurringRules(),
+      financeService.listBankTransactions(),
+    ]).then(([cats, pms, recs, pays, txs, invs, rrs, bts]) => {
+      if (cats.length > 0) setCategories(cats)
+      if (pms.length > 0) setPaymentMethods(pms)
+      if (recs.length > 0) setReceivables(recs)
+      if (pays.length > 0) setPayables(pays)
+      if (txs.length > 0) setTransactions(txs)
+      if (invs.length > 0) setInvoices(invs)
+      if (rrs.length > 0) setRecurringRules(rrs)
+      if (bts.length > 0) setBankTransactions(bts)
+      // cache to localStorage
+      const d = { categories: cats, paymentMethods: pms, receivables: recs, payables: pays, transactions: txs, invoices: invs, recurringRules: rrs, bankTransactions: bts }
+      for (const [k, v] of Object.entries(d)) {
+        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`fin_${k}`, JSON.stringify(v))
+      }
+    }).catch((err) => console.error('[FinancialContext] load error:', err))
   }, [])
 
-  // ---- Sync to Supabase + cache to localStorage on changes ----
+  // ---- Sync to Supabase via financeService + cache to localStorage ----
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = categories.length > 0 || paymentMethods.length > 0 || receivables.length > 0 || payables.length > 0 || transactions.length > 0 || invoices.length > 0 || recurringRules.length > 0 || bankTransactions.length > 0
     if (!hasData) return
     const timer = setTimeout(() => {
-      const payload = { categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions }
-      fetch('/api/sync/financial', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('FinancialContext sync error:', err))
+      financeService.saveAll({ categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions })
+        .catch(err => console.error('[FinancialContext] saveAll error:', err))
       localStorage.setItem('fin_categories', JSON.stringify(categories))
       localStorage.setItem('fin_payment_methods', JSON.stringify(paymentMethods))
       localStorage.setItem('fin_receivables', JSON.stringify(receivables))

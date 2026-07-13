@@ -1,5 +1,6 @@
 'use client'
 
+import { QueryProvider } from '@/hooks/QueryProvider'
 import { SupabaseProvider } from './crm/context/SupabaseProvider'
 import { CrmProvider } from './crm/context/CrmContext'
 import { TrainingsProvider } from './trainings/context/TrainingsContext'
@@ -22,6 +23,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
+    <QueryProvider>
     <SupabaseProvider>
       <CrmProvider>
         <TrainingsProvider>
@@ -58,5 +60,6 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
         </TrainingsProvider>
       </CrmProvider>
     </SupabaseProvider>
+    </QueryProvider>
   )
 }

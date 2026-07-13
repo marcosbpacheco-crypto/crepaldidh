@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { mentoringService } from '@/services/mentoringService'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -223,47 +225,42 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [mentoringReports, setMentoringReports] = useState<MentoringReport[]>([])
 
-  const loadedRef = useRef(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
-
+    if (typeof window === 'undefined') return
     const get = <T,>(key: string, fallback: T): T => {
       try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
       catch { return fallback }
     }
-
-    const loadFromLocal = () => {
-      setParticipants(get('mentoring_participants', SEED_PARTICIPANTS))
-      setSessions(get('mentoring_sessions', SEED_SESSIONS))
-      setPDIPlans(get('mentoring_pdi', SEED_PDI_PLANS))
-      setCompetencies(get('mentoring_competencies', DEFAULT_COMPETENCIES))
-      setTools(get('mentoring_tools', DEFAULT_TOOLS))
-      setAssessments(get('mentoring_assessments', []))
-      setMentoringReports(get('mentoring_reports', []))
-    }
-
-    loadFromLocal()
-
-    fetch('/api/sync/mentoring')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (get('mentoring_participants', []).length === 0 && Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as Participant[])
-          if (get('mentoring_sessions', []).length === 0 && Array.isArray(d.sessions) && d.sessions.length > 0) setSessions(d.sessions as MentoringSession[])
-          if (get('mentoring_pdi', []).length === 0 && Array.isArray(d.pdiPlans) && d.pdiPlans.length > 0) setPDIPlans(d.pdiPlans as PDIPlan[])
-          if (get('mentoring_competencies', []).length === 0 && Array.isArray(d.competencies) && d.competencies.length > 0) setCompetencies(d.competencies as Competency[])
-          if (get('mentoring_tools', []).length === 0 && Array.isArray(d.tools) && d.tools.length > 0) setTools(d.tools as DevelopmentTool[])
-          if (get('mentoring_assessments', []).length === 0 && Array.isArray(d.assessments) && d.assessments.length > 0) setAssessments(d.assessments as Assessment[])
-          if (get('mentoring_reports', []).length === 0 && Array.isArray(d.mentoringReports) && d.mentoringReports.length > 0) setMentoringReports(d.mentoringReports as MentoringReport[])
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`mentoring_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[MentoringContext] load error:', err))
+    setParticipants(get('mentoring_participants', SEED_PARTICIPANTS))
+    setSessions(get('mentoring_sessions', SEED_SESSIONS))
+    setPDIPlans(get('mentoring_pdi', SEED_PDI_PLANS))
+    setCompetencies(get('mentoring_competencies', DEFAULT_COMPETENCIES))
+    setTools(get('mentoring_tools', DEFAULT_TOOLS))
+    setAssessments(get('mentoring_assessments', []))
+    setMentoringReports(get('mentoring_reports', []))
+    Promise.all([
+      mentoringService.listParticipants(),
+      mentoringService.listSessions(),
+      mentoringService.listPdiPlans(),
+      mentoringService.listCompetencies(),
+      mentoringService.listTools(),
+      mentoringService.listAssessments(),
+      mentoringService.listReports(),
+    ]).then(([parts, sess, pdi, comps, toolsArr, assess, reports]) => {
+      if (parts.length > 0) setParticipants(parts)
+      if (sess.length > 0) setSessions(sess)
+      if (pdi.length > 0) setPDIPlans(pdi)
+      if (comps.length > 0) setCompetencies(comps)
+      if (toolsArr.length > 0) setTools(toolsArr as unknown as DevelopmentTool[])
+      if (assess.length > 0) setAssessments(assess)
+      if (reports.length > 0) setMentoringReports(reports)
+      const d = { participants: parts, sessions: sess, pdiPlans: pdi, competencies: comps, tools: toolsArr, assessments: assess, mentoringReports: reports }
+      for (const [k, v] of Object.entries(d)) {
+        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`mentoring_${k}`, JSON.stringify(v))
+      }
+    }).catch((err) => console.error('[MentoringContext] load error:', err))
   }, [])
 
   useEffect(() => {
@@ -271,12 +268,8 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const hasData = participants.length > 0 || sessions.length > 0 || pdiPlans.length > 0 || competencies.length > 0 || tools.length > 0 || assessments.length > 0 || mentoringReports.length > 0
     if (!hasData) return
     const timer = setTimeout(() => {
-      const payload = { participants, sessions, pdiPlans, competencies, tools, assessments, mentoringReports }
-      fetch('/api/sync/mentoring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('MentoringContext sync error:', err))
+      mentoringService.saveAll({ participants, sessions, pdiPlans, competencies, tools: tools as any, assessments: assessments as any, mentoringReports })
+        .catch(err => console.error('MentoringContext saveAll error:', err))
       localStorage.setItem('mentoring_participants', JSON.stringify(participants))
       localStorage.setItem('mentoring_sessions', JSON.stringify(sessions))
       localStorage.setItem('mentoring_pdi', JSON.stringify(pdiPlans))

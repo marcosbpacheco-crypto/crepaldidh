@@ -1,6 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { crmService } from '@/services/crmService'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -265,7 +267,9 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentRole, setCurrentRole] = useState<UserRole>('admin')
 
-  // Load CRM data: Supabase first, localStorage cache as fallback
+  const queryClient = useQueryClient()
+
+  // Load CRM data: localStorage cache first, then Supabase via service
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -274,33 +278,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const stored = localStorage.getItem(key)
         return stored ? JSON.parse(stored) : initial
       } catch { return initial }
-    }
-
-    const loadFromApi = async () => {
-      try {
-        const res = await fetch('/api/sync/crm')
-        if (!res.ok) throw new Error('API error')
-        const { data } = await res.json()
-        if (!data || !data.companies || data.companies.length === 0) throw new Error('empty')
-        // Use Supabase data, cache in localStorage
-        const apiCompanies = (data.companies || []) as Company[]
-        const seen = new Set<string>()
-        const cleanCompanies = apiCompanies.filter(c => {
-          if (!c || !c.name || !c.name.trim()) return false
-          const key = c.name.trim().toLowerCase()
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        if (getStored<any[]>('crm_companies', []).length === 0) { setCompanies(cleanCompanies); localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies)) }
-        if (getStored('crm_contacts', []).length === 0) { setContacts((data.contacts || []) as any); if (data.contacts) localStorage.setItem('crm_contacts', JSON.stringify(data.contacts)) }
-        if (getStored('crm_deals', []).length === 0) { setDeals((data.deals || []) as any); if (data.deals) localStorage.setItem('crm_deals', JSON.stringify(data.deals)) }
-        if (getStored('crm_activities', []).length === 0) { setActivities((data.activities || []) as any); if (data.activities) localStorage.setItem('crm_activities', JSON.stringify(data.activities)) }
-        if (getStored('crm_tasks', []).length === 0) { setTasks((data.tasks || []) as any); if (data.tasks) localStorage.setItem('crm_tasks', JSON.stringify(data.tasks)) }
-        if (getStored('crm_proposals', []).length === 0) { setProposals((data.proposals || []) as any); if (data.proposals) localStorage.setItem('crm_proposals', JSON.stringify(data.proposals)) }
-        if (getStored('crm_contracts', []).length === 0) { setContracts((data.contracts || []) as any); if (data.contracts) localStorage.setItem('crm_contracts', JSON.stringify(data.contracts)) }
-        return true
-      } catch (e) { console.error('[CRM] API load error:', e); return false }
     }
 
     const loadFromCache = () => {
@@ -336,7 +313,37 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     loadFromCache()
-    loadFromApi()
+
+    // Load from Supabase via service
+    Promise.all([
+      crmService.listCompanies(),
+      crmService.listContacts(),
+      crmService.listDeals(),
+      crmService.listActivities(),
+      crmService.listTasks(),
+      crmService.listProposals(),
+      crmService.listContracts(),
+      crmService.listCrmClients(),
+    ]).then(([apiCompanies, apiContacts, apiDeals, apiActivities, apiTasks, apiProposals, apiContracts, apiClients]) => {
+      if (apiCompanies.length > 0) {
+        const seen = new Set<string>()
+        const clean = apiCompanies.filter(c => {
+          if (!c || !c.name || !c.name.trim()) return false
+          const key = c.name.trim().toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        if (getStored<any[]>('crm_companies', []).length === 0) { setCompanies(clean); localStorage.setItem('crm_companies', JSON.stringify(clean)) }
+      }
+      if (apiContacts.length > 0) setContacts(apiContacts)
+      if (apiDeals.length > 0) setDeals(apiDeals)
+      if (apiActivities.length > 0) setActivities(apiActivities)
+      if (apiTasks.length > 0) setTasks(apiTasks)
+      if (apiProposals.length > 0) setProposals(apiProposals)
+      if (apiContracts.length > 0) setContracts(apiContracts)
+      if (apiClients.length > 0) setClients(apiClients)
+    }).catch((err) => console.error('[CRM] service load error:', err))
 
     const storedRole = localStorage.getItem('crm_current_role')
     if (storedRole) setCurrentRole(storedRole as UserRole)
@@ -398,30 +405,19 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Refetch all CRM data from Supabase (manual refresh)
   const refetchAll = useCallback(async () => {
     try {
-      const res = await fetch('/api/sync/crm');
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data;
-        if (data && data.companies && data.companies.length > 0) {
-          setCompanies(data.companies)
-          if (data.contacts) setContacts(data.contacts)
-          if (data.deals) setDeals(data.deals)
-          if (data.activities) setActivities(data.activities)
-          if (data.tasks) setTasks(data.tasks)
-          if (data.proposals) setProposals(data.proposals)
-          if (data.contracts) setContracts(data.contracts)
-          if (data.clients) setClients(data.clients)
-          if (data.diagnostics) setDiagnostics(data.diagnostics)
-          if (data.units) setUnits(data.units)
-          if (data.sectors) setSectors(data.sectors)
-          if (data.risks) setRisks(data.risks)
-          if (data.evidences) setEvidences(data.evidences)
-          if (data.actionPlans) setActionPlans(data.actionPlans)
-          if (data.monitoring) setMonitoring(data.monitoring)
-          if (data.reports) setReports(data.reports)
-          if (data.interviews) setInterviews(data.interviews)
-        }
-      }
+      const [apiCompanies, apiContacts, apiDeals, apiActivities, apiTasks, apiProposals, apiContracts, apiClients] = await Promise.all([
+        crmService.listCompanies(), crmService.listContacts(), crmService.listDeals(),
+        crmService.listActivities(), crmService.listTasks(), crmService.listProposals(),
+        crmService.listContracts(), crmService.listCrmClients(),
+      ])
+      if (apiCompanies.length > 0) setCompanies(apiCompanies)
+      if (apiContacts.length > 0) setContacts(apiContacts)
+      if (apiDeals.length > 0) setDeals(apiDeals)
+      if (apiActivities.length > 0) setActivities(apiActivities)
+      if (apiTasks.length > 0) setTasks(apiTasks)
+      if (apiProposals.length > 0) setProposals(apiProposals)
+      if (apiContracts.length > 0) setContracts(apiContracts)
+      if (apiClients.length > 0) setClients(apiClients)
     } catch (e) {
       console.error('CRM load error:', e);
     }
@@ -900,7 +896,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
-  // Persist CRM data to localStorage + Supabase (debounced, guarded)
+  // Persist CRM data to localStorage + Supabase via crmService (debounced, guarded)
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = companies.length > 0 || contacts.length > 0 || deals.length > 0 ||
@@ -910,7 +906,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       evidences.length > 0 || actionPlans.length > 0 || monitoring.length > 0 ||
       reports.length > 0 || interviews.length > 0
     if (!hasData) return
-    const data = { companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews }
     localStorage.setItem('crm_companies', JSON.stringify(companies))
     localStorage.setItem('crm_contacts', JSON.stringify(contacts))
     localStorage.setItem('crm_deals', JSON.stringify(deals))
@@ -919,14 +914,9 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('crm_proposals', JSON.stringify(proposals))
     localStorage.setItem('crm_contracts', JSON.stringify(contracts))
     localStorage.setItem('crm_clients', JSON.stringify(clients))
-    console.log(`[AUDIT-CRM] sync effect salvando ${clients.length} clients + ${companies.length} companies em localStorage + API`)
     const timer = setTimeout(() => {
-      fetch('/api/sync/crm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: data })
-      }).then(r => console.log('[AUDIT-CRM] sync POST /api/sync/crm status:', r.status))
-        .catch((err) => console.error('[CRM] sync error:', err))
+      crmService.saveAll({ companies, contacts, deals, activities, tasks, proposals, contracts, clients })
+        .catch((err) => console.error('[CRM] saveAll error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])

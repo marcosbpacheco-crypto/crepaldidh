@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { userService } from '@/services/userService'
 
 export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
@@ -207,98 +209,70 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [])
 
-  const loadedRef = useRef(false)
+  const queryClient = useQueryClient()
 
+  // Load from localStorage FIRST
   useEffect(() => {
-    if (loadedRef.current) return
-    loadedRef.current = true
+    if (typeof window === 'undefined') return
+    try {
+      const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
+      const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
+      const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
+      const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
+      const u = localStorage.getItem('admin_users'); if (u) { const p: User[] = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
+    } catch {
+      setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
+      setPrivacyRequests(seedPrivacyRequests())
+    }
+    try {
+      const stored = localStorage.getItem('current_user')
+      if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
+      else setCurrentUserId('user-admin')
+    } catch { setCurrentUserId('user-admin') }
 
-    // 1. Load from localStorage FIRST (synchronous — menu precisa ver usuarios imediatamente)
-    const loadFromLocal = () => {
-      try {
-        const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
-        const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
-        const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
-        const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
-        const u = localStorage.getItem('admin_users'); if (u) { const p: User[] = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
-      } catch {
-        setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
-        setPrivacyRequests(seedPrivacyRequests())
-      }
-      try {
+    // Load from service
+    Promise.all([
+      userService.list(),
+      userService.listPermissions(),
+      userService.listAuditLogs(),
+      userService.listLgpdConsents(),
+      userService.listPrivacyRequests(),
+    ]).then(([remoteUsers, perms, audits, lgpd, priv]) => {
+      if (remoteUsers.length > 0) {
         const stored = localStorage.getItem('current_user')
-        if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
-        else setCurrentUserId('user-admin')
-      } catch { setCurrentUserId('user-admin') }
-    }
-    loadFromLocal()
-
-    // 2. Load users from API (async — só sobrescreve se API retornar dados não-vazios)
-    // e se o usuario logado ainda estiver presente nos dados remotos
-    const loadUsers = async () => {
-      try {
-        const res = await fetch('/api/sync-admin-users')
-        if (res.ok) {
-          const { users: remoteUsers } = await res.json()
-          if (Array.isArray(remoteUsers) && remoteUsers.length > 0) {
-            // So sobrescreve se usuario logado estiver presente nos dados remotos
-            const stored = localStorage.getItem('current_user')
-            const currentId = stored ? JSON.parse(stored).id : null
-            if (currentId && remoteUsers.some((u: User) => u.id === currentId)) {
-              setUsers(remoteUsers)
-              localStorage.setItem('admin_users', JSON.stringify(remoteUsers))
-            }
-          }
+        const currentId = stored ? JSON.parse(stored).id : null
+        if (currentId && remoteUsers.some((u: User) => u.id === currentId)) {
+          setUsers(remoteUsers)
+          localStorage.setItem('admin_users', JSON.stringify(remoteUsers))
         }
-      } catch {}
-    }
-    loadUsers()
-
-    // 3. Load admin collections from API (async — só sobrescreve se API retornar dados não-vazios)
-    fetch('/api/sync/admin')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          const localEmpty = (key: string) => {
-            try { const s = localStorage.getItem(key); return !s || JSON.parse(s).length === 0 } catch { return true }
-          }
-          if (localEmpty('admin_permissions') && Array.isArray(d.permissions) && d.permissions.length > 0) setPermissions(d.permissions as Permission[])
-          if (localEmpty('admin_audit_logs') && Array.isArray(d.auditLogs) && d.auditLogs.length > 0) setAuditLogs(d.auditLogs as AuditLog[])
-          if (localEmpty('admin_lgpd_consents') && Array.isArray(d.lgpdConsents) && d.lgpdConsents.length > 0) setLgpdConsents(d.lgpdConsents as LgpdConsent[])
-          if (localEmpty('admin_privacy_requests') && Array.isArray(d.privacyRequests) && d.privacyRequests.length > 0) setPrivacyRequests(d.privacyRequests as PrivacyRequest[])
-          for (const [k, v] of Object.entries(d)) { if (Array.isArray(v) && v.length > 0) localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
-        }
-      })
-      .catch((err) => console.error('[AdminContext] load admin collections error:', err))
-
+      }
+      if (perms.length > 0) setPermissions(perms)
+      if (audits.length > 0) setAuditLogs(audits)
+      if (lgpd.length > 0) setLgpdConsents(lgpd)
+      if (priv.length > 0) setPrivacyRequests(priv)
+      const d = { users: remoteUsers, permissions: perms, auditLogs: audits, lgpdConsents: lgpd, privacyRequests: priv }
+      for (const [k, v] of Object.entries(d)) { if (Array.isArray(v) && v.length > 0) localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
+    }).catch((err) => console.error('[AdminContext] load error:', err))
   }, [])
+
+  // Sync users to service + localStorage
   useEffect(() => {
     if (users.length === 0) return
     localStorage.setItem('admin_users', JSON.stringify(users))
     const timer = setTimeout(() => {
-      fetch('/api/sync-admin-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users }),
-      }).catch((err) => console.error('[AdminContext] sync users error:', err))
+      userService.saveAll({ users }).catch((err) => console.error('[AdminContext] save users error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [users])
 
-  // Persist admin collections to localStorage + Supabase (via /api/sync/admin)
-  // So persiste se houver dados reais (evita corromper bucket do Supabase com arrays vazios)
+  // Sync admin collections to service + localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = permissions.length > 0 || auditLogs.length > 0 || lgpdConsents.length > 0 || privacyRequests.length > 0
     if (!hasData) return
     const timer = setTimeout(() => {
-      const payload = { permissions, auditLogs, lgpdConsents, privacyRequests }
-      fetch('/api/sync/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch((err) => console.error('[AdminContext] sync permissions error:', err))
+      userService.saveAll({ permissions, auditLogs, lgpdConsents, privacyRequests })
+        .catch((err) => console.error('[AdminContext] save collections error:', err))
       localStorage.setItem('admin_permissions', JSON.stringify(permissions))
       localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs))
       localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents))

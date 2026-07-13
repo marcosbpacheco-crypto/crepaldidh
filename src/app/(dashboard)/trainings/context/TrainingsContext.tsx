@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { trainingService } from '@/services/trainingService'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -207,78 +209,16 @@ const SEED_CERTIFICATES: TrainingCertificate[] = []
 const TrainingsContext = createContext<TrainingsContextType | undefined>(undefined)
 
 export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sipatPrograms, setSipatPrograms] = useState<SipatProgram[]>([])
-  const [events, setEvents] = useState<TrainingEvent[]>([])
-  const [participants, setParticipants] = useState<TrainingParticipant[]>([])
-  const [certificates, setCertificates] = useState<TrainingCertificate[]>([])
-  const [feedbacks, setFeedbacks] = useState<TrainingFeedback[]>([])
-  const [materials, setMaterials] = useState<TrainingMaterial[]>([])
-  const [reports, setReports] = useState<TrainingReport[]>([])
+  const qc = useQueryClient()
+  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ['trainings'] }), [qc])
 
-  const loadedRef = useRef(false)
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
-
-    const get = <T,>(key: string, fallback: T): T => {
-      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
-      catch { return fallback }
-    }
-
-    const loadFromLocal = () => {
-      setSipatPrograms(get('tr_sipat_programs', SEED_SIPATS))
-      setEvents(get('tr_events', SEED_EVENTS))
-      setParticipants(get('tr_participants', SEED_PARTICIPANTS))
-      setCertificates(get('tr_certificates', SEED_CERTIFICATES))
-      setFeedbacks(get('tr_feedbacks', SEED_FEEDBACKS))
-      setMaterials(get('tr_materials', []))
-      setReports(get('tr_reports', []))
-    }
-
-    loadFromLocal()
-
-    fetch('/api/sync/trainings')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (get('tr_sipat_programs', []).length === 0 && Array.isArray(d.sipatPrograms) && d.sipatPrograms.length > 0) setSipatPrograms(d.sipatPrograms as SipatProgram[])
-          if (get('tr_events', []).length === 0 && Array.isArray(d.events) && d.events.length > 0) setEvents(d.events as TrainingEvent[])
-          if (get('tr_participants', []).length === 0 && Array.isArray(d.participants) && d.participants.length > 0) setParticipants(d.participants as TrainingParticipant[])
-          if (get('tr_certificates', []).length === 0 && Array.isArray(d.certificates) && d.certificates.length > 0) setCertificates(d.certificates as TrainingCertificate[])
-          if (get('tr_feedbacks', []).length === 0 && Array.isArray(d.feedbacks) && d.feedbacks.length > 0) setFeedbacks(d.feedbacks as TrainingFeedback[])
-          if (get('tr_materials', []).length === 0 && Array.isArray(d.materials) && d.materials.length > 0) setMaterials(d.materials as TrainingMaterial[])
-          if (get('tr_reports', []).length === 0 && Array.isArray(d.reports) && d.reports.length > 0) setReports(d.reports as TrainingReport[])
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`tr_${k}`, JSON.stringify(v))
-          }
-        }
-      })
-      .catch((err) => console.error('[TrainingsContext] load error:', err))
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = sipatPrograms.length > 0 || events.length > 0 || participants.length > 0 || certificates.length > 0 || feedbacks.length > 0 || materials.length > 0 || reports.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      const payload = { sipatPrograms, events, participants, certificates, feedbacks, materials, reports }
-      fetch('/api/sync/trainings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch(err => console.error('TrainingsContext sync error:', err))
-      localStorage.setItem('tr_sipat_programs', JSON.stringify(sipatPrograms))
-      localStorage.setItem('tr_events', JSON.stringify(events))
-      localStorage.setItem('tr_participants', JSON.stringify(participants))
-      localStorage.setItem('tr_certificates', JSON.stringify(certificates))
-      localStorage.setItem('tr_feedbacks', JSON.stringify(feedbacks))
-      localStorage.setItem('tr_materials', JSON.stringify(materials))
-      localStorage.setItem('tr_reports', JSON.stringify(reports))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [sipatPrograms, events, participants, certificates, feedbacks, materials, reports])
+  const { data: events = [] } = useQuery({ queryKey: ['trainings', 'events'], queryFn: () => trainingService.listEvents() })
+  const { data: participants = [] } = useQuery({ queryKey: ['trainings', 'participants'], queryFn: () => trainingService.listParticipants('') })
+  const { data: certificates = [] } = useQuery({ queryKey: ['trainings', 'certificates'], queryFn: () => trainingService.listCertificates() })
+  const { data: feedbacks = [] } = useQuery({ queryKey: ['trainings', 'feedbacks'], queryFn: () => trainingService.listFeedbacks('') })
+  const { data: materials = [] } = useQuery({ queryKey: ['trainings', 'materials'], queryFn: () => trainingService.listMaterials('') })
+  const { data: reports = [] } = useQuery({ queryKey: ['trainings', 'reports'], queryFn: () => trainingService.listReports() })
+  const { data: sipatPrograms = [] } = useQuery({ queryKey: ['trainings', 'sipats'], queryFn: () => trainingService.listSipats() })
 
   // Computed KPIs
   const scheduledEvents = events.filter(e => e.status === 'agendado' || e.status === 'planejado').length
@@ -314,108 +254,93 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // MUTATOR IMPLEMENTATIONS
   // ==========================================
 
+  // Mutations
+  const addEventMut = useMutation({ mutationFn: (i: any) => trainingService.createEvent(i), onSuccess: invalidate })
+  const updateEventMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => trainingService.updateEvent(id, i), onSuccess: invalidate })
+  const deleteEventMut = useMutation({ mutationFn: (id: string) => trainingService.removeEvent(id), onSuccess: invalidate })
+  const addPartMut = useMutation({ mutationFn: (i: any) => trainingService.createParticipant(i), onSuccess: invalidate })
+  const updatePartMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => trainingService.updateParticipant(id, i), onSuccess: invalidate })
+  const deletePartMut = useMutation({ mutationFn: (id: string) => trainingService.removeParticipant(id), onSuccess: invalidate })
+  const addCertMut = useMutation({ mutationFn: (i: any) => trainingService.createCertificate(i), onSuccess: invalidate })
+  const addFbMut = useMutation({ mutationFn: (i: any) => trainingService.createFeedback(i), onSuccess: invalidate })
+  const addMatMut = useMutation({ mutationFn: (i: any) => trainingService.createMaterial(i), onSuccess: invalidate })
+  const addSipatMut = useMutation({ mutationFn: (i: any) => trainingService.createSipat(i), onSuccess: invalidate })
+
+  const updateCache = (key: string[], updater: (old: any[]) => any[]) => {
+    qc.setQueryData(key, (old: any) => Array.isArray(old) ? updater(old) : old)
+  }
+
   // Events CRUD
   const addEvent = (e: Omit<TrainingEvent, 'id' | 'createdAt'>): TrainingEvent => {
     const ne: TrainingEvent = { ...e, id: `tr-event-${Date.now()}`, createdAt: new Date().toISOString() }
-    setEvents([ne, ...events])
+    updateCache(['trainings', 'events'], old => [ne, ...old])
+    addEventMut.mutate(ne as any)
     return ne
   }
 
   const updateEvent = (id: string, updates: Partial<TrainingEvent>) => {
-    const updated = events.find(e => e.id === id)
-    setEvents(events.map(e => e.id === id ? { ...e, ...updates } : e))
-    if (updated) {
-    }
+    updateCache(['trainings', 'events'], old => old.map((e: any) => e.id === id ? { ...e, ...updates } : e))
+    updateEventMut.mutate({ id, ...updates } as any)
   }
 
   const deleteEvent = (id: string) => {
-    setEvents(events.filter(e => e.id !== id))
-    setParticipants(participants.filter(p => p.eventId !== id))
+    updateCache(['trainings', 'events'], old => old.filter((e: any) => e.id !== id))
+    updateCache(['trainings', 'participants'], old => old.filter((p: any) => p.eventId !== id))
+    deleteEventMut.mutate(id)
   }
 
   // Participants
   const addParticipant = (p: Omit<TrainingParticipant, 'id'>): TrainingParticipant => {
     const np: TrainingParticipant = { ...p, id: `tpart-${Date.now()}` }
-    setParticipants([np, ...participants])
+    updateCache(['trainings', 'participants'], old => [np, ...old])
+    addPartMut.mutate(np as any)
     return np
   }
 
   const updateParticipant = (id: string, updates: Partial<TrainingParticipant>) => {
-    setParticipants(participants.map(p => p.id === id ? { ...p, ...updates } : p))
+    updateCache(['trainings', 'participants'], old => old.map((p: any) => p.id === id ? { ...p, ...updates } : p))
+    updatePartMut.mutate({ id, ...updates } as any)
   }
 
   const deleteParticipant = (id: string) => {
-    setParticipants(participants.filter(p => p.id !== id))
+    updateCache(['trainings', 'participants'], old => old.filter((p: any) => p.id !== id))
+    deletePartMut.mutate(id)
   }
 
   const importParticipantsList = (eventId: string, list: Omit<TrainingParticipant, 'id' | 'eventId'>[]) => {
-    const newItems = list.map(item => ({
-      ...item,
-      id: `tpart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      eventId
-    }))
-    setParticipants([...newItems, ...participants])
+    const newItems = list.map(item => ({ ...item, id: `tpart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, eventId }))
+    updateCache(['trainings', 'participants'], old => [...newItems, ...old])
+    newItems.forEach(item => addPartMut.mutate(item as any))
   }
 
   const confirmAttendance = (participantId: string, entryTime: string, signature: string) => {
-    setParticipants(
-      participants.map(p =>
-        p.id === participantId
-          ? {
-              ...p,
-              attendanceStatus: 'presente',
-              entryTime,
-              signatureSimple: signature,
-              justification: undefined
-            }
-          : p
-      )
-    )
+    updateCache(['trainings', 'participants'], old => old.map((p: any) =>
+      p.id === participantId ? { ...p, attendanceStatus: 'presente', entryTime, signatureSimple: signature, justification: undefined } : p
+    ))
+    updatePartMut.mutate({ id: participantId, attendanceStatus: 'presente', entryTime, signatureSimple: signature } as any)
   }
 
   const recordAbsenceJustification = (participantId: string, justification: string) => {
-    setParticipants(
-      participants.map(p =>
-        p.id === participantId
-          ? {
-              ...p,
-              attendanceStatus: 'justificado',
-              justification,
-              entryTime: undefined,
-              signatureSimple: undefined
-            }
-          : p
-      )
-    )
+    updateCache(['trainings', 'participants'], old => old.map((p: any) =>
+      p.id === participantId ? { ...p, attendanceStatus: 'justificado', justification, entryTime: undefined, signatureSimple: undefined } : p
+    ))
+    updatePartMut.mutate({ id: participantId, attendanceStatus: 'justificado', justification } as any)
   }
 
   // Certificates
   const issueCertificate = (participantId: string, eventId: string): TrainingCertificate => {
     const part = participants.find(p => p.id === participantId)
     const ev = events.find(e => e.id === eventId)
-
-    if (!part || !ev) {
-      throw new Error('Participante ou Evento não encontrado.')
-    }
-
+    if (!part || !ev) throw new Error('Participante ou Evento não encontrado.')
     const exist = certificates.find(c => c.participantId === participantId && c.eventId === eventId)
     if (exist) return exist
-
     const nc: TrainingCertificate = {
-      id: `tcert-${Date.now()}`,
-      participantId,
-      participantName: part.name,
-      eventId,
-      eventName: ev.name,
-      clientName: ev.companyName,
-      hours: ev.hoursDuration,
-      facilitator: ev.facilitator,
-      date: ev.eventDate,
-      validationCode: `VAL-CDH-${Date.now().toString().slice(-8)}`,
-      issuedAt: new Date().toISOString()
+      id: `tcert-${Date.now()}`, participantId, participantName: part.name, eventId, eventName: ev.name,
+      clientName: ev.companyName, hours: ev.hoursDuration, facilitator: ev.facilitator, date: ev.eventDate,
+      validationCode: `VAL-CDH-${Date.now().toString().slice(-8)}`, issuedAt: new Date().toISOString()
     }
-
-    setCertificates([nc, ...certificates])
+    updateCache(['trainings', 'certificates'], old => [nc, ...old])
+    addCertMut.mutate(nc as any)
     return nc
   }
 
@@ -423,86 +348,60 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const eventParts = participants.filter(p => p.eventId === eventId && p.attendanceStatus === 'presente')
     const ev = events.find(e => e.id === eventId)
     if (!ev) return
-
     const newCerts = eventParts
       .filter(p => !certificates.some(c => c.participantId === p.id && c.eventId === eventId))
       .map((p, index) => ({
-        id: `tcert-${Date.now()}-${index}`,
-        participantId: p.id,
-        participantName: p.name,
-        eventId,
-        eventName: ev.name,
-        clientName: ev.companyName,
-        hours: ev.hoursDuration,
-        facilitator: ev.facilitator,
-        date: ev.eventDate,
-        validationCode: `VAL-CDH-${(Date.now() + index).toString().slice(-8)}`,
-        issuedAt: new Date().toISOString()
+        id: `tcert-${Date.now()}-${index}`, participantId: p.id, participantName: p.name, eventId,
+        eventName: ev.name, clientName: ev.companyName, hours: ev.hoursDuration, facilitator: ev.facilitator,
+        date: ev.eventDate, validationCode: `VAL-CDH-${(Date.now() + index).toString().slice(-8)}`, issuedAt: new Date().toISOString()
       }))
-
-    setCertificates([...newCerts, ...certificates])
-    const dbCerts = newCerts.map(nc => ({ id: nc.id, participant_id: nc.participantId, event_id: nc.eventId, validation_code: nc.validationCode, issued_at: nc.issuedAt }))
+    updateCache(['trainings', 'certificates'], old => [...newCerts, ...old])
+    newCerts.forEach(nc => addCertMut.mutate(nc as any))
   }
 
   // Feedbacks
   const addFeedback = (f: Omit<TrainingFeedback, 'id' | 'createdAt'>): TrainingFeedback => {
     const nf: TrainingFeedback = { ...f, id: `tfb-${Date.now()}`, createdAt: new Date().toISOString() }
-    setFeedbacks([nf, ...feedbacks])
+    updateCache(['trainings', 'feedbacks'], old => [nf, ...old])
+    addFbMut.mutate(nf as any)
     return nf
   }
 
   // Materials
   const addMaterial = (m: Omit<TrainingMaterial, 'id' | 'createdAt'>): TrainingMaterial => {
     const nm: TrainingMaterial = { ...m, id: `tmat-${Date.now()}`, createdAt: new Date().toISOString() }
-    setMaterials([nm, ...materials])
+    updateCache(['trainings', 'materials'], old => [nm, ...old])
+    addMatMut.mutate(nm as any)
     return nm
   }
 
   const deleteMaterial = (id: string) => {
-    setMaterials(materials.filter(m => m.id !== id))
+    updateCache(['trainings', 'materials'], old => old.filter((m: any) => m.id !== id))
   }
 
   // Reports
   const generateEventReport = (eventId: string, summary: string, recs: string): TrainingReport => {
-    const nr: TrainingReport = {
-      id: `trep-${Date.now()}`,
-      eventId,
-      executiveSummary: summary,
-      recommendations: recs,
-      generatedAt: new Date().toISOString()
-    }
-    setReports([nr, ...reports])
+    const nr: TrainingReport = { id: `trep-${Date.now()}`, eventId, executiveSummary: summary, recommendations: recs, generatedAt: new Date().toISOString() }
+    updateCache(['trainings', 'reports'], old => [nr, ...old])
     return nr
   }
 
   // SIPAT
   const addSipatProgram = (s: Omit<SipatProgram, 'id' | 'schedule' | 'createdAt'>, schedule: Omit<SipatDay, 'id' | 'sipatProgramId'>[]): SipatProgram => {
     const programId = `sipat-${Date.now()}`
-    const fullSchedule = schedule.map((day, idx) => ({
-      ...day,
-      id: `sday-${Date.now()}-${idx}`,
-      sipatProgramId: programId
-    }))
-
-    const ns: SipatProgram = {
-      ...s,
-      id: programId,
-      schedule: fullSchedule,
-      createdAt: new Date().toISOString()
-    }
-
-    setSipatPrograms([ns, ...sipatPrograms])
+    const fullSchedule = schedule.map((day, idx) => ({ ...day, id: `sday-${Date.now()}-${idx}`, sipatProgramId: programId }))
+    const ns: SipatProgram = { ...s, id: programId, schedule: fullSchedule, createdAt: new Date().toISOString() }
+    updateCache(['trainings', 'sipats'], old => [ns, ...old])
+    addSipatMut.mutate(ns as any)
     return ns
   }
 
   const updateSipatStatus = (id: string, status: SipatStatus) => {
-    setSipatPrograms(
-      sipatPrograms.map(s => (s.id === id ? { ...s, status } : s))
-    )
+    updateCache(['trainings', 'sipats'], old => old.map((s: any) => s.id === id ? { ...s, status } : s))
   }
 
   const deleteSipatProgram = (id: string) => {
-    setSipatPrograms(sipatPrograms.filter(s => s.id !== id))
+    updateCache(['trainings', 'sipats'], old => old.filter((s: any) => s.id !== id))
   }
 
   // AI helper functions
