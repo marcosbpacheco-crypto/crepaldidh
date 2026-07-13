@@ -205,6 +205,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const json = await res.json()
       const d = json?.data || json
       if (d?.clients) {
+        console.log(`[AUDIT] loadFromAPI setClients — ${d.clients.length} registros`)
         setClients(sanitizeClients(d.clients))
         setContacts(sanitizeContacts(d.contacts || []))
         setInteractions(sanitizeInteractions(d.interactions || []))
@@ -221,6 +222,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (typeof window === 'undefined' || loadedRef.current) return
     loadedRef.current = true
+    console.log('[AUDIT] mount effect — carregando dados da API')
     setStatus('loading')
     loadFromAPI()
       .then(() => setStatus('idle'))
@@ -236,7 +238,8 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const channels = tables.map(table => {
       return supabase
         .channel(`${table}-changes`)
-        .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+        .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+          console.log(`[AUDIT] Realtime recebeu evento em ${table}:`, payload.eventType, 'id:', (payload.new as any)?.id || (payload.old as any)?.id)
           // Recarrega tudo quando qualquer mudança ocorrer
           loadFromAPI().catch(() => {})
         })
@@ -280,6 +283,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw new Error(json?.error || 'Falha ao criar cliente')
       }
       // Atualiza estado SOMENTE após confirmação
+      console.log(`[AUDIT] addClient setClients — adicionando ${newClient.id}`)
       setClients(prev => [newClient, ...prev])
       setStatus('success')
       return newClient
@@ -304,6 +308,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setError(json?.error || `Erro ${res.status}`)
         throw new Error(json?.error || 'Falha ao atualizar cliente')
       }
+      console.log(`[AUDIT] updateClient setClients — atualizando ${id}`)
       setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
       setStatus('success')
     } catch (err: any) {
@@ -327,7 +332,9 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setError(json?.error || `Erro ${res.status}`)
         throw new Error(json?.error || 'Falha ao excluir cliente')
       }
-      setClients(prev => prev.filter(c => c.id !== id))
+      console.log(`[AUDIT] deleteClient setClients — removendo ${id}`)
+    console.log(`[AUDIT] hardDeleteClient setClients — removendo ${id} apenas local`)
+    setClients(prev => prev.filter(c => c.id !== id))
       setContacts(prev => prev.filter(c => c.clientId !== id))
       setInteractions(prev => prev.filter(i => i.clientId !== id))
       setFeedbacks(prev => prev.filter(f => f.clientId !== id))

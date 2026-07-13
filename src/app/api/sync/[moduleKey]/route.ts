@@ -14,6 +14,9 @@ export async function GET(
     }
 
     const data = await loadModuleFromSupabase(moduleKey);
+    const clientCount = data?.clients?.length ?? 0;
+    const companyCount = data?.companies?.length ?? 0;
+    console.log(`[AUDIT-API] GET /api/sync/${moduleKey} — clients:${clientCount} companies:${companyCount}`, data ? Object.keys(data) : 'null');
     return NextResponse.json({ data: data || {} });
   } catch (error: any) {
     console.error(`API GET /sync error:`, error);
@@ -40,6 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'Missing merged data in request body' }, { status: 400 });
     }
 
+    console.log(`[AUDIT-API] POST /api/sync/${moduleKey} — keys: ${Object.keys(merged).join(', ')}`);
     await saveModuleToSupabase(moduleKey, merged);
     return NextResponse.json({ success: true });
   } catch (error: any) {

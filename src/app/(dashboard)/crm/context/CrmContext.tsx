@@ -919,12 +919,14 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('crm_proposals', JSON.stringify(proposals))
     localStorage.setItem('crm_contracts', JSON.stringify(contracts))
     localStorage.setItem('crm_clients', JSON.stringify(clients))
+    console.log(`[AUDIT-CRM] sync effect salvando ${clients.length} clients + ${companies.length} companies em localStorage + API`)
     const timer = setTimeout(() => {
       fetch('/api/sync/crm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merged: data })
-      }).catch((err) => console.error('[CRM] sync error:', err))
+      }).then(r => console.log('[AUDIT-CRM] sync POST /api/sync/crm status:', r.status))
+        .catch((err) => console.error('[CRM] sync error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])
