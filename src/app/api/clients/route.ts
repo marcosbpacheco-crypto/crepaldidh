@@ -58,22 +58,22 @@ export async function POST(request: Request) {
       if (!admin) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
 
       const { data, error } = await db(admin, 'client_list').insert({
-        company_id: body.companyId || '',
+        company_id: body.companyId || null,
         company_name: body.companyName || '',
         company_trade_name: body.companyTradeName || '',
-        cnpj: body.cnpj || '',
-        segment: body.segment || '',
-        city: body.city || '',
-        state: body.state || '',
+        cnpj: body.cnpj || null,
+        segment: body.segment || null,
+        city: body.city || null,
+        state: body.state || null,
         services: body.services || [],
         contract_type: body.contractType || 'first',
-        internal_responsible: body.internalResponsible || '',
+        internal_responsible: body.internalResponsible || null,
         status: body.status || 'active',
-        start_date: body.startDate || new Date().toISOString(),
-        end_date: body.endDate || new Date().toISOString(),
+        start_date: body.startDate || null,
+        end_date: body.endDate || null,
         monthly_value: body.monthlyValue || 0,
         total_value: body.totalValue || 0,
-        notes: body.notes || '',
+        notes: body.notes || null,
       }).select()
 
       if (error) { log('POST client error', error.message); return NextResponse.json({ error: error.message }, { status: 500 }) }

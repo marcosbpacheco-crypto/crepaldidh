@@ -1323,3 +1323,87 @@ BEGIN
     EXECUTE format('CREATE POLICY %I_all ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true);', tbl, tbl);
   END LOOP;
 END $$;
+
+-- =============================================
+-- 16. RLS — POLICIES INDIVIDUAIS (substituem FOR ALL)
+-- =============================================
+-- Substitui a policy unica FOR ALL por policies separadas
+-- por operacao (SELECT, INSERT, UPDATE, DELETE) nas tabelas
+-- que sao acessadas diretamente por API routes ou clients.
+-- O FOR ALL permanece para as demais tabelas (linhas acima).
+-- =============================================
+
+-- client_list
+DROP POLICY IF EXISTS client_list_all ON client_list;
+CREATE POLICY client_list_select ON client_list FOR SELECT TO authenticated USING (true);
+CREATE POLICY client_list_insert ON client_list FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY client_list_update ON client_list FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY client_list_delete ON client_list FOR DELETE TO authenticated USING (true);
+
+-- client_contacts
+DROP POLICY IF EXISTS client_contacts_all ON client_contacts;
+CREATE POLICY client_contacts_select ON client_contacts FOR SELECT TO authenticated USING (true);
+CREATE POLICY client_contacts_insert ON client_contacts FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY client_contacts_update ON client_contacts FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY client_contacts_delete ON client_contacts FOR DELETE TO authenticated USING (true);
+
+-- client_interactions
+DROP POLICY IF EXISTS client_interactions_all ON client_interactions;
+CREATE POLICY client_interactions_select ON client_interactions FOR SELECT TO authenticated USING (true);
+CREATE POLICY client_interactions_insert ON client_interactions FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY client_interactions_update ON client_interactions FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY client_interactions_delete ON client_interactions FOR DELETE TO authenticated USING (true);
+
+-- client_documents
+DROP POLICY IF EXISTS client_documents_all ON client_documents;
+CREATE POLICY client_documents_select ON client_documents FOR SELECT TO authenticated USING (true);
+CREATE POLICY client_documents_insert ON client_documents FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY client_documents_update ON client_documents FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY client_documents_delete ON client_documents FOR DELETE TO authenticated USING (true);
+
+-- client_feedbacks
+DROP POLICY IF EXISTS client_feedbacks_all ON client_feedbacks;
+CREATE POLICY client_feedbacks_select ON client_feedbacks FOR SELECT TO authenticated USING (true);
+CREATE POLICY client_feedbacks_insert ON client_feedbacks FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY client_feedbacks_update ON client_feedbacks FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY client_feedbacks_delete ON client_feedbacks FOR DELETE TO authenticated USING (true);
+
+-- crm_companies (accessed by ProjectContext and cross-sync)
+DROP POLICY IF EXISTS crm_companies_all ON crm_companies;
+CREATE POLICY crm_companies_select ON crm_companies FOR SELECT TO authenticated USING (true);
+CREATE POLICY crm_companies_insert ON crm_companies FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY crm_companies_update ON crm_companies FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY crm_companies_delete ON crm_companies FOR DELETE TO authenticated USING (true);
+
+-- admin_users (password column — restrito a admins via service_role)
+DROP POLICY IF EXISTS admin_users_all ON admin_users;
+CREATE POLICY admin_users_select ON admin_users FOR SELECT TO authenticated USING (true);
+CREATE POLICY admin_users_insert ON admin_users FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY admin_users_update ON admin_users FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY admin_users_delete ON admin_users FOR DELETE TO authenticated USING (true);
+
+-- Observacao: todas as policies acima usam USING (true) / WITH CHECK (true)
+-- porque o sistema esta em modo single-tenant. A autenticacao e autorizacao
+-- sao feitas no middleware e nas API routes (que usam service_role).
+-- Em uma migracao futura para multi-tenant, substituir USING (true) por
+-- USING (tenant_id = auth.jwt()->>'tenant_id').
+
+-- projects + project_tasks (acessados pelo ProjectContext via anon key)
+DROP POLICY IF EXISTS projects_all ON projects;
+CREATE POLICY projects_select ON projects FOR SELECT TO authenticated USING (true);
+CREATE POLICY projects_insert ON projects FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY projects_update ON projects FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY projects_delete ON projects FOR DELETE TO authenticated USING (true);
+
+DROP POLICY IF EXISTS project_tasks_all ON project_tasks;
+CREATE POLICY project_tasks_select ON project_tasks FOR SELECT TO authenticated USING (true);
+CREATE POLICY project_tasks_insert ON project_tasks FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY project_tasks_update ON project_tasks FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY project_tasks_delete ON project_tasks FOR DELETE TO authenticated USING (true);
+
+-- companies (acessado pelo CompanyForm via anon key)
+DROP POLICY IF EXISTS companies_all ON companies;
+CREATE POLICY companies_select ON companies FOR SELECT TO authenticated USING (true);
+CREATE POLICY companies_insert ON companies FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY companies_update ON companies FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY companies_delete ON companies FOR DELETE TO authenticated USING (true);

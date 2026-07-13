@@ -181,3 +181,32 @@ create index if not exists idx_client_list_deleted_at on public.client_list (del
 - Clientes deletados: 0
 - Build: 50/50 rotas, sem erros
 - Deploy: `https://crepaldidh.vercel.app`
+
+## Session 2026-07-12 — RLS policies individuais + fix null/empty + error handling audit
+
+### Policies RLS
+- **Antes**: cada tabela tinha 1 policy `FOR ALL` (cobre SELECT/INSERT/UPDATE/DELETE)
+- **Agora**: policies separadas por operacao nas tabelas crÃ­ticas:
+  - `client_list`, `client_contacts`, `client_interactions`, `client_documents`, `client_feedbacks`
+  - `crm_companies`, `admin_users`
+  - `projects`, `project_tasks`, `companies`
+- Exemplo (`client_list`):
+  ```sql
+  DROP POLICY IF EXISTS client_list_all ON client_list;
+  CREATE POLICY client_list_select ON client_list FOR SELECT TO authenticated USING (true);
+  CREATE POLICY client_list_insert ON client_list FOR INSERT TO authenticated WITH CHECK (true);
+  CREATE POLICY client_list_update ON client_list FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+  CREATE POLICY client_list_delete ON client_list FOR DELETE TO authenticated USING (true);
+  ```
+- **Nota**: API routes usam `SUPABASE_SERVICE_ROLE_KEY` (bypassa RLS). As policies servem para acesso direto via anon key (ProjectContext, CompanyForm).
+
+### Fix EMPTY/NULL values
+- **`/api/clients/route.ts` POST**: `company_id` agora salva como `null` (em vez de `''` vazio) quando nÃ£o hÃ¡ referÃªncia de empresa
+- Outros campos opcionais (`cnpj`, `segment`, `city`, `state`, `internal_responsible`, `start_date`, `end_date`, `notes`) tambÃ©m salvam como `null` em vez de `''`
+- **Causa**: form usa `companyId: cli-comp-${Date.now()}` como placeholder local; API salvava como string vazia
+
+### Error handling audit
+- Todas as API routes (`/api/clients`, `/api/admin/users`, `/api/sync-admin-users`, `/api/sync/[moduleKey]`) checam `{ data, error }` e retornam cÃ³digo HTTP adequado
+- Todos os contexts em client-side usam `console.error` nos catch blocks (nunca `.catch(() => {})`)
+- Direct Supabase writes (CompanyForm, ProjectContext) checam `{ data, error }` e logam erro em vez de `throw`
+- Build: 50/50 rotas, sem erros
