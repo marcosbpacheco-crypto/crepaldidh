@@ -198,6 +198,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setLgpdConsents([])
     setPrivacyRequests([])
 
+    // Restore session from cookie
+    try {
+      const raw = document.cookie.split('; ').find(c => c.startsWith('session='))
+      if (raw) {
+        const parsed = JSON.parse(decodeURIComponent(raw.split('=')[1]))
+        if (parsed.userId) setCurrentUserIdState(parsed.userId)
+      }
+    } catch { /* ignore malformed cookie */ }
+
     // Load from service
     Promise.all([
       userService.list(),
