@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import { useProjects } from './context/ProjectContext'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
@@ -38,29 +39,30 @@ const STATUS_LABELS: Record<string, string> = {
   pausado: 'Pausado',
 }
 
-const SEED_PROJECTS: Project[] = []
-
 export default function ProjectsPage() {
+  const { projects: ctxProjects = [], createProject, updateProject } = useProjects()
   const { events } = useTrainings()
   const { companies } = useCrm()
   const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
 
-  const stored = typeof window !== 'undefined'
-    ? (() => { try { const s = localStorage.getItem('erp_projects'); return s ? JSON.parse(s) : SEED_PROJECTS } catch { return SEED_PROJECTS } })()
-    : SEED_PROJECTS
-
-  const [projects, setProjects] = useState<Project[]>(stored)
-  const [selected, setSelected] = useState<Project | null>(projects[0] || null)
+  const [selected, setSelected] = useState<Project | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [form, setForm] = useState<{ name: string; companyId: string; description: string; startDate: string; endDate: string; status: Project['status']; budget: number }>({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
 
   const resetForm = () => setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
 
-  const saveProjects = (list: Project[]) => {
-    setProjects(list)
-    if (typeof window !== 'undefined') localStorage.setItem('erp_projects', JSON.stringify(list))
-  }
+  const projects: Project[] = useMemo(() => ctxProjects.map(p => ({
+    id: p.id,
+    name: p.name,
+    companyId: p.company_id,
+    companyName: companies.find(c => c.id === p.company_id)?.name || '',
+    description: p.description || '',
+    startDate: p.start_date || '',
+    endDate: p.end_date || '',
+    status: p.status as Project['status'],
+    budget: 0,
+  })), [ctxProjects, companies])
 
   const openEdit = (p: Project) => {
     setEditingProject(p)
@@ -76,32 +78,28 @@ export default function ProjectsPage() {
     setShowForm(true)
   }
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    const comp = companies.find(c => c.id === form.companyId)
     if (editingProject) {
-      const updated = projects.map(p => p.id === editingProject.id ? {
-        ...p,
+      await updateProject(editingProject.id, {
+        company_id: form.companyId,
         name: form.name,
-        companyId: form.companyId,
-        companyName: comp?.name || form.companyId,
         description: form.description,
-        startDate: form.startDate,
-        endDate: form.endDate,
+        start_date: form.startDate,
+        end_date: form.endDate,
         status: form.status,
-        budget: form.budget,
-      } : p)
-      saveProjects(updated)
-      setSelected(updated.find(p => p.id === editingProject.id) || null)
+      })
+      setSelected(null)
     } else {
-      const np: Project = {
-        ...form,
-        id: `proj-${Date.now()}`,
-        companyName: comp?.name || form.companyId,
-      }
-      const updated = [np, ...projects]
-      saveProjects(updated)
-      setSelected(np)
+      await createProject({
+        company_id: form.companyId,
+        name: form.name,
+        description: form.description,
+        start_date: form.startDate,
+        end_date: form.endDate,
+        status: form.status,
+      })
+      setSelected(null)
     }
     setShowForm(false)
     setEditingProject(null)

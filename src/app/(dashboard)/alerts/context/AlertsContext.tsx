@@ -26,7 +26,7 @@ interface AlertsContextType {
 const AlertsContext = createContext<AlertsContextType | undefined>(undefined)
 
 export function AlertsProvider({ children }: { children: React.ReactNode }) {
-  const { companies, tasks, contracts } = useCrm()
+  const { companies, tasks, contracts, activities } = useCrm()
   const { events } = useCalendar()
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
@@ -63,29 +63,6 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
         })
       }
     })
-
-    // 2. Projetos atrasados (projetos com data final vencida - from localStorage)
-    try {
-      const stored = localStorage.getItem('erp_projects')
-      if (stored) {
-        const projects = JSON.parse(stored)
-        projects.forEach((p: any) => {
-          if ((p.status === 'em_andamento' || p.status === 'planejado') && new Date(p.endDate) < now) {
-            const daysOverdue = Math.floor((now.getTime() - new Date(p.endDate).getTime()) / 86400000)
-            result.push({
-              id: `alert-project-${p.id}`,
-              type: 'project_delayed',
-              title: 'Projeto atrasado',
-              description: `"${p.name}" está ${daysOverdue} dia(s) atrasado (vencimento: ${new Date(p.endDate).toLocaleDateString('pt-BR')})`,
-              severity: daysOverdue > 30 ? 'critical' : daysOverdue > 15 ? 'high' : 'medium',
-              entityId: p.id, entityType: 'project',
-              createdAt: new Date(now.getTime() - daysOverdue * 86400000).toISOString(),
-              isRead: readIds.has(`alert-project-${p.id}`),
-            })
-          }
-        })
-      }
-    } catch {}
 
     // 3. Contratos vencendo (30, 15, 7 dias)
     contracts.filter(c => c.status === 'active').forEach(c => {
@@ -128,33 +105,27 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
     })
 
     // 5. Clientes sem interação (90+ dias)
-    // Activity tracking is via CRM activities
-    try {
-      const activitiesRaw = localStorage.getItem('crm_activities')
-      if (activitiesRaw) {
-        const allActivities = JSON.parse(activitiesRaw)
-        companies.filter(c => c.status === 'active').forEach(comp => {
-          const lastActivity = allActivities
-            .filter((a: any) => a.companyId === comp.id)
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-          const daysSinceLast = lastActivity
-            ? Math.floor((now.getTime() - new Date(lastActivity.date).getTime()) / 86400000)
-            : 999
-          if (daysSinceLast >= 90) {
-            result.push({
-              id: `alert-client-interaction-${comp.id}`,
-              type: 'client_no_interaction',
-              title: 'Cliente sem interação',
-              description: `${comp.name} está há ${daysSinceLast} dia(s) sem interação registrada`,
-              severity: daysSinceLast >= 180 ? 'critical' : daysSinceLast >= 120 ? 'high' : 'medium',
-              entityId: comp.id, entityType: 'company',
-              createdAt: now.toISOString(),
-              isRead: readIds.has(`alert-client-interaction-${comp.id}`),
-            })
-          }
+    const allActivities = activities || []
+    companies.filter(c => c.status === 'active').forEach(comp => {
+      const lastActivity = allActivities
+        .filter((a: any) => a.companyId === comp.id)
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+      const daysSinceLast = lastActivity
+        ? Math.floor((now.getTime() - new Date(lastActivity.date).getTime()) / 86400000)
+        : 999
+      if (daysSinceLast >= 90) {
+        result.push({
+          id: `alert-client-interaction-${comp.id}`,
+          type: 'client_no_interaction',
+          title: 'Cliente sem interação',
+          description: `${comp.name} está há ${daysSinceLast} dia(s) sem interação registrada`,
+          severity: daysSinceLast >= 180 ? 'critical' : daysSinceLast >= 120 ? 'high' : 'medium',
+          entityId: comp.id, entityType: 'company',
+          createdAt: now.toISOString(),
+          isRead: readIds.has(`alert-client-interaction-${comp.id}`),
         })
       }
-    } catch {}
+    })
 
     // Ordenar: mais recentes primeiro, críticos primeiro
     return result.sort((a, b) => {
@@ -164,7 +135,7 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
-  }, [tasks, companies, contracts, events, readIds])
+  }, [tasks, companies, contracts, events, activities, readIds])
 
   const unreadCount = alerts.filter(a => !a.isRead).length
 

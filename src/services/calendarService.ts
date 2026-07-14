@@ -1,76 +1,107 @@
-import { getClient, handleError } from './base'
 import type { CalendarEvent, CalendarParticipant, CalendarReminder } from '@/types/calendar'
 
-const EVENTS_TABLE = 'calendar_events'
-const PARTICIPANTS_TABLE = 'calendar_participants'
-const REMINDERS_TABLE = 'calendar_reminders'
+const BASE = '/api/prisma/calendar'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const calendarService = {
+  async saveAll(data: {
+    events?: CalendarEvent[]
+    participants?: CalendarParticipant[]
+    reminders?: CalendarReminder[]
+  }): Promise<void> {
+    const jobs: Promise<any>[] = []
+    for (const e of data.events || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'event', ...meRow(e) }) }).catch(() => {}))
+    }
+    for (const p of data.participants || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
+    }
+    for (const r of data.reminders || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'reminder', ...mrRow(r) }) }).catch(() => {}))
+    }
+    await Promise.allSettled(jobs)
+  },
   async list(): Promise<CalendarEvent[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).select('*').order('event_date', { ascending: true })
-    if (error) handleError(error, 'calendarService.list')
-    return (data || []).map(mapEvent)
+    const data = await api(BASE)
+    return (data.events || []).map(mapEvent)
   },
   async create(input: Partial<CalendarEvent>): Promise<CalendarEvent> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'calendarService.create')
-    return mapEvent(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'event', ...input }),
+    })
+    return mapEvent(data.event)
   },
   async update(id: string, input: Partial<CalendarEvent>): Promise<CalendarEvent> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'calendarService.update')
-    return mapEvent(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    })
+    return mapEvent(data.event)
   },
   async remove(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(EVENTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'calendarService.remove')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
   },
   async listParticipants(eventId?: string): Promise<CalendarParticipant[]> {
-    const supabase = getClient()
-    let q = supabase.from(PARTICIPANTS_TABLE).select('*')
-    if (eventId) q = q.eq('event_id', eventId)
-    const { data, error } = await q
-    if (error) handleError(error, 'calendarService.listParticipants')
-    return (data || []).map(mapParticipant)
+    const data = await api(BASE)
+    const all: CalendarParticipant[] = []
+    for (const e of data.events || []) {
+      for (const r of e.calendar_participants || []) {
+        all.push(mapParticipant({ ...r, event_id: e.id }))
+      }
+    }
+    return eventId ? all.filter(p => p.eventId === eventId) : all
   },
   async createParticipant(input: Partial<CalendarParticipant>): Promise<CalendarParticipant> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'calendarService.createParticipant')
-    return mapParticipant(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', ...input }),
+    })
+    return mapParticipant(data.participant)
   },
   async removeParticipant(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PARTICIPANTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'calendarService.removeParticipant')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id }),
+    })
   },
   async confirmParticipant(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PARTICIPANTS_TABLE).update({ confirmed: true }).eq('id', id)
-    if (error) handleError(error, 'calendarService.confirmParticipant')
+    await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id, confirmed: true }),
+    })
   },
   async listReminders(eventId?: string): Promise<CalendarReminder[]> {
-    const supabase = getClient()
-    let q = supabase.from(REMINDERS_TABLE).select('*')
-    if (eventId) q = q.eq('event_id', eventId)
-    const { data, error } = await q
-    if (error) handleError(error, 'calendarService.listReminders')
-    return (data || []).map(mapReminder)
+    const data = await api(BASE)
+    const all: CalendarReminder[] = []
+    for (const e of data.events || []) {
+      for (const r of e.calendar_reminders || []) {
+        all.push(mapReminder({ ...r, event_id: e.id }))
+      }
+    }
+    return eventId ? all.filter(r => r.eventId === eventId) : all
   },
   async createReminder(input: Partial<CalendarReminder>): Promise<CalendarReminder> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(REMINDERS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'calendarService.createReminder')
-    return mapReminder(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'reminder', ...input }),
+    })
+    return mapReminder(data.reminder)
   },
   async removeReminder(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(REMINDERS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'calendarService.removeReminder')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'reminder', id }),
+    })
   },
 }
 
@@ -82,4 +113,17 @@ function mapParticipant(r: any): CalendarParticipant {
 }
 function mapReminder(r: any): CalendarReminder {
   return { id: r.id, eventId: r.event_id, reminderTime: r.reminder_time, method: r.method, sent: r.sent, createdAt: r.created_at }
+}
+
+function meRow(r: any) {
+  const { eventDate, startTime, endTime, reminderMinutes, allDay, companyName, projectName, contractName, googleEventId, createdAt, updatedAt, ...rest } = r
+  return { ...rest, event_date: r.eventDate, start_time: r.startTime, end_time: r.endTime, reminder_minutes: r.reminderMinutes, all_day: r.allDay, company_name: r.companyName, project_name: r.projectName, contract_name: r.contractName, google_event_id: r.googleEventId, created_at: r.createdAt, updated_at: r.updatedAt }
+}
+function mpRow(r: any) {
+  const { eventId, ...rest } = r
+  return { ...rest, event_id: r.eventId }
+}
+function mrRow(r: any) {
+  const { eventId, reminderTime, ...rest } = r
+  return { ...rest, event_id: r.eventId, reminder_time: r.reminderTime }
 }

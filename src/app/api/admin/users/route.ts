@@ -1,23 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase/admin'
-import { cookies } from 'next/headers'
-
-// Extracts userId from real Supabase session OR sb-mock-session cookie
-async function getUserId(): Promise<string | null> {
-  try {
-    const cookieStore = await cookies()
-    const mockCookie = cookieStore.get('sb-mock-session')?.value
-    if (mockCookie) {
-      try {
-        const parsed = JSON.parse(mockCookie)
-        if (parsed.userId) return parsed.userId
-      } catch {
-        if (mockCookie === 'true') return 'mock-user-id'
-      }
-    }
-  } catch (e) { console.error('[API/admin/users] getUserId error:', e) }
-  return null
-}
 
 // Shared admin client (service_role — bypasses RLS)
 function getClient() {
@@ -36,7 +18,6 @@ export async function POST(request: Request) {
     }
 
     const admin = getClient()
-    const requesterId = await getUserId()
 
     // Create auth user
     const { data: newUser, error: createError } = await admin.auth.admin.createUser({

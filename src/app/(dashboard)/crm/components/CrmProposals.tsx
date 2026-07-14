@@ -1056,15 +1056,6 @@ export const CrmProposals: React.FC = () => {
                             status: 'draft',
                             attachments: [`contrato_gerado_ia_${Date.now()}.txt`],
                           })
-                          try {
-                            const stored = JSON.parse(localStorage.getItem('crm_contracts') || '[]')
-                            const idx = stored.findIndex((c: any) => c.id === newContract.id)
-                            if (idx !== -1) {
-                              stored[idx].attachments = stored[idx].attachments || []
-                              stored[idx].attachments.push(`contrato_gerado_ia_${Date.now()}.txt`)
-                              localStorage.setItem('crm_contracts', JSON.stringify(stored))
-                            }
-                          } catch {}
                           setShowAiGenerator(false)
                         }} className="px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Salvar Contrato

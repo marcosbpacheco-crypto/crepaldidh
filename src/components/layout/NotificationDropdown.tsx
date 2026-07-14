@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bell, X, Check, LogIn, LogOut, UserPlus, Edit2, Trash2, Download, Eye, Activity, Clock, AlertTriangle, Shield } from 'lucide-react'
+import { Bell, X, LogIn, LogOut, UserPlus, Edit2, Trash2, Download, Eye, Activity, Clock } from 'lucide-react'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 
 const ACTION_ICONS: Record<string, typeof LogIn> = {
   login: LogIn, logout: LogOut, create: UserPlus, update: Edit2,
@@ -26,29 +27,12 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationDropdown() {
+  const admin = useAdmin()
   const [open, setOpen] = useState(false)
-  const [logs, setLogs] = useState<any[]>([])
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('admin_audit_logs')
-      if (stored) setLogs(JSON.parse(stored).slice(0, 10))
-    } catch {}
-    try {
-      const stored = localStorage.getItem('notification_read_ids')
-      if (stored) setReadIds(new Set(JSON.parse(stored)))
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    if (!open) return
-    try {
-      const stored = localStorage.getItem('admin_audit_logs')
-      if (stored) setLogs(JSON.parse(stored).slice(0, 10))
-    } catch {}
-  }, [open])
+  const logs = admin.auditLogs.slice(0, 10)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -64,7 +48,6 @@ export function NotificationDropdown() {
     const ids = new Set(logs.map(l => l.id))
     const merged = new Set([...readIds, ...ids])
     setReadIds(merged)
-    try { localStorage.setItem('notification_read_ids', JSON.stringify([...merged])) } catch {}
   }
 
   function getIcon(action: string) {

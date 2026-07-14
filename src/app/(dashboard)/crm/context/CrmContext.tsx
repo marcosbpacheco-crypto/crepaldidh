@@ -269,52 +269,10 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const queryClient = useQueryClient()
 
-  // Load CRM data: localStorage cache first, then Supabase via service
+  // Load CRM data from Prisma API
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const getStored = <T,>(key: string, initial: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : initial
-      } catch { return initial }
-    }
-
-    const loadFromCache = () => {
-      const rawCompanies = getStored<any[]>('crm_companies', [])
-      const seen = new Set<string>()
-      const cleanCompanies = rawCompanies.filter(c => {
-        if (!c || !c.name || !c.name.trim()) return false
-        const key = c.name.trim().toLowerCase()
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-      if (cleanCompanies.length !== rawCompanies.length) {
-        localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
-      }
-      setCompanies(cleanCompanies as Company[])
-      setContacts(getStored('crm_contacts', INITIAL_CONTACTS))
-      setDeals(getStored('crm_deals', INITIAL_DEALS))
-      setActivities(getStored('crm_activities', INITIAL_ACTIVITIES))
-      setTasks(getStored('crm_tasks', INITIAL_TASKS))
-      setProposals(getStored('crm_proposals', INITIAL_PROPOSALS))
-      setContracts(getStored('crm_contracts', INITIAL_CONTRACTS))
-      setClients(getStored('crm_clients', []))
-      setDiagnostics(getStored('crm_diagnostics', []))
-      setUnits(getStored('crm_units', []))
-      setSectors(getStored('crm_sectors', []))
-      setRisks(getStored('crm_risks', []))
-      setEvidences(getStored('crm_evidences', []))
-      setActionPlans(getStored('crm_actionPlans', []))
-      setMonitoring(getStored('crm_monitoring', []))
-      setReports(getStored('crm_reports', []))
-      setInterviews(getStored('crm_interviews', []))
-    }
-
-    loadFromCache()
-
-    // Load from Supabase via service
     Promise.all([
       crmService.listCompanies(),
       crmService.listContacts(),
@@ -334,7 +292,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           seen.add(key)
           return true
         })
-        if (getStored<any[]>('crm_companies', []).length === 0) { setCompanies(clean); localStorage.setItem('crm_companies', JSON.stringify(clean)) }
+        setCompanies(clean)
       }
       if (apiContacts.length > 0) setContacts(apiContacts)
       if (apiDeals.length > 0) setDeals(apiDeals)
@@ -344,62 +302,23 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (apiContracts.length > 0) setContracts(apiContracts)
       if (apiClients.length > 0) setClients(apiClients)
     }).catch((err) => console.error('[CRM] service load error:', err))
-
-    const storedRole = localStorage.getItem('crm_current_role')
-    if (storedRole) setCurrentRole(storedRole as UserRole)
   }, [])
 
   // Atencao: CrmContext NAO deve manipular clients_data.
   // O ClientsContext e o unico responsavel por gerenciar clients_data.
   // Cross-sync e feito exclusivamente via API routes (POST /api/clients → syncClientToCRM).
 
-  // Deduplicate crm_companies (source of truth) on mount
+  // Remove stale localStorage keys from old seeds/mocks
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const companiesRaw = localStorage.getItem('crm_companies')
-      let cleanCompanies: any[] = []
-      if (companiesRaw) {
-        const list = JSON.parse(companiesRaw) as any[]
-        const seen = new Set<string>()
-        cleanCompanies = list.filter(c => {
-          if (!c || !c.name || !c.name.trim()) return false
-          const key = c.name.trim().toLowerCase()
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        if (cleanCompanies.length !== list.length) {
-          localStorage.setItem('crm_companies', JSON.stringify(cleanCompanies))
-        }
-      }
-
-      // Remove stale localStorage keys from old seeds/mocks
-      const STALE_KEYS = [
-        'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
-        'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
-        'projects_mock', 'portal_mock', 'assessoria_mock',
-      ]
-      for (const key of STALE_KEYS) {
-        try { localStorage.removeItem(key) } catch {}
-      }
-
-      // Reload state
-      setCompanies(cleanCompanies)
-    } catch { /* ignore reconcile errors */ }
-  }, [])
-
-  // Listen for cross-sync from Clients module
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const handler = () => {
-      try {
-        const stored = localStorage.getItem('crm_companies')
-        if (stored) setCompanies(JSON.parse(stored))
-      } catch { /* ignore */ }
+    const STALE_KEYS = [
+      'clients_seed', 'clientes_mock', 'crm_mock', 'training_mock',
+      'financial_mock', 'admin_mock', 'mentoring_mock', 'documents_mock',
+      'projects_mock', 'portal_mock', 'assessoria_mock',
+    ]
+    for (const key of STALE_KEYS) {
+      try { localStorage.removeItem(key) } catch {}
     }
-    window.addEventListener('crm:sync-companies', handler)
-    return () => window.removeEventListener('crm:sync-companies', handler)
   }, [])
 
   // Refetch all CRM data from Supabase (manual refresh)
@@ -444,9 +363,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const changeRole = (role: UserRole) => {
     setCurrentRole(role)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('crm_current_role', role)
-    }
   }
   // NR01 mutator placeholders (to be implemented later)
   const addDiagnostic = (diag: Omit<Diagnostic, 'id' | 'createdAt'>) => {
@@ -896,30 +812,19 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
-  // Persist CRM data to localStorage + Supabase via crmService (debounced, guarded)
+  // Persist CRM data to Prisma via crmService (debounced)
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = companies.length > 0 || contacts.length > 0 || deals.length > 0 ||
       activities.length > 0 || tasks.length > 0 || proposals.length > 0 ||
-      contracts.length > 0 || clients.length > 0 || diagnostics.length > 0 ||
-      units.length > 0 || sectors.length > 0 || risks.length > 0 ||
-      evidences.length > 0 || actionPlans.length > 0 || monitoring.length > 0 ||
-      reports.length > 0 || interviews.length > 0
+      contracts.length > 0
     if (!hasData) return
-    localStorage.setItem('crm_companies', JSON.stringify(companies))
-    localStorage.setItem('crm_contacts', JSON.stringify(contacts))
-    localStorage.setItem('crm_deals', JSON.stringify(deals))
-    localStorage.setItem('crm_activities', JSON.stringify(activities))
-    localStorage.setItem('crm_tasks', JSON.stringify(tasks))
-    localStorage.setItem('crm_proposals', JSON.stringify(proposals))
-    localStorage.setItem('crm_contracts', JSON.stringify(contracts))
-    localStorage.setItem('crm_clients', JSON.stringify(clients))
     const timer = setTimeout(() => {
       crmService.saveAll({ companies, contacts, deals, activities, tasks, proposals, contracts, clients })
         .catch((err) => console.error('[CRM] saveAll error:', err))
     }, 500)
     return () => clearTimeout(timer)
-  }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients, diagnostics, units, sectors, risks, evidences, actionPlans, monitoring, reports, interviews])
+  }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients])
 
   // Helper helper
   function getRoleUserName(role: UserRole): string {

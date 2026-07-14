@@ -1,14 +1,13 @@
-import { getClient, handleError } from './base'
 import type { AccountReceivable, AccountPayable, FinancialCategory, PaymentMethod, RecurringRule, FinancialTransaction, FinancialInvoice, BankTransaction } from '@/types/finance'
 
-const RECEIVABLES_TABLE = 'financial_accounts_receivable'
-const PAYABLES_TABLE = 'financial_accounts_payable'
-const CATEGORIES_TABLE = 'financial_categories'
-const PAYMENT_METHODS_TABLE = 'financial_payment_methods'
-const RECURRING_TABLE = 'financial_recurring_rules'
-const TRANSACTIONS_TABLE = 'financial_transactions'
-const INVOICES_TABLE = 'financial_invoices'
-const BANK_TABLE = 'fin_bank_transactions'
+const BASE = '/api/prisma/financial'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const financeService = {
   async saveAll(data: {
@@ -16,158 +15,179 @@ export const financeService = {
     paymentMethods?: PaymentMethod[]
     receivables?: AccountReceivable[]
     payables?: AccountPayable[]
-    transactions?: FinancialTransaction[]
-    invoices?: FinancialInvoice[]
     recurringRules?: RecurringRule[]
+    invoices?: FinancialInvoice[]
+    transactions?: FinancialTransaction[]
     bankTransactions?: BankTransaction[]
   }): Promise<void> {
-    const supabase = getClient()
     const jobs: Promise<any>[] = []
-    if (data.categories?.length) jobs.push(Promise.resolve(supabase.from(CATEGORIES_TABLE).upsert(data.categories.map(mc))))
-    if (data.paymentMethods?.length) jobs.push(Promise.resolve(supabase.from(PAYMENT_METHODS_TABLE).upsert(data.paymentMethods.map(mpm))))
-    if (data.receivables?.length) jobs.push(Promise.resolve(supabase.from(RECEIVABLES_TABLE).upsert(data.receivables.map(mrRow))))
-    if (data.payables?.length) jobs.push(Promise.resolve(supabase.from(PAYABLES_TABLE).upsert(data.payables.map(mpRow))))
-    if (data.transactions?.length) jobs.push(Promise.resolve(supabase.from(TRANSACTIONS_TABLE).upsert(data.transactions.map(mtRow))))
-    if (data.invoices?.length) jobs.push(Promise.resolve(supabase.from(INVOICES_TABLE).upsert(data.invoices.map(minvRow))))
-    if (data.recurringRules?.length) jobs.push(Promise.resolve(supabase.from(RECURRING_TABLE).upsert(data.recurringRules.map(mrrRow))))
-    if (data.bankTransactions?.length) jobs.push(Promise.resolve(supabase.from(BANK_TABLE).upsert(data.bankTransactions.map(mbtRow))))
+    for (const c of data.categories || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'category', ...c }) }).catch(() => {}))
+    }
+    for (const p of data.paymentMethods || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'paymentMethod', ...p }) }).catch(() => {}))
+    }
+    for (const r of data.receivables || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'receivable', ...mrRow(r) }) }).catch(() => {}))
+    }
+    for (const p of data.payables || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'payable', ...mpRow(p) }) }).catch(() => {}))
+    }
+    for (const r of data.recurringRules || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'recurringRule', ...mrrRow(r) }) }).catch(() => {}))
+    }
+    for (const i of data.invoices || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'invoice', ...minvRow(i) }) }).catch(() => {}))
+    }
+    for (const t of data.transactions || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'transaction', ...mtRow(t) }) }).catch(() => {}))
+    }
+    for (const b of data.bankTransactions || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'bankTransaction', ...mbtRow(b) }) }).catch(() => {}))
+    }
     await Promise.allSettled(jobs)
   },
+
   // Categories
   async listCategories(): Promise<FinancialCategory[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CATEGORIES_TABLE).select('*').order('name')
-    if (error) handleError(error, 'financeService.listCategories')
-    return data || []
+    const data = await api(BASE)
+    return data.categories || []
   },
   async createCategory(input: Partial<FinancialCategory>): Promise<FinancialCategory> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CATEGORIES_TABLE).insert(mc(input)).select().single()
-    if (error) handleError(error, 'financeService.createCategory')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'category', ...input }),
+    })
+    return data.category
   },
   async removeCategory(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(CATEGORIES_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'financeService.removeCategory')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'category', id }),
+    })
   },
+
   // Payment methods
   async listPaymentMethods(): Promise<PaymentMethod[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PAYMENT_METHODS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'financeService.listPaymentMethods')
-    return data || []
+    const data = await api(BASE)
+    return data.paymentMethods || []
   },
   async createPaymentMethod(input: Partial<PaymentMethod>): Promise<PaymentMethod> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PAYMENT_METHODS_TABLE).insert(mpm(input)).select().single()
-    if (error) handleError(error, 'financeService.createPaymentMethod')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'paymentMethod', ...input }),
+    })
+    return data.paymentMethod
   },
+
   // Receivables
   async listReceivables(): Promise<AccountReceivable[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECEIVABLES_TABLE).select('*').order('due_date')
-    if (error) handleError(error, 'financeService.listReceivables')
-    return (data || []).map(mr)
+    const data = await api(BASE)
+    return (data.receivables || []).map(mr)
   },
   async createReceivable(input: Partial<AccountReceivable>): Promise<AccountReceivable> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECEIVABLES_TABLE).insert(mrRow(input)).select().single()
-    if (error) handleError(error, 'financeService.createReceivable')
-    return mr(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'receivable', ...input }),
+    })
+    return mr(data.receivable)
   },
   async updateReceivable(id: string, input: Partial<AccountReceivable>): Promise<AccountReceivable> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECEIVABLES_TABLE).update(mrRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'financeService.updateReceivable')
-    return mr(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    })
+    return mr(data.receivable)
   },
   async removeReceivable(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(RECEIVABLES_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'financeService.removeReceivable')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'receivable', id }),
+    })
   },
+
   // Payables
   async listPayables(): Promise<AccountPayable[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PAYABLES_TABLE).select('*').order('due_date')
-    if (error) handleError(error, 'financeService.listPayables')
-    return (data || []).map(mp)
+    const data = await api(BASE)
+    return (data.payables || []).map(mp)
   },
   async createPayable(input: Partial<AccountPayable>): Promise<AccountPayable> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PAYABLES_TABLE).insert(mpRow(input)).select().single()
-    if (error) handleError(error, 'financeService.createPayable')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'payable', ...input }),
+    })
+    return mp(data.payable)
   },
   async updatePayable(id: string, input: Partial<AccountPayable>): Promise<AccountPayable> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PAYABLES_TABLE).update(mpRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'financeService.updatePayable')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'payable', id, ...input }),
+    })
+    return mp(data.payable)
   },
   async removePayable(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PAYABLES_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'financeService.removePayable')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'payable', id }),
+    })
   },
+
   // Recurring rules
   async listRecurringRules(): Promise<RecurringRule[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECURRING_TABLE).select('*').order('next_billing_date')
-    if (error) handleError(error, 'financeService.listRecurringRules')
-    return (data || []).map(mrr)
+    const data = await api(BASE)
+    return (data.recurringRules || []).map(mrr)
   },
   async createRecurringRule(input: Partial<RecurringRule>): Promise<RecurringRule> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECURRING_TABLE).insert(mrrRow(input)).select().single()
-    if (error) handleError(error, 'financeService.createRecurringRule')
-    return mrr(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'recurringRule', ...input }),
+    })
+    return mrr(data.recurringRule)
   },
   async updateRecurringRule(id: string, input: Partial<RecurringRule>): Promise<RecurringRule> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RECURRING_TABLE).update(mrrRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'financeService.updateRecurringRule')
-    return mrr(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'recurringRule', id, ...input }),
+    })
+    return mrr(data.recurringRule)
   },
   async removeRecurringRule(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(RECURRING_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'financeService.removeRecurringRule')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'recurringRule', id }),
+    })
   },
+
   // Transactions
   async listTransactions(): Promise<FinancialTransaction[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(TRANSACTIONS_TABLE).select('*').order('transaction_date', { ascending: false })
-    if (error) handleError(error, 'financeService.listTransactions')
-    return (data || []).map(mt)
+    const data = await api(BASE)
+    return (data.transactions || []).map(mt)
   },
+
   // Invoices
   async listInvoices(): Promise<FinancialInvoice[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(INVOICES_TABLE).select('*')
-    if (error) handleError(error, 'financeService.listInvoices')
-    return data || []
+    const data = await api(BASE)
+    return data.invoices || []
   },
   async createInvoice(input: Partial<FinancialInvoice>): Promise<FinancialInvoice> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(INVOICES_TABLE).insert(minvRow(input)).select().single()
-    if (error) handleError(error, 'financeService.createInvoice')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'invoice', ...input }),
+    })
+    return data.invoice
   },
+
   // Bank transactions
   async listBankTransactions(): Promise<BankTransaction[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(BANK_TABLE).select('*').order('date', { ascending: false })
-    if (error) handleError(error, 'financeService.listBankTransactions')
-    return data || []
+    const data = await api(BASE)
+    return data.bankTransactions || []
   },
   async createBankTransaction(input: Partial<BankTransaction>): Promise<BankTransaction> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(BANK_TABLE).insert(mbtRow(input)).select().single()
-    if (error) handleError(error, 'financeService.createBankTransaction')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'bankTransaction', ...input }),
+    })
+    return data.bankTransaction
   },
 }
 

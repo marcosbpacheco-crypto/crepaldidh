@@ -284,25 +284,9 @@ interface FinancialContextType {
 // 2. SEED DATA
 // ==========================================
 
-const SEED_PAYMENT_METHODS: PaymentMethod[] = [
-  { id: 'pm-1', name: 'PIX', active: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'pm-2', name: 'Boleto Bancário', active: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'pm-3', name: 'Transferência Bancária', active: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'pm-4', name: 'Cartão de Crédito', active: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'pm-5', name: 'Cartão de Débito', active: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'pm-6', name: 'Dinheiro', active: true, createdAt: '2026-01-01T00:00:00Z' },
-]
+const SEED_PAYMENT_METHODS: PaymentMethod[] = []
 
-const SEED_CATEGORIES: FinancialCategory[] = [
-  { id: 'cat-1', name: 'Infraestrutura', type: 'expense', description: 'Aluguel, energia, internet, etc.', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-2', name: 'Salários e Pró-labore', type: 'expense', description: 'Folha de pagamento', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-3', name: 'Marketing e Vendas', type: 'expense', description: 'Anúncios, eventos, materiais', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-4', name: 'Material Didático', type: 'expense', description: 'Apostilas, slides, impressões', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-5', name: 'Transporte e Logística', type: 'expense', description: 'Deslocamento de facilitadores', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-6', name: 'Impostos e Taxas', type: 'expense', description: 'Impostos federais, estaduais, municipais', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-7', name: 'Serviços Terceirizados', type: 'expense', description: 'Consultorias, contabilidade, etc.', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'cat-8', name: 'Software e Tecnologia', type: 'expense', description: 'Assinaturas, licenças, hospedagem', createdAt: '2026-01-01T00:00:00Z' },
-]
+const SEED_CATEGORIES: FinancialCategory[] = []
 
 function generateDueDate(baseDays: number): string {
   const d = new Date()
@@ -337,25 +321,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([])
   const queryClient = useQueryClient()
 
-  // ---- Load from financeService + localStorage fallback ----
+  // ---- Load from financeService ----
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const get = <T,>(key: string, fallback: T): T => {
-      try {
-        const stored = localStorage.getItem(key)
-        return stored ? JSON.parse(stored) : fallback
-      } catch { return fallback }
-    }
-    // localStorage first for instant display
-    setCategories(get('fin_categories', SEED_CATEGORIES))
-    setPaymentMethods(get('fin_payment_methods', SEED_PAYMENT_METHODS))
-    setReceivables(get('fin_receivables', SEED_RECEIVABLES))
-    setPayables(get('fin_payables', SEED_PAYABLES))
-    setTransactions(get('fin_transactions', []))
-    setInvoices(get('fin_invoices', []))
-    setRecurringRules(get('fin_recurring_rules', SEED_RECURRING_RULES))
-    setBankTransactions(get('fin_bank_transactions', []))
-    // then fetch from Supabase
     Promise.all([
       financeService.listCategories(),
       financeService.listPaymentMethods(),
@@ -374,15 +342,10 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (invs.length > 0) setInvoices(invs)
       if (rrs.length > 0) setRecurringRules(rrs)
       if (bts.length > 0) setBankTransactions(bts)
-      // cache to localStorage
-      const d = { categories: cats, paymentMethods: pms, receivables: recs, payables: pays, transactions: txs, invoices: invs, recurringRules: rrs, bankTransactions: bts }
-      for (const [k, v] of Object.entries(d)) {
-        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`fin_${k}`, JSON.stringify(v))
-      }
     }).catch((err) => console.error('[FinancialContext] load error:', err))
   }, [])
 
-  // ---- Sync to Supabase via financeService + cache to localStorage ----
+  // ---- Sync to Supabase via financeService ----
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = categories.length > 0 || paymentMethods.length > 0 || receivables.length > 0 || payables.length > 0 || transactions.length > 0 || invoices.length > 0 || recurringRules.length > 0 || bankTransactions.length > 0
@@ -390,14 +353,6 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const timer = setTimeout(() => {
       financeService.saveAll({ categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions })
         .catch(err => console.error('[FinancialContext] saveAll error:', err))
-      localStorage.setItem('fin_categories', JSON.stringify(categories))
-      localStorage.setItem('fin_payment_methods', JSON.stringify(paymentMethods))
-      localStorage.setItem('fin_receivables', JSON.stringify(receivables))
-      localStorage.setItem('fin_payables', JSON.stringify(payables))
-      localStorage.setItem('fin_transactions', JSON.stringify(transactions))
-      localStorage.setItem('fin_invoices', JSON.stringify(invoices))
-      localStorage.setItem('fin_recurring_rules', JSON.stringify(recurringRules))
-      localStorage.setItem('fin_bank_transactions', JSON.stringify(bankTransactions))
     }, 500)
     return () => clearTimeout(timer)
   }, [categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions])

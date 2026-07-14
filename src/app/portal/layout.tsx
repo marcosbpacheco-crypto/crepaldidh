@@ -1,28 +1,30 @@
 'use client'
 
 import { DashboardProviders } from '@/app/(dashboard)/Providers'
-import { PortalProvider } from './context/PortalContext'
+import { PortalProvider, usePortal } from './context/PortalContext'
 import { usePathname, redirect } from 'next/navigation'
-import { useEffect, useState } from 'react'
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+function PortalAuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = usePortal()
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => { setMounted(true) }, [])
-
-  if (!mounted) return null
+  if (isLoading) return null
 
   const isLogin = pathname === '/portal'
-  const stored = typeof window !== 'undefined' ? localStorage.getItem('portal_user') : null
 
-  if (!stored && !isLogin) { redirect('/portal') }
-  if (stored && isLogin) { redirect('/portal/dashboard') }
+  if (!user && !isLogin) { redirect('/portal') }
+  if (user && isLogin) { redirect('/portal/dashboard') }
 
+  return <>{children}</>
+}
+
+export default function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardProviders>
       <PortalProvider>
-        {children}
+        <PortalAuthGuard>
+          {children}
+        </PortalAuthGuard>
       </PortalProvider>
     </DashboardProviders>
   )

@@ -1,68 +1,93 @@
-import { getClient, handleError } from './base'
 import type { Document, DocumentVersion, DocumentAccessLog, DocumentCategory } from '@/types/documents'
 
-const DOCUMENTS_TABLE = 'documents'
-const VERSIONS_TABLE = 'document_versions'
-const ACCESS_LOGS_TABLE = 'document_access_logs'
-const CATEGORIES_TABLE = 'document_categories'
+const BASE = '/api/prisma/documents'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const documentService = {
+  async saveAll(data: {
+    documents?: Document[]
+    versions?: DocumentVersion[]
+    accessLogs?: DocumentAccessLog[]
+  }): Promise<void> {
+    const jobs: Promise<any>[] = []
+    for (const d of data.documents || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'document', ...mdRow(d) }) }).catch(() => {}))
+    }
+    for (const v of data.versions || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'version', ...mvRow(v) }) }).catch(() => {}))
+    }
+    for (const a of data.accessLogs || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'accessLog', ...maRow(a) }) }).catch(() => {}))
+    }
+    await Promise.allSettled(jobs)
+  },
   async list(): Promise<Document[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(DOCUMENTS_TABLE).select('*').order('created_at', { ascending: false })
-    if (error) handleError(error, 'documentService.list')
-    return (data || []).map(md)
+    const data = await api(BASE)
+    return (data.documents || []).map(md)
   },
   async create(input: Partial<Document>): Promise<Document> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(DOCUMENTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'documentService.create')
-    return md(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'document', ...input }),
+    })
+    return md(data.document)
   },
   async update(id: string, input: Partial<Document>): Promise<Document> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(DOCUMENTS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'documentService.update')
-    return md(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    })
+    return md(data.document)
   },
   async remove(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(DOCUMENTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'documentService.remove')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
   },
   async listVersions(documentId?: string): Promise<DocumentVersion[]> {
-    const supabase = getClient()
-    let q = supabase.from(VERSIONS_TABLE).select('*')
-    if (documentId) q = q.eq('document_id', documentId)
-    const { data, error } = await q.order('version_number', { ascending: false })
-    if (error) handleError(error, 'documentService.listVersions')
-    return (data || []).map(mv)
+    const data = await api(BASE)
+    const all: DocumentVersion[] = []
+    for (const d of data.documents || []) {
+      for (const r of d.document_versions || []) {
+        all.push(mv({ ...r, document_id: d.id }))
+      }
+    }
+    return documentId ? all.filter(v => v.documentId === documentId) : all
   },
   async createVersion(input: Partial<DocumentVersion>): Promise<DocumentVersion> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(VERSIONS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'documentService.createVersion')
-    return mv(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'version', ...input }),
+    })
+    return mv(data.version)
   },
   async listAccessLogs(documentId?: string): Promise<DocumentAccessLog[]> {
-    const supabase = getClient()
-    let q = supabase.from(ACCESS_LOGS_TABLE).select('*')
-    if (documentId) q = q.eq('document_id', documentId)
-    const { data, error } = await q.order('accessed_at', { ascending: false })
-    if (error) handleError(error, 'documentService.listAccessLogs')
-    return (data || []).map(ma)
+    const data = await api(BASE)
+    const all: DocumentAccessLog[] = []
+    for (const d of data.documents || []) {
+      for (const r of d.document_access_logs || []) {
+        all.push(ma({ ...r, document_id: d.id }))
+      }
+    }
+    return documentId ? all.filter(l => l.documentId === documentId) : all
   },
   async logAccess(input: Partial<DocumentAccessLog>): Promise<DocumentAccessLog> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(ACCESS_LOGS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'documentService.logAccess')
-    return ma(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'accessLog', ...input }),
+    })
+    return ma(data.accessLog)
   },
   async listCategories(): Promise<DocumentCategory[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CATEGORIES_TABLE).select('*').order('name')
-    if (error) handleError(error, 'documentService.listCategories')
-    return data || []
+    const data = await api(BASE)
+    return data.categories || []
   },
 }
 
@@ -71,3 +96,16 @@ function mv(r: any): DocumentVersion {
   return { ...r, documentId: r.document_id, versionNumber: r.version_number, fileUrl: r.file_url, fileSize: r.file_size, uploadedBy: r.uploaded_by, uploadedAt: r.uploaded_at || r.created_at }
 }
 function ma(r: any): DocumentAccessLog { return { ...r, documentId: r.document_id, userId: r.user_id, accessedAt: r.accessed_at, createdAt: r.accessed_at || r.created_at } }
+
+function mdRow(r: any) {
+  const { companyId, contractId, categoryId, docType, fileUrl, fileSize, uploadedBy, createdAt, updatedAt, ...rest } = r
+  return { ...rest, company_id: r.companyId, contract_id: r.contractId, category_id: r.categoryId, doc_type: r.docType, file_url: r.fileUrl, file_size: r.fileSize, uploaded_by: r.uploadedBy, created_at: r.createdAt, updated_at: r.updatedAt }
+}
+function mvRow(r: any) {
+  const { documentId, versionNumber, fileUrl, fileSize, uploadedBy, uploadedAt, ...rest } = r
+  return { ...rest, document_id: r.documentId, version_number: r.versionNumber, file_url: r.fileUrl, file_size: r.fileSize, uploaded_by: r.uploadedBy, uploaded_at: r.uploadedAt }
+}
+function maRow(r: any) {
+  const { documentId, userId, accessedAt, createdAt, ...rest } = r
+  return { ...rest, document_id: r.documentId, user_id: r.userId, accessed_at: r.accessedAt, created_at: r.createdAt }
+}

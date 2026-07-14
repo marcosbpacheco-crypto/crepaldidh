@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useAdmin, type ModuleName, type Permission } from '../admin/context/AdminContext'
 import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
@@ -50,7 +50,7 @@ function ActionIcon({ action }: { action: string }) {
 
 export default function SettingsPage() {
   const admin = useAdmin()
-  const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const currentRole = admin.currentUser?.roleName ?? null
   const [tab, setTab] = useState('users')
   const [searchUser, setSearchUser] = useState('')
   const [searchAudit, setSearchAudit] = useState('')
@@ -67,16 +67,6 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetConfirmText, setResetConfirmText] = useState('')
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('current_user')
-      if (stored) {
-        const u = JSON.parse(stored)
-        setCurrentRole(u.roleName)
-      }
-    } catch {}
-  }, [])
 
   const hasAccess = currentRole && ALLOWED_ROLES.includes(currentRole)
 

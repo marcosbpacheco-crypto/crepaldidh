@@ -265,39 +265,6 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
   const [prompts, setPrompts] = useState<AiPrompt[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('ai_conversations')
-      if (stored) { setConversations(JSON.parse(stored)) }
-      else {
-        const seed: AiConversation[] = [
-          { id: 'ai-seed-1', title: 'Análise de clientes ativos', assistantType: 'chat', messages: [
-            { id: 'm1', role: 'user', content: 'Quais são os clientes ativos da CrepaldiDH?', timestamp: new Date(Date.now() - 86400000).toISOString() },
-            { id: 'm2', role: 'assistant', content: generateAIResponse('chat', 'quais são os clientes ativos', crm, fin, trn, men, cal, doc), timestamp: new Date(Date.now() - 86300000).toISOString() },
-          ], favorite: true, createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date(Date.now() - 86300000).toISOString() },
-          { id: 'ai-seed-2', title: 'Resumo financeiro do mês', assistantType: 'financial', messages: [
-            { id: 'm3', role: 'user', content: 'Resumo financeiro deste mês', timestamp: new Date(Date.now() - 172800000).toISOString() },
-            { id: 'm4', role: 'assistant', content: generateAIResponse('financial', 'resumo', crm, fin, trn, men, cal, doc), timestamp: new Date(Date.now() - 172700000).toISOString() },
-          ], favorite: true, createdAt: new Date(Date.now() - 172800000).toISOString(), updatedAt: new Date(Date.now() - 172700000).toISOString() },
-          { id: 'ai-seed-3', title: 'Relatório executivo', assistantType: 'reports', messages: [
-            { id: 'm5', role: 'user', content: 'Gere um relatório executivo', timestamp: new Date(Date.now() - 259200000).toISOString() },
-            { id: 'm6', role: 'assistant', content: generateAIResponse('reports', 'executivo', crm, fin, trn, men, cal, doc), timestamp: new Date(Date.now() - 259100000).toISOString() },
-          ], favorite: false, createdAt: new Date(Date.now() - 259200000).toISOString(), updatedAt: new Date(Date.now() - 259100000).toISOString() },
-        ]
-        setConversations(seed)
-      }
-    } catch { setConversations([]) }
-    try { const p = localStorage.getItem('ai_prompts'); if (p) setPrompts(JSON.parse(p)) } catch { setPrompts([]) }
-  }, [])
-
-  useEffect(() => {
-    try { localStorage.setItem('ai_conversations', JSON.stringify(conversations)) } catch {}
-  }, [conversations])
-
-  useEffect(() => {
-    try { localStorage.setItem('ai_prompts', JSON.stringify(prompts)) } catch {}
-  }, [prompts])
-
   const setConfig = useCallback((c: Partial<AiConfig>) => setConfigState(prev => ({ ...prev, ...c })), [])
 
   const currentConversation = useMemo(() => conversations.find(c => c.id === currentConversationId) || null, [conversations, currentConversationId])

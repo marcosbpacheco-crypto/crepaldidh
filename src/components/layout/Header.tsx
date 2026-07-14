@@ -5,19 +5,13 @@ import { Search, User, Menu, LogOut, X } from "lucide-react"
 import { NotificationDropdown } from "./NotificationDropdown"
 import { logout } from '@/app/(auth)/login/actions'
 import { useSidebar } from "./SidebarContext"
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 
 export function Header() {
   const { toggle, isOpen } = useSidebar()
-  const [user, setUser] = useState<{ name: string; roleName: string } | null>(null)
+  const { currentUser } = useAdmin()
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('current_user')
-      if (stored) setUser(JSON.parse(stored))
-    } catch {}
-  }, [])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -30,7 +24,6 @@ export function Header() {
   }, [])
 
   const handleLogout = async () => {
-    localStorage.removeItem('current_user')
     await logout()
   }
 
@@ -58,15 +51,15 @@ export function Header() {
         <div className="relative">
           <button onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-1 sm:gap-3 hover:bg-slate-50 p-1 sm:p-2 rounded-full sm:pr-4 transition-all border border-transparent hover:border-slate-200">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-blue-light/10 text-brand-blue rounded-full flex items-center justify-center font-bold text-xs sm:text-sm">
-              {user?.name ? (
-                <span>{user.name.charAt(0).toUpperCase()}</span>
+              {currentUser?.name ? (
+                <span>{currentUser.name.charAt(0).toUpperCase()}</span>
               ) : (
                 <User className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </div>
             <div className="flex-col items-start text-left hidden lg:flex">
-              <span className="text-sm font-semibold text-slate-800 leading-none mb-1">{user?.name || 'Carregando...'}</span>
-              <span className="text-xs text-brand-teal font-medium uppercase tracking-wider">{user?.roleName || ''}</span>
+              <span className="text-sm font-semibold text-slate-800 leading-none mb-1">{currentUser?.name || 'Carregando...'}</span>
+              <span className="text-xs text-brand-teal font-medium uppercase tracking-wider">{currentUser?.roleName || ''}</span>
             </div>
           </button>
           

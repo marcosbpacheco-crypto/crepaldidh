@@ -1,59 +1,77 @@
-import { getClient, handleError } from './base'
 import type { Project, ProjectTask } from '@/types/projects'
 
-const PROJECTS_TABLE = 'projects'
-const TASKS_TABLE = 'project_tasks'
+const BASE = '/api/prisma/projects'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const projectService = {
   async list(): Promise<Project[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PROJECTS_TABLE).select('*').is('deleted_at', null).order('name')
-    if (error) handleError(error, 'projectService.list')
-    return (data || []).map(mp)
+    const data = await api(BASE)
+    return (data.projects || []).map(mp)
   },
+
   async create(input: Partial<Project>): Promise<Project> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PROJECTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'projectService.create')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'project', ...input }),
+    })
+    return mp(data.project)
   },
+
   async update(id: string, input: Partial<Project>): Promise<Project> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PROJECTS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'projectService.update')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    })
+    return mp(data.project)
   },
+
   async remove(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PROJECTS_TABLE).update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) handleError(error, 'projectService.remove')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
   },
+
   async listTasks(projectId?: string): Promise<ProjectTask[]> {
-    const supabase = getClient()
-    let q = supabase.from(TASKS_TABLE).select('*').is('deleted_at', null)
-    if (projectId) q = q.eq('project_id', projectId)
-    const { data, error } = await q.order('created_at')
-    if (error) handleError(error, 'projectService.listTasks')
-    return (data || []).map(mt)
+    const data = await api(BASE)
+    const all = (data.tasks || []).map(mt)
+    return projectId ? all.filter((t: ProjectTask) => t.project_id === projectId) : all
   },
+
   async createTask(input: Partial<ProjectTask>): Promise<ProjectTask> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(TASKS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'projectService.createTask')
-    return mt(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'task', ...input }),
+    })
+    return mt(data.task)
   },
+
   async updateTask(id: string, input: Partial<ProjectTask>): Promise<ProjectTask> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(TASKS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'projectService.updateTask')
-    return mt(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'task', id, ...input }),
+    })
+    return mt(data.task)
   },
+
   async removeTask(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(TASKS_TABLE).update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) handleError(error, 'projectService.removeTask')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'task', id }),
+    })
   },
 }
 
-function mp(r: any): Project { return { ...r, companyId: r.company_id, tenantId: r.tenant_id, responsibleUserId: r.responsible_user_id, startDate: r.start_date, endDate: r.end_date, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at } }
-function mt(r: any): ProjectTask { return { ...r, projectId: r.project_id, tenantId: r.tenant_id, assignedTo: r.assigned_to, dueDate: r.due_date, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at } }
+function mp(r: any): Project {
+  return { ...r, company_id: r.company_id, tenant_id: r.tenant_id, responsible_user_id: r.responsible_user_id, start_date: r.start_date, end_date: r.end_date, created_by: r.created_by, created_at: r.created_at, updated_at: r.updated_at, deleted_at: r.deleted_at }
+}
+
+function mt(r: any): ProjectTask {
+  return { ...r, project_id: r.project_id, tenant_id: r.tenant_id, assigned_to: r.assigned_to, due_date: r.due_date, created_by: r.created_by, created_at: r.created_at, updated_at: r.updated_at, deleted_at: r.deleted_at }
+}

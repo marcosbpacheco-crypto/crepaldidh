@@ -40,15 +40,7 @@ export interface PortalIndicator {
   label: string; value: string | number; icon: string; color: string
 }
 
-const SEED_PORTAL_USERS: PortalUser[] = []
-
-const SEED_PERMISSIONS: Permission[] = []
-
-const SEED_REQUESTS: ClientRequest[] = []
-
-const SEED_NOTIFICATIONS: ClientNotification[] = []
-
-function generateSeedCalendarEvents() { return [] }
+const API = '/api/prisma/portal'
 
 interface PortalContextType {
   user: PortalUser | null; isAuthenticated: boolean; isLoading: boolean
@@ -81,35 +73,40 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [user, setUser] = useState<PortalUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [portalUsers] = useState<PortalUser[]>(SEED_PORTAL_USERS)
-  const [permissions] = useState<Permission[]>(SEED_PERMISSIONS)
+  const [portalUsers, setPortalUsers] = useState<PortalUser[]>([])
+  const [permissions, setPermissions] = useState<Permission[]>([])
   const [requests, setRequests] = useState<ClientRequest[]>([])
   const [notifications, setNotifications] = useState<ClientNotification[]>([])
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<PortalTab>('dashboard')
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const stored = localStorage.getItem('portal_user')
-    if (stored) { try { setUser(JSON.parse(stored)) } catch { /* ignore */ } }
-    const storedRequests = localStorage.getItem('portal_requests')
-    if (storedRequests) { try { setRequests(JSON.parse(storedRequests)) } catch {} }
-    else { setRequests(SEED_REQUESTS) }
-    const storedNotifs = localStorage.getItem('portal_notifications')
-    if (storedNotifs) { try { setNotifications(JSON.parse(storedNotifs)) } catch {} }
-    else { setNotifications(SEED_NOTIFICATIONS) }
-    const storedCal = localStorage.getItem('cal_events')
-    if (!storedCal || JSON.parse(storedCal).length === 0) {
-      const seed = generateSeedCalendarEvents()
-      localStorage.setItem('cal_events', JSON.stringify(seed))
-    }
-    setIsLoading(false)
+    fetch(API)
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) { console.error('[PortalContext] API error:', data.error); return }
+        if (data.users) setPortalUsers(data.users)
+        if (data.permissions) setPermissions(data.permissions)
+        if (data.requests) setRequests(data.requests)
+        if (data.notifications) setNotifications(data.notifications)
+        if (data.calendarEvents) setCalendarEvents(data.calendarEvents)
+      })
+      .catch(err => console.error('[PortalContext] load error:', err))
+      .finally(() => setIsLoading(false))
   }, [])
 
   const login = useCallback(async (email: string): Promise<boolean> => {
-    const found = portalUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.active)
-    if (found) { setUser(found); localStorage.setItem('portal_user', JSON.stringify(found)); return true }
-    return false
-  }, [portalUsers])
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'login', email }),
+      })
+      const data = await res.json()
+      if (data.user) { setUser(data.user); return true }
+      return false
+    } catch { return false }
+  }, [])
 
   const loginWithToken = useCallback(async (token: string): Promise<boolean> => {
     const access = validateToken(token)
@@ -121,11 +118,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       tokenUser = { id: tokenUserId, companyId: access.companyId, name: `Cliente - ${access.companyName}`, email: `temp-${access.companyId}@portal.crepaldidh.com`, role: 'diretoria', active: true }
     }
     setUser(tokenUser)
-    localStorage.setItem('portal_user', JSON.stringify(tokenUser))
     return true
   }, [validateToken, useToken, portalUsers])
 
-  const logout = useCallback(() => { setUser(null); localStorage.removeItem('portal_user') }, [])
+  const logout = useCallback(() => { setUser(null) }, [])
 
   const companyId = user?.companyId || null
   const company = crm.companies.find(c => c.id === companyId)
@@ -137,14 +133,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user, permissions])
 
   const companyReceivables = useMemo(() => fin.receivables.filter(r => r.companyId === companyId), [fin.receivables, companyId])
-  const companyCalendarEvents = useMemo(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const stored = localStorage.getItem('cal_events')
-      if (stored) return JSON.parse(stored).filter((e: any) => e.companyId === companyId && e.status !== 'canceled')
-    } catch { /* ignore */ }
-    return []
-  }, [companyId])
+  const companyCalendarEvents = useMemo(() =>
+    calendarEvents.filter((e: any) => e.companyId === companyId && e.status !== 'canceled'),
+    [calendarEvents, companyId]
+  )
 
   const activeProjects = crm.contracts.filter(c => c.companyId === companyId && c.status === 'active').length
   const activeDiagnostics = 2
@@ -190,13 +182,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [docCtx, companyId, user])
 
   const markNotificationRead = useCallback((id: string) => {
-    setNotifications(prev => { const next = prev.map(n => n.id === id ? { ...n, read: true } : n); localStorage.setItem('portal_notifications', JSON.stringify(next)); return next })
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    fetch(API, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'notification', id, read: true }) }).catch(() => {})
   }, [])
 
-  const addRequest = (r: Omit<ClientRequest, 'id' | 'createdAt' | 'updatedAt'>): ClientRequest => {
+  const addRequest = useCallback((r: Omit<ClientRequest, 'id' | 'createdAt' | 'updatedAt'>): ClientRequest => {
     const nr: ClientRequest = { ...r, id: `cr-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    setRequests(prev => { const next = [nr, ...prev]; localStorage.setItem('portal_requests', JSON.stringify(next)); return next }); return nr
-  }
+    setRequests(prev => [nr, ...prev])
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'request', ...nr }) }).catch(() => {})
+    return nr
+  }, [])
 
   return (
     <PortalContext.Provider value={{

@@ -310,3 +310,75 @@ Problema: clientes deletados reapareciam apos refresh porque **CrmContext reconc
 
 ### Build
 50/50 rotas, TypeScript compilado, sem erros.
+
+## Session 2026-07-14 — Migração para Prisma (módulo Clientes como piloto)
+
+### Objetivo
+Substituir a arquitetura híbrida (Supabase JS + localStorage + Context + cache race conditions) por CRUD server-side unificado via Prisma.
+
+### Mudanças arquiteturais
+
+1. **Prisma ORM** — 116 modelos gerados do banco via `prisma db pull`
+2. **Transaction Pooler** — `DATABASE_URL` usa Supabase Transaction Pooler (`:6543`); `DIRECT_URL` usa conexão direta (`db.*.supabase.co:5432`)
+3. **Singleton PrismaClient** — `src/lib/prisma.ts` com `@prisma/adapter-pg` + `pg` (driver adaptado)
+4. **API `/api/prisma/clients`** — Rota CRUD completa (GET, POST, PATCH, DELETE) com:
+   - GET: filtra `deleted_at IS NULL`, inclui contacts/interactions/documents/feedbacks
+   - POST: suporta `_type` para client/contact/interaction/feedback
+   - PATCH: suporta `_type: 'restore'` para restaurar soft-delete
+   - DELETE: soft-delete (seta `deleted_at` + `status: 'churned'`)
+5. **Middleware** — API routes excluídas do redirect de autenticação (`isApiRoute`)
+6. **ClientsContext** — Atualizado para consumir `/api/prisma/clients` (GET na montagem, POST/PATCH/DELETE conforme ação)
+
+### Fluxo de dados
+```
+Browser → ClientsContext → /api/prisma/clients → Prisma → Supabase PostgreSQL
+```
+
+### Testado (via curl)
+- Create: ✅ retorna objeto criado com UUID real
+- Read: ✅ retorna lista com contatos/interações/feedbacks aninhados
+- Update: ✅ atualiza campos específicos
+- Soft-delete: ✅ remove da listagem (filtro `deleted_at IS NULL`)
+- Restore: ✅ reaparece na listagem
+- Build: 51/51 rotas, TypeScript compilado, sem erros
+
+## Session 2026-07-14 — Migração completa para Prisma (todos os módulos)
+
+### O que foi feito
+
+**9 novas API routes Prisma** (CRUD completo com upsert):
+
+| Rota | Modelos | Entidades |
+|------|---------|-----------|
+| `/api/prisma/crm` | crm_companies, crm_contacts, crm_deals, crm_proposals, crm_contracts, crm_activities, crm_tasks | 7 |
+| `/api/prisma/calendar` | calendar_events, calendar_participants, calendar_reminders | 3 |
+| `/api/prisma/financial` | financial_accounts_receivable, financial_accounts_payable, financial_categories, financial_payment_methods, financial_recurring_rules, financial_transactions, financial_invoices, fin_bank_transactions | 8 |
+| `/api/prisma/trainings` | training_events, training_participants, training_feedbacks, training_certificates, training_materials, training_reports, sipat_programs | 7 |
+| `/api/prisma/mentoring` | mentoring_participants, mentoring_sessions, pdi_plans, pdi_goals, competencies, development_tools, mentoring_assessments, mentoring_reports | 8 |
+| `/api/prisma/assessoria` | assessoria_diagnostics, assessoria_okrs, assessoria_swots, assessoria_action_plans, assessoria_kpis | 5 |
+| `/api/prisma/documents` | documents, document_versions, document_access_logs | 3 |
+| `/api/prisma/admin` | admin_users, admin_audit_logs, admin_lgpd_consents, admin_privacy_requests, admin_permissions, admin_tenants, admin_plans, admin_tenant_usage | 8 |
+| `/api/prisma/acesso-temporario` | temporary_accesses, temporary_users, temporary_questionnaires, temporary_responses | 4 |
+
+**9 service files reescritos** — todos agora chamam as API routes Prisma via `fetch()` em vez de Supabase JS direto:
+- crmService.ts, calendarService.ts, financeService.ts, trainingService.ts
+- mentoringService.ts, assessoriaService.ts, documentService.ts
+- userService.ts (admin), acessoService.ts (acesso-temporario)
+
+### Padrão arquitetural
+```
+Browser → Context → *Service → fetch(/api/prisma/...) → Prisma → PostgreSQL
+```
+
+- **`saveAll()`** agora faz POST de cada entidade individualmente (com `.catch(() => {})` para resiliência)
+- **POST handlers** usam `prisma.xxx.upsert()` — criam ou atualizam conforme existência do `id`
+- **`getClient()`/`handleError()` removidos** de todos os services (não usam mais Supabase JS)
+- **Middleware** exclui API routes do redirect de autenticação
+
+### Build
+60+ rotas, TypeScript compilado, sem erros.
+
+### Pendente
+- ~~Remover contexts legados baseados em localStorage~~ ✅ **Concluído**
+- TenantContext (admin/tenants) ainda usa localStorage com sync próprio — refatorar para usar Prisma API
+- Deploy em produção

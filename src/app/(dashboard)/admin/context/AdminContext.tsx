@@ -176,18 +176,6 @@ const BOOTSTRAP_ADMIN: User = {
 // Usuarios CRIADOS DINAMICAMENTE tem prefixo 'adm-' e sao preservados.
 const OLD_SEED_IDS = new Set(['user-admin', 'user-dir', 'user-cons', 'user-comm', 'user-fin', 'user-rh', 'user-dho', 'user-op'])
 
-function seedAuditLogs(): AuditLog[] {
-  return []
-}
-
-function seedLgpdConsents(): LgpdConsent[] {
-  return []
-}
-
-function seedPrivacyRequests(): PrivacyRequest[] {
-  return []
-}
-
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -198,37 +186,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrentUserId = useCallback((id: string | null) => {
     setCurrentUserIdState(id)
-    try {
-      if (id) {
-        const usersData = JSON.parse(localStorage.getItem('admin_users') || '[]')
-        const user = usersData.find((u: User) => u.id === id)
-        if (user) {
-          localStorage.setItem('current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, roleId: user.roleId, roleName: user.roleName }))
-        }
-      }
-    } catch {}
   }, [])
 
   const queryClient = useQueryClient()
 
-  // Load from localStorage FIRST
+  // Load from API on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const p = localStorage.getItem('admin_permissions'); if (p) setPermissions(JSON.parse(p)); else setPermissions(buildSeedPermissions())
-      const a = localStorage.getItem('admin_audit_logs'); if (a) setAuditLogs(JSON.parse(a)); else setAuditLogs(seedAuditLogs())
-      const l = localStorage.getItem('admin_lgpd_consents'); if (l) setLgpdConsents(JSON.parse(l)); else setLgpdConsents(seedLgpdConsents())
-      const r = localStorage.getItem('admin_privacy_requests'); if (r) setPrivacyRequests(JSON.parse(r)); else setPrivacyRequests(seedPrivacyRequests())
-      const u = localStorage.getItem('admin_users'); if (u) { const p: User[] = JSON.parse(u); if (Array.isArray(p)) setUsers(p) }
-    } catch {
-      setPermissions(buildSeedPermissions()); setAuditLogs(seedAuditLogs()); setLgpdConsents(seedLgpdConsents())
-      setPrivacyRequests(seedPrivacyRequests())
-    }
-    try {
-      const stored = localStorage.getItem('current_user')
-      if (stored) { const cu = JSON.parse(stored); setCurrentUserId(cu.id || 'user-admin') }
-      else setCurrentUserId('user-admin')
-    } catch { setCurrentUserId('user-admin') }
+    setPermissions(buildSeedPermissions())
+    setAuditLogs([])
+    setLgpdConsents([])
+    setPrivacyRequests([])
 
     // Load from service
     Promise.all([
@@ -238,34 +206,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       userService.listLgpdConsents(),
       userService.listPrivacyRequests(),
     ]).then(([remoteUsers, perms, audits, lgpd, priv]) => {
-      if (remoteUsers.length > 0) {
-        const stored = localStorage.getItem('current_user')
-        const currentId = stored ? JSON.parse(stored).id : null
-        if (currentId && remoteUsers.some((u: User) => u.id === currentId)) {
-          setUsers(remoteUsers)
-          localStorage.setItem('admin_users', JSON.stringify(remoteUsers))
-        }
-      }
+      if (remoteUsers.length > 0) setUsers(remoteUsers)
       if (perms.length > 0) setPermissions(perms)
       if (audits.length > 0) setAuditLogs(audits)
       if (lgpd.length > 0) setLgpdConsents(lgpd)
       if (priv.length > 0) setPrivacyRequests(priv)
-      const d = { users: remoteUsers, permissions: perms, auditLogs: audits, lgpdConsents: lgpd, privacyRequests: priv }
-      for (const [k, v] of Object.entries(d)) { if (Array.isArray(v) && v.length > 0) localStorage.setItem(`admin_${k}`, JSON.stringify(v)) }
     }).catch((err) => console.error('[AdminContext] load error:', err))
   }, [])
 
-  // Sync users to service + localStorage
+  // Sync users to service
   useEffect(() => {
     if (users.length === 0) return
-    localStorage.setItem('admin_users', JSON.stringify(users))
     const timer = setTimeout(() => {
       userService.saveAll({ users }).catch((err) => console.error('[AdminContext] save users error:', err))
     }, 500)
     return () => clearTimeout(timer)
   }, [users])
 
-  // Sync admin collections to service + localStorage
+  // Sync admin collections to service
   useEffect(() => {
     if (typeof window === 'undefined') return
     const hasData = permissions.length > 0 || auditLogs.length > 0 || lgpdConsents.length > 0 || privacyRequests.length > 0
@@ -273,17 +231,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(() => {
       userService.saveAll({ permissions, auditLogs, lgpdConsents, privacyRequests })
         .catch((err) => console.error('[AdminContext] save collections error:', err))
-      localStorage.setItem('admin_permissions', JSON.stringify(permissions))
-      localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs))
-      localStorage.setItem('admin_lgpd_consents', JSON.stringify(lgpdConsents))
-      localStorage.setItem('admin_privacy_requests', JSON.stringify(privacyRequests))
     }, 500)
     return () => clearTimeout(timer)
   }, [permissions, auditLogs, lgpdConsents, privacyRequests])
 
   // Cross-device sync is UNIDIRECTIONAL: local → server only.
   // A direcao reversa (server → local) nao deve restaurar usuarios deletados.
-  // O sync server→local ocorre apenas via LoginForm.handleSubmit com localStorage vencendo.
 
   const roles = SEED_ROLES
 
@@ -404,18 +357,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const uid = userId || currentUserId
     if (!uid) return false
     const user = users.find(u => u.id === uid)
-    // Se usuario esta em localStorage mas ainda nao foi carregado no state, permite acesso
-    if (!user) {
-      try {
-        const stored = localStorage.getItem('admin_users')
-        if (stored) {
-          const localUsers: User[] = JSON.parse(stored)
-          const localUser = localUsers.find(u => u.id === uid)
-          if (localUser && localUser.roleName === 'Administrador') return true
-        }
-      } catch {}
-      return false
-    }
+    if (!user) return false
     if (!user.active) return false
     if (user.roleName === 'Administrador') return true
     const rolePerms = getPermissionsForRole(user.roleId).filter(p => p.module === module)

@@ -67,14 +67,6 @@ function generateToken(): string {
   return token
 }
 
-const SEED_ACCESSES: TemporaryAccess[] = []
-
-const SEED_USERS: TempUser[] = []
-
-const SEED_QUESTIONNAIRES: Questionnaire[] = []
-
-const SEED_RESPONSES: QuestionnaireResponse[] = []
-
 export function AcessoTemporarioProvider({ children }: { children: React.ReactNode }) {
   const [accesses, setAccesses] = useState<TemporaryAccess[]>([])
   const [tempUsers, setTempUsers] = useState<TempUser[]>([])
@@ -85,14 +77,6 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const get = <T,>(key: string, fallback: T): T => {
-      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
-      catch { return fallback }
-    }
-    setAccesses(get('acesso_temporario_accesses', SEED_ACCESSES))
-    setTempUsers(get('acesso_temporario_users', SEED_USERS))
-    setQuestionnaires(get('acesso_temporario_questionnaires', SEED_QUESTIONNAIRES))
-    setResponses(get('acesso_temporario_responses', SEED_RESPONSES))
 
     Promise.all([
       acessoService.listAccesses(),
@@ -104,10 +88,6 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
       if (usrs.length > 0) setTempUsers(usrs as TempUser[])
       if (qs.length > 0) setQuestionnaires(qs as Questionnaire[])
       if (rsps.length > 0) setResponses(rsps as QuestionnaireResponse[])
-      const d = { accesses: accs, tempUsers: usrs, questionnaires: qs, responses: rsps }
-      for (const [k, v] of Object.entries(d)) {
-        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`acesso_temporario_${k}`, JSON.stringify(v))
-      }
     }).catch((err) => console.error('[AcessoTemporarioContext] load error:', err))
   }, [])
 
@@ -118,10 +98,6 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
     const timer = setTimeout(() => {
       acessoService.saveAll({ accesses, tempUsers, questionnaires, responses })
         .catch(err => console.error('AcessoTemporarioContext saveAll error:', err))
-      localStorage.setItem('acesso_temporario_accesses', JSON.stringify(accesses))
-      localStorage.setItem('acesso_temporario_users', JSON.stringify(tempUsers))
-      localStorage.setItem('acesso_temporario_questionnaires', JSON.stringify(questionnaires))
-      localStorage.setItem('acesso_temporario_responses', JSON.stringify(responses))
     }, 500)
     return () => clearTimeout(timer)
   }, [accesses, tempUsers, questionnaires, responses])

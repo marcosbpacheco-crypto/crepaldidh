@@ -1,130 +1,203 @@
-import { getClient, handleError } from './base'
 import type { SipatProgram, TrainingEvent, TrainingParticipant, TrainingCertificate, TrainingFeedback, TrainingMaterial, TrainingReport } from '@/types/trainings'
 import type { SipatDay } from '@/types/trainings'
 
-const EVENTS_TABLE = 'training_events'
-const PARTICIPANTS_TABLE = 'training_participants'
-const CERTIFICATES_TABLE = 'training_certificates'
-const FEEDBACKS_TABLE = 'training_feedbacks'
-const MATERIALS_TABLE = 'training_materials'
-const REPORTS_TABLE = 'training_reports'
-const SIPATS_TABLE = 'training_sipats'
+const BASE = '/api/prisma/trainings'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const trainingService = {
+  async saveAll(data: {
+    events?: TrainingEvent[]
+    participants?: TrainingParticipant[]
+    feedbacks?: TrainingFeedback[]
+    certificates?: TrainingCertificate[]
+    materials?: TrainingMaterial[]
+    reports?: TrainingReport[]
+    sipats?: SipatProgram[]
+  }): Promise<void> {
+    const jobs: Promise<any>[] = []
+    for (const e of data.events || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'event', ...meRow(e) }) }).catch(() => {}))
+    }
+    for (const p of data.participants || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
+    }
+    for (const f of data.feedbacks || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'feedback', ...f }) }).catch(() => {}))
+    }
+    for (const c of data.certificates || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'certificate', ...mcRow(c) }) }).catch(() => {}))
+    }
+    for (const m of data.materials || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'material', ...m }) }).catch(() => {}))
+    }
+    for (const r of data.reports || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
+    }
+    for (const s of data.sipats || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'sipat', ...s }) }).catch(() => {}))
+    }
+    await Promise.allSettled(jobs)
+  },
   async listEvents(): Promise<TrainingEvent[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).select('*').order('event_date', { ascending: false })
-    if (error) handleError(error, 'trainingService.listEvents')
-    return (data || []).map(me)
+    const data = await api(BASE)
+    return (data.events || []).map(me)
   },
   async createEvent(input: Partial<TrainingEvent>): Promise<TrainingEvent> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createEvent')
-    return me(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'event', ...input }),
+    })
+    return me(data.event)
   },
   async updateEvent(id: string, input: Partial<TrainingEvent>): Promise<TrainingEvent> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(EVENTS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'trainingService.updateEvent')
-    return me(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    })
+    return me(data.event)
   },
   async removeEvent(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(EVENTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'trainingService.removeEvent')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'event', id }),
+    })
   },
+
   async listParticipants(eventId?: string): Promise<TrainingParticipant[]> {
-    const supabase = getClient()
-    let q = supabase.from(PARTICIPANTS_TABLE).select('*')
-    if (eventId) q = q.eq('event_id', eventId)
-    const { data, error } = await q
-    if (error) handleError(error, 'trainingService.listParticipants')
-    return (data || []).map(mp)
+    const data = await api(BASE)
+    const all: TrainingParticipant[] = []
+    for (const e of data.events || []) {
+      for (const p of e.training_participants || []) {
+        all.push(mp({ ...p, event_id: e.id }))
+      }
+    }
+    return eventId ? all.filter(p => p.eventId === eventId) : all
   },
   async createParticipant(input: Partial<TrainingParticipant>): Promise<TrainingParticipant> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createParticipant')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', ...input }),
+    })
+    return mp(data.participant)
   },
   async updateParticipant(id: string, input: Partial<TrainingParticipant>): Promise<TrainingParticipant> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'trainingService.updateParticipant')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id, ...input }),
+    })
+    return mp(data.participant)
   },
   async removeParticipant(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PARTICIPANTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'trainingService.removeParticipant')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id }),
+    })
   },
+
   async listCertificates(): Promise<TrainingCertificate[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CERTIFICATES_TABLE).select('*')
-    if (error) handleError(error, 'trainingService.listCertificates')
-    return (data || []).map(mc)
+    const data = await api(BASE)
+    const all: TrainingCertificate[] = []
+    for (const e of data.events || []) {
+      for (const c of e.training_certificates || []) {
+        all.push(mc({ ...c, event_id: e.id }))
+      }
+    }
+    return all
   },
   async createCertificate(input: Partial<TrainingCertificate>): Promise<TrainingCertificate> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CERTIFICATES_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createCertificate')
-    return mc(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'certificate', ...input }),
+    })
+    return mc(data.certificate)
   },
+
   async listFeedbacks(eventId?: string): Promise<TrainingFeedback[]> {
-    const supabase = getClient()
-    let q = supabase.from(FEEDBACKS_TABLE).select('*')
-    if (eventId) q = q.eq('event_id', eventId)
-    const { data, error } = await q
-    if (error) handleError(error, 'trainingService.listFeedbacks')
-    return data || []
+    const data = await api(BASE)
+    const all: TrainingFeedback[] = []
+    for (const e of data.events || []) {
+      for (const f of e.training_feedbacks || []) {
+        all.push({ ...f, eventId: e.id })
+      }
+    }
+    return eventId ? all.filter(f => f.eventId === eventId) : all
   },
   async createFeedback(input: Partial<TrainingFeedback>): Promise<TrainingFeedback> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(FEEDBACKS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createFeedback')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'feedback', ...input }),
+    })
+    return data.feedback
   },
+
   async listMaterials(eventId?: string): Promise<TrainingMaterial[]> {
-    const supabase = getClient()
-    let q = supabase.from(MATERIALS_TABLE).select('*')
-    if (eventId) q = q.eq('event_id', eventId)
-    const { data, error } = await q
-    if (error) handleError(error, 'trainingService.listMaterials')
-    return data || []
+    const data = await api(BASE)
+    const all: TrainingMaterial[] = []
+    for (const e of data.events || []) {
+      for (const m of e.training_materials || []) {
+        all.push({ ...m, eventId: e.id })
+      }
+    }
+    return eventId ? all.filter(m => m.eventId === eventId) : all
   },
   async createMaterial(input: Partial<TrainingMaterial>): Promise<TrainingMaterial> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(MATERIALS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createMaterial')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'material', ...input }),
+    })
+    return data.material
   },
+
   async listReports(): Promise<TrainingReport[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(REPORTS_TABLE).select('*')
-    if (error) handleError(error, 'trainingService.listReports')
-    return data || []
+    const data = await api(BASE)
+    const all: TrainingReport[] = []
+    for (const e of data.events || []) {
+      for (const r of e.training_reports || []) {
+        all.push({ ...r, eventId: e.id })
+      }
+    }
+    return all
   },
   async createReport(input: Partial<TrainingReport>): Promise<TrainingReport> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(REPORTS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createReport')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'report', ...input }),
+    })
+    return data.report
   },
+
   async listSipats(): Promise<SipatProgram[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SIPATS_TABLE).select('*')
-    if (error) handleError(error, 'trainingService.listSipats')
-    return data || []
+    const data = await api(BASE)
+    return data.sipatPrograms || []
   },
   async createSipat(input: Partial<SipatProgram>): Promise<SipatProgram> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SIPATS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'trainingService.createSipat')
-    return data!
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'sipat', ...input }),
+    })
+    return data.sipat
   },
 }
 
 function me(r: any): TrainingEvent { return { ...r, companyName: r.company_name, projectName: r.project_name, sipatProgramId: r.sipat_program_id, targetAudience: r.target_audience, eventDate: r.event_date, startTime: r.start_time, endTime: r.end_time, hoursDuration: r.hours_duration, expectedParticipants: r.expected_participants, createdAt: r.created_at } }
 function mp(r: any): TrainingParticipant { return { ...r, eventId: r.event_id, crmContactId: r.crm_contact_id, companyName: r.company_name, attendanceStatus: r.attendance_status, entryTime: r.entry_time, signatureSimple: r.signature_simple } }
 function mc(r: any): TrainingCertificate { return { ...r, participantId: r.participant_id, participantName: r.participant_name, eventId: r.event_id, eventName: r.event_name, clientName: r.client_name, validationCode: r.validation_code, pdfUrl: r.pdf_url, issuedAt: r.issued_at } }
+
+function meRow(r: any) {
+  const { companyName, projectName, sipatProgramId, targetAudience, eventDate, startTime, endTime, hoursDuration, expectedParticipants, createdAt, ...rest } = r
+  return { ...rest, company_name: r.companyName, project_name: r.projectName, sipat_program_id: r.sipatProgramId, target_audience: r.targetAudience, event_date: r.eventDate, start_time: r.startTime, end_time: r.endTime, hours_duration: r.hoursDuration, expected_participants: r.expectedParticipants, created_at: r.createdAt }
+}
+function mpRow(r: any) {
+  const { eventId, crmContactId, companyName, attendanceStatus, entryTime, signatureSimple, ...rest } = r
+  return { ...rest, event_id: r.eventId, crm_contact_id: r.crmContactId, company_name: r.companyName, attendance_status: r.attendanceStatus, entry_time: r.entryTime, signature_simple: r.signatureSimple }
+}
+function mcRow(r: any) {
+  const { participantId, participantName, eventId, eventName, clientName, validationCode, pdfUrl, issuedAt, ...rest } = r
+  return { ...rest, participant_id: r.participantId, participant_name: r.participantName, event_id: r.eventId, event_name: r.eventName, client_name: r.clientName, validation_code: r.validationCode, pdf_url: r.pdfUrl, issued_at: r.issuedAt }
+}

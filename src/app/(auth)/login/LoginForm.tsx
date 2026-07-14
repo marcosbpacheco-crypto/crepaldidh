@@ -1,22 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { setSessionCookie } from './actions'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
-import type { User } from '@/app/(dashboard)/admin/context/AdminContext'
-
-// BOOTSTRAP_ADMIN — unico usuario de bootstrap para primeiro acesso.
-// Usado SOMENTE quando nao ha nenhum dado em localStorage nem no servidor.
-// Nunca e reinserido apos o primeiro login — usuarios deletados permanecem deletados.
-const BOOTSTRAP_ADMIN: User = {
-  id: 'user-admin', name: 'Administrador Master', email: 'admin@crepaldidh.com.br',
-  phone: '(11) 99999-0000', avatar: 'AD', roleId: 'role-admin', roleName: 'Administrador',
-  isExternal: false, active: true, password: 'admin123', loginAttempts: 0, mfaEnabled: false,
-  createdAt: '2025-01-01T00:00:00Z', tenantId: 'tnt-crepaldi',
-}
-
-// IDs do antigo SEED_USERS que devem ser removidos na migracao (cross-device)
-const OLD_SEED_IDS = new Set(['user-admin', 'user-dir', 'user-cons', 'user-comm', 'user-fin', 'user-rh', 'user-dho', 'user-op'])
 
 export function LoginForm() {
   const [email, setEmail] = useState('')
@@ -26,19 +12,6 @@ export function LoginForm() {
   const [showForgot, setShowForgot] = useState(false)
   const [recoverySent, setRecoverySent] = useState(false)
 
-  // Fetch users from Supabase (source of truth) on mount
-  const [serverUsers, setServerUsers] = useState<User[]>([])
-  useEffect(() => {
-    fetch('/api/sync-admin-users')
-      .then(res => res.ok ? res.json() : { users: [] })
-      .then(({ users }) => {
-        if (Array.isArray(users) && users.length > 0) {
-          setServerUsers(users)
-        }
-      })
-      .catch((err) => console.error('[LoginForm] load users error:', err))
-  }, [])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -47,143 +20,58 @@ export function LoginForm() {
     const emailNorm = email.trim().toLowerCase()
     const passNorm = password.trim()
 
-    // Try to fetch latest users from Supabase in case useEffect hasn't completed yet
-    let liveServerUsers = serverUsers
-    if (liveServerUsers.length === 0) {
-      try {
-        const res = await fetch('/api/sync-admin-users')
-        if (res.ok) {
-          const { users } = await res.json()
-          if (Array.isArray(users) && users.length > 0) liveServerUsers = users
-        }
-      } catch {}
-    }
-
-    // Read users from localStorage (set by AdminContext) — fonte de verdade
-    let storedUsers: User[] = []
     try {
-      const stored = localStorage.getItem('admin_users')
-      if (stored) storedUsers = JSON.parse(stored)
-      // Migracao: remove usuarios com IDs do antigo SEED_USERS (cross-device cleanup)
-      if (Array.isArray(storedUsers) && storedUsers.length > 0) {
-        storedUsers = storedUsers.filter(user => {
-          if (!OLD_SEED_IDS.has(user.id)) return true
-          return user.email === BOOTSTRAP_ADMIN.email && user.id === BOOTSTRAP_ADMIN.id
-        })
+      const res = await fetch('/api/prisma/admin')
+      if (!res.ok) throw new Error('Erro ao carregar usuários')
+      const data = await res.json()
+      const users: any[] = data.users || []
+
+      const user = users.find(u => u.email?.trim().toLowerCase() === emailNorm)
+
+      if (!user) {
+        setError('E-mail ou senha inválidos.')
+        setPending(false)
+        return
       }
-    } catch {}
 
-    // Sempre inclui BOOTSTRAP_ADMIN como fallback, mesmo se localStorage tiver dados
-    const availableUsers = [BOOTSTRAP_ADMIN, ...liveServerUsers, ...storedUsers]
+      if (!user.active) {
+        setError('Usuário inativo. Contate o administrador.')
+        setPending(false)
+        return
+      }
 
-    // Find user by email (prefer stored/local over bootstrap)
-    const user = availableUsers.find(u => u.email.trim().toLowerCase() === emailNorm)
+      if (user.password !== passNorm) {
+        setError('E-mail ou senha inválidos.')
+        setPending(false)
+        return
+      }
 
-    if (!user) {
-      setError('E-mail ou senha inválidos.')
+      await setSessionCookie(user.id, user.name, user.roleName)
+      window.location.href = '/'
+    } catch {
+      setError('Erro ao conectar ao servidor. Tente novamente.')
       setPending(false)
-      return
     }
-
-    // Verificar senha: check stored, then server, then bootstrap
-    const sourcePass = storedUsers.find(u => u.id === user.id)?.password
-      || liveServerUsers.find(u => u.id === user.id)?.password
-      || BOOTSTRAP_ADMIN.password
-
-    // BOOTSTRAP_ADMIN sempre aceita admin123 como senha valida
-    const isBootstrapOverride = emailNorm === BOOTSTRAP_ADMIN.email.trim().toLowerCase()
-      && passNorm === BOOTSTRAP_ADMIN.password
-
-    if (!isBootstrapOverride && (!sourcePass || passNorm !== sourcePass)) {
-      setError('E-mail ou senha inválidos.')
-      setPending(false)
-      return
-    }
-
-    if (!user.active) {
-      setError('Usuário inativo. Contate o administrador.')
-      setPending(false)
-      return
-    }
-
-    // Construir lista final: localStorage sempre vence sobre dados do servidor
-    // NUNCA inclui BOOTSTRAP_ADMIN ou seed — usuarios deletados permanecem deletados
-    const mergedMap = new Map<string, User>()
-    liveServerUsers.forEach(u => mergedMap.set(u.id, u))
-    storedUsers.forEach(u => mergedMap.set(u.id, u))
-    // Garante que BOOTSTRAP_ADMIN sempre esteja no mapa como fallback
-    if (!mergedMap.has(BOOTSTRAP_ADMIN.id)) {
-      mergedMap.set(BOOTSTRAP_ADMIN.id, { ...BOOTSTRAP_ADMIN, password: passNorm })
-    }
-    // Atualizar senha para o valor digitado
-    if (mergedMap.has(user.id)) {
-      mergedMap.get(user.id)!.password = passNorm
-    }
-    const mergedUsers = [...mergedMap.values()]
-
-    // Update lastLogin
-    user.lastLogin = new Date().toISOString()
-    try { localStorage.setItem('admin_users', JSON.stringify(mergedUsers)) } catch {}
-
-    // Store current user info
-    localStorage.setItem('current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, roleId: user.roleId, roleName: user.roleName }))
-
-    // Set session cookie via server action + client-side fallback
-    try { await setSessionCookie(user.id, user.name, user.roleName) } catch {}
-    document.cookie = `sb-mock-session=${JSON.stringify({ userId: user.id, userName: user.name, userRole: user.roleName })}; path=/; max-age=86400`
-
-    // Sync merged user list to Supabase (source of truth)
-    try {
-      await fetch('/api/sync-admin-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users: mergedUsers }),
-      })
-    } catch {}
-
-    window.location.href = '/'
   }
 
-  const handleForgotPassword = () => {
-    let storedUsers: User[] = []
+  const handleForgotPassword = async () => {
     try {
-      const stored = localStorage.getItem('admin_users')
-      if (stored) storedUsers = JSON.parse(stored)
-    } catch {}
+      const res = await fetch('/api/prisma/admin')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const users: any[] = data.users || []
+      const targetUser = users.find(u => u.email === email)
 
-    // Find user by email — apenas dados reais, nunca seed mock
-    const targetUser = storedUsers.find(u => u.email === email)
+      if (!targetUser) {
+        setError('E-mail não encontrado no sistema.')
+        return
+      }
 
-    if (!targetUser) {
-      setError('E-mail não encontrado no sistema.')
-      return
+      setRecoverySent(true)
+      setShowForgot(false)
+    } catch {
+      setError('Erro ao conectar ao servidor. Tente novamente.')
     }
-
-    // Find admins and directors to notify
-    const adminsAndDirectors = storedUsers.filter(u =>
-      (u.roleName === 'Administrador' || u.roleName === 'Diretor') && u.active
-    )
-
-    // Add a recovery request notification (via audit log in localStorage)
-    try {
-      const auditLogs = JSON.parse(localStorage.getItem('admin_audit_logs') || '[]')
-      auditLogs.unshift({
-        id: `aud-${Date.now()}`,
-        userId: targetUser.id,
-        userName: targetUser.name,
-        userRole: targetUser.roleName,
-        action: 'password_recovery',
-        entity: 'user',
-        entityId: targetUser.id,
-        description: `Solicitação de recuperação de senha para ${targetUser.name} (${targetUser.email}). Notificados: ${adminsAndDirectors.map(u => u.name).join(', ')}`,
-        ipAddress: '127.0.0.1',
-        createdAt: new Date().toISOString(),
-      })
-      localStorage.setItem('admin_audit_logs', JSON.stringify(auditLogs.slice(0, 1000)))
-    } catch {}
-
-    setRecoverySent(true)
-    setShowForgot(false)
   }
 
   return (

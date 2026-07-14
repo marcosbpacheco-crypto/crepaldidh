@@ -7,6 +7,7 @@ import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useFinancial } from '@/app/(dashboard)/financial/context/FinancialContext'
 import { useClients } from '@/app/(dashboard)/clients/context/ClientsContext'
+import { useProjects } from '@/app/(dashboard)/projects/context/ProjectContext'
 import {
   Users, Briefcase, GraduationCap, TrendingUp, Calendar, ChevronRight,
   Plus, X, FileDown, Building2, Clock, MapPin, Download, Loader2,
@@ -24,8 +25,6 @@ interface Project {
   status: 'em_andamento' | 'planejado' | 'concluido' | 'pausado'
   budget: number
 }
-
-const SEED_PROJECTS: Project[] = []
 
 const STATUS_COLORS: Record<string, string> = {
   em_andamento: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -64,30 +63,38 @@ export default function DashboardPage() {
 
   const reportRef = useRef<HTMLDivElement>(null)
 
-  const stored = typeof window !== 'undefined'
-    ? (() => { try { const s = localStorage.getItem('erp_projects'); return s ? JSON.parse(s) : SEED_PROJECTS } catch { return SEED_PROJECTS } })()
-    : SEED_PROJECTS
-
-  const [projects, setProjects] = useState<Project[]>(stored)
+  const { projects: ctxProjects = [], createProject } = useProjects()
 
   useEffect(() => {
     const timer = setTimeout(() => setLoaded(true), 200)
     return () => clearTimeout(timer)
   }, [])
 
+  const projects: Project[] = useMemo(() => ctxProjects.map(p => ({
+    id: p.id,
+    name: p.name,
+    companyId: p.company_id,
+    companyName: companies.find(c => c.id === p.company_id)?.name || '',
+    description: p.description || '',
+    startDate: p.start_date || '',
+    endDate: p.end_date || '',
+    status: p.status as Project['status'],
+    budget: 0,
+  })), [ctxProjects, companies])
+
   const activeProjects = projects.filter(p => p.status === 'em_andamento' || p.status === 'planejado')
   const recentProjects = projects.slice(0, 5)
 
-  const saveProjects = (list: Project[]) => {
-    setProjects(list)
-    if (typeof window !== 'undefined') localStorage.setItem('erp_projects', JSON.stringify(list))
-  }
-
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
-    const comp = companies.find(c => c.id === form.companyId)
-    const np: Project = { ...form, id: `proj-${Date.now()}`, companyName: comp?.name || form.companyId }
-    saveProjects([np, ...projects])
+    await createProject({
+      company_id: form.companyId,
+      name: form.name,
+      description: form.description,
+      start_date: form.startDate,
+      end_date: form.endDate,
+      status: form.status,
+    })
     setShowProjectForm(false)
     setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
   }

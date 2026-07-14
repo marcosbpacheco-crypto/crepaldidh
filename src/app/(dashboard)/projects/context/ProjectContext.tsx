@@ -1,7 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { projectService } from '@/services/projectService'
 
 export interface Project {
   id: string
@@ -54,20 +54,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<ProjectTask[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = useRef(createClient())
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const load = useCallback(async () => {
     try {
-      const [pRes, tRes] = await Promise.all([
-        supabase.current.from('projects').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-        supabase.current.from('project_tasks').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+      setLoading(true)
+      const [pList, tList] = await Promise.all([
+        projectService.list(),
+        projectService.listTasks(),
       ])
-      if (!pRes.error) setProjects(pRes.data || [])
-      if (!tRes.error) setTasks(tRes.data || [])
-    } catch {
-      const cached = localStorage.getItem('erp_projects')
-      if (cached) setProjects(JSON.parse(cached))
+      setProjects(pList)
+      setTasks(tList)
+    } catch (err) {
+      console.error('[ProjectContext] load error:', err)
     } finally {
       setLoading(false)
     }
@@ -75,57 +73,59 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    const pSub = supabase.current
-      .channel('projects-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, load)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_tasks' }, load)
-      .subscribe()
-    return () => { pSub.unsubscribe() }
-  }, [load])
-
-  useEffect(() => {
-    clearTimeout(syncTimer.current)
-    syncTimer.current = setTimeout(() => {
-      try { localStorage.setItem('erp_projects', JSON.stringify(projects)) } catch {}
-    }, 500)
-  }, [projects])
-
   const createProject = useCallback(async (data: Partial<Project>) => {
-    const { error } = await supabase.current.from('projects').insert({ ...data })
-    if (error) { console.error('[ProjectContext] create project error:', error); return }
-    await load()
+    try {
+      await projectService.create(data)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] createProject error:', err)
+    }
   }, [load])
 
   const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
-    const { error } = await supabase.current.from('projects').update(data).eq('id', id)
-    if (error) { console.error('[ProjectContext] update project error:', error); return }
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } as Project : p))
-  }, [])
+    try {
+      await projectService.update(id, data)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] updateProject error:', err)
+    }
+  }, [load])
 
   const deleteProject = useCallback(async (id: string) => {
-    const { error } = await supabase.current.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) { console.error('[ProjectContext] delete project error:', error); return }
-    setProjects(prev => prev.filter(p => p.id !== id))
-  }, [])
+    try {
+      await projectService.remove(id)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] deleteProject error:', err)
+    }
+  }, [load])
 
   const createTask = useCallback(async (data: Partial<ProjectTask>) => {
-    const { error } = await supabase.current.from('project_tasks').insert(data)
-    if (error) { console.error('[ProjectContext] create task error:', error); return }
-    await load()
+    try {
+      await projectService.createTask(data)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] createTask error:', err)
+    }
   }, [load])
 
   const updateTask = useCallback(async (id: string, data: Partial<ProjectTask>) => {
-    const { error } = await supabase.current.from('project_tasks').update(data).eq('id', id)
-    if (error) { console.error('[ProjectContext] update task error:', error); return }
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } as ProjectTask : t))
-  }, [])
+    try {
+      await projectService.updateTask(id, data)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] updateTask error:', err)
+    }
+  }, [load])
 
   const deleteTask = useCallback(async (id: string) => {
-    const { error } = await supabase.current.from('project_tasks').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) { console.error('[ProjectContext] delete task error:', error); return }
-    setTasks(prev => prev.filter(t => t.id !== id))
-  }, [])
+    try {
+      await projectService.removeTask(id)
+      await load()
+    } catch (err) {
+      console.error('[ProjectContext] deleteTask error:', err)
+    }
+  }, [load])
 
   const getTasksByProject = useCallback((projectId: string) => {
     return tasks.filter(t => t.project_id === projectId)

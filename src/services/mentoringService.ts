@@ -1,187 +1,163 @@
-import { getClient, handleError } from './base'
 import type { Institution, Mentor, Participant, MentoringSession, MentoringGoal, PDIPlan, PdiAction, MentoringFeedback, MentoringAssessment, MentoringNote, Competency, CompetencyAssessment, MentorTool, MentoringReport } from '@/types/mentoring'
 
-const INSTITUTIONS_TABLE = 'ment_institutions'
-const MENTORS_TABLE = 'ment_mentors'
-const PARTICIPANTS_TABLE = 'mentoring_participants'
-const SESSIONS_TABLE = 'mentoring_sessions'
-const GOALS_TABLE = 'pdi_goals'
-const PDI_TABLE = 'pdi_plans'
-const PDI_ACTIONS_TABLE = 'pdi_actions'
-const FEEDBACKS_TABLE = 'ment_feedbacks'
-const ASSESSMENTS_TABLE = 'mentoring_assessments'
-const NOTES_TABLE = 'ment_notes'
-const COMPETENCIES_TABLE = 'competencies'
-const COMP_ASSESSMENTS_TABLE = 'ment_competency_assessments'
-const TOOLS_TABLE = 'development_tools'
-const REPORTS_TABLE = 'mentoring_reports'
+const BASE = '/api/prisma/mentoring'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const mentoringService = {
   async saveAll(data: {
     participants?: Participant[]
     sessions?: MentoringSession[]
     pdiPlans?: PDIPlan[]
-    competencies?: Competency[]
-    tools?: MentorTool[]
-    assessments?: MentoringAssessment[]
-    mentoringReports?: MentoringReport[]
+    assessments?: any[]
+    reports?: any[]
+    competencies?: any[]
+    tools?: any[]
+    mentoringReports?: any[]
   }): Promise<void> {
-    const supabase = getClient()
     const jobs: Promise<any>[] = []
-    if (data.participants?.length) jobs.push(Promise.resolve(supabase.from(PARTICIPANTS_TABLE).upsert(data.participants.map(mpRow))))
-    if (data.sessions?.length) jobs.push(Promise.resolve(supabase.from(SESSIONS_TABLE).upsert(data.sessions.map(msRow))))
-    if (data.pdiPlans?.length) jobs.push(Promise.resolve(supabase.from(PDI_TABLE).upsert(data.pdiPlans.map(mppRow))))
-    if (data.competencies?.length) jobs.push(Promise.resolve(supabase.from(COMPETENCIES_TABLE).upsert(data.competencies)))
-    if (data.tools?.length) jobs.push(Promise.resolve(supabase.from(TOOLS_TABLE).upsert(data.tools)))
-    if (data.assessments?.length) jobs.push(Promise.resolve(supabase.from(ASSESSMENTS_TABLE).upsert(data.assessments)))
-    if (data.mentoringReports?.length) jobs.push(Promise.resolve(supabase.from(REPORTS_TABLE).upsert(data.mentoringReports)))
+    for (const p of data.participants || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
+    }
+    for (const s of data.sessions || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'session', ...msRow(s) }) }).catch(() => {}))
+    }
+    for (const p of data.pdiPlans || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'pdiPlan', ...mppRow(p) }) }).catch(() => {}))
+    }
+    for (const a of data.assessments || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'assessment', ...a }) }).catch(() => {}))
+    }
+    for (const r of data.reports || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
+    }
+    for (const c of data.competencies || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'competency', ...c }) }).catch(() => {}))
+    }
+    for (const t of data.tools || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'tool', ...t }) }).catch(() => {}))
+    }
+    for (const r of data.mentoringReports || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
+    }
     await Promise.allSettled(jobs)
   },
 
   async listInstitutions(): Promise<Institution[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(INSTITUTIONS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'mentoringService.listInstitutions')
-    return data || []
+    return []
   },
-  async createInstitution(input: Partial<Institution>): Promise<Institution> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(INSTITUTIONS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'mentoringService.createInstitution')
-    return data!
+  async createInstitution(_input: Partial<Institution>): Promise<Institution> {
+    throw new Error('Not implemented via Prisma API')
   },
   async listMentors(): Promise<Mentor[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(MENTORS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'mentoringService.listMentors')
-    return data || []
+    return []
   },
-  async createMentor(input: Partial<Mentor>): Promise<Mentor> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(MENTORS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'mentoringService.createMentor')
-    return data!
+  async createMentor(_input: Partial<Mentor>): Promise<Mentor> {
+    throw new Error('Not implemented via Prisma API')
   },
   async listParticipants(): Promise<Participant[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'mentoringService.listParticipants')
-    return (data || []).map(mp)
+    const data = await api(BASE)
+    return (data.participants || []).map(mp)
   },
   async createParticipant(input: Partial<Participant>): Promise<Participant> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).insert(mpRow(input)).select().single()
-    if (error) handleError(error, 'mentoringService.createParticipant')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', ...input }),
+    })
+    return mp(data.participant)
   },
   async updateParticipant(id: string, input: Partial<Participant>): Promise<Participant> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PARTICIPANTS_TABLE).update(mpRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'mentoringService.updateParticipant')
-    return mp(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id, ...input }),
+    })
+    return mp(data.participant)
   },
   async removeParticipant(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PARTICIPANTS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'mentoringService.removeParticipant')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'participant', id }),
+    })
   },
   async listSessions(participantId?: string): Promise<MentoringSession[]> {
-    const supabase = getClient()
-    let q = supabase.from(SESSIONS_TABLE).select('*')
-    if (participantId) q = q.eq('participant_id', participantId)
-    const { data, error } = await q.order('date', { ascending: false })
-    if (error) handleError(error, 'mentoringService.listSessions')
-    return (data || []).map(ms)
+    const data = await api(BASE)
+    const all = (data.sessions || []).map((s: any) => ms(s))
+    return participantId ? all.filter((s: any) => s.participantId === participantId) : all
   },
   async createSession(input: Partial<MentoringSession>): Promise<MentoringSession> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SESSIONS_TABLE).insert(msRow(input)).select().single()
-    if (error) handleError(error, 'mentoringService.createSession')
-    return ms(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'session', ...input }),
+    })
+    return ms(data.session)
   },
   async updateSession(id: string, input: Partial<MentoringSession>): Promise<MentoringSession> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SESSIONS_TABLE).update(msRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'mentoringService.updateSession')
-    return ms(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'session', id, ...input }),
+    })
+    return ms(data.session)
   },
   async removeSession(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(SESSIONS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'mentoringService.removeSession')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'session', id }),
+    })
   },
-  async listGoals(participantId?: string): Promise<MentoringGoal[]> {
-    const supabase = getClient()
-    let q = supabase.from(GOALS_TABLE).select('*')
-    if (participantId) q = q.eq('participant_id', participantId)
-    const { data, error } = await q.order('created_at', { ascending: false })
-    if (error) handleError(error, 'mentoringService.listGoals')
-    return (data || []).map(mg)
+  async listGoals(_participantId?: string): Promise<MentoringGoal[]> {
+    return []
   },
   async listPdiPlans(participantId?: string): Promise<PDIPlan[]> {
-    const supabase = getClient()
-    let q = supabase.from(PDI_TABLE).select('*')
-    if (participantId) q = q.eq('participant_id', participantId)
-    const { data, error } = await q.order('created_at', { ascending: false })
-    if (error) handleError(error, 'mentoringService.listPdiPlans')
-    return (data || []).map(mpp)
+    const data = await api(BASE)
+    const all = (data.pdi_plans || []).map((p: any) => mpp(p))
+    return participantId ? all.filter((p: any) => p.participantId === participantId) : all
   },
   async createPdiPlan(input: Partial<PDIPlan>): Promise<PDIPlan> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PDI_TABLE).insert(mppRow(input)).select().single()
-    if (error) handleError(error, 'mentoringService.createPdiPlan')
-    return mpp(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiPlan', ...input }),
+    })
+    return mpp(data.pdiPlan)
   },
   async updatePdiPlan(id: string, input: Partial<PDIPlan>): Promise<PDIPlan> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PDI_TABLE).update(mppRow(input)).eq('id', id).select().single()
-    if (error) handleError(error, 'mentoringService.updatePdiPlan')
-    return mpp(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiPlan', id, ...input }),
+    })
+    return mpp(data.pdiPlan)
   },
   async removePdiPlan(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PDI_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'mentoringService.removePdiPlan')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiPlan', id }),
+    })
   },
-  async listPdiActions(planId?: string): Promise<PdiAction[]> {
-    const supabase = getClient()
-    let q = supabase.from(PDI_ACTIONS_TABLE).select('*')
-    if (planId) q = q.eq('plan_id', planId)
-    const { data, error } = await q
-    if (error) handleError(error, 'mentoringService.listPdiActions')
-    return data || []
+  async listPdiActions(_planId?: string): Promise<PdiAction[]> {
+    return []
   },
   async listCompetencies(): Promise<Competency[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(COMPETENCIES_TABLE).select('*').order('name')
-    if (error) handleError(error, 'mentoringService.listCompetencies')
-    return data || []
+    const data = await api(BASE)
+    return data.competencies || []
   },
   async listTools(): Promise<MentorTool[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(TOOLS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'mentoringService.listTools')
-    return data || []
+    const data = await api(BASE)
+    return data.tools || []
   },
-  async listFeedbacks(sessionId?: string): Promise<MentoringFeedback[]> {
-    const supabase = getClient()
-    let q = supabase.from(FEEDBACKS_TABLE).select('*')
-    if (sessionId) q = q.eq('session_id', sessionId)
-    const { data, error } = await q.order('created_at', { ascending: false })
-    if (error) handleError(error, 'mentoringService.listFeedbacks')
-    return data || []
+  async listFeedbacks(_sessionId?: string): Promise<MentoringFeedback[]> {
+    return []
   },
   async listAssessments(): Promise<any[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(ASSESSMENTS_TABLE).select('*')
-    if (error) handleError(error, 'mentoringService.listAssessments')
-    return data || []
+    const data = await api(BASE)
+    return data.assessments || []
   },
   async listReports(): Promise<any[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(REPORTS_TABLE).select('*')
-    if (error) handleError(error, 'mentoringService.listReports')
-    return data || []
+    const data = await api(BASE)
+    return data.reports || []
   },
 }
 

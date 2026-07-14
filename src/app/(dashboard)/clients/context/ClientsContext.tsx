@@ -196,23 +196,30 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   // ==========================================
-  // LOAD inicial (única fonte da verdade = Supabase)
+  // LOAD inicial (fonte da verdade = Prisma)
   // ==========================================
   const loadFromAPI = useCallback(async () => {
     try {
-      const res = await fetch('/api/sync/clients')
+      const res = await fetch('/api/prisma/clients')
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      const d = json?.data || json
-      if (d?.clients) {
-        console.log(`[AUDIT] loadFromAPI setClients — ${d.clients.length} registros`)
-        setClients(sanitizeClients(d.clients))
-        setContacts(sanitizeContacts(d.contacts || []))
-        setInteractions(sanitizeInteractions(d.interactions || []))
-        setDocuments((d.documents || []) as ClientDocument[])
-        setFeedbacks(sanitizeFeedbacks(d.feedbacks || []))
+      const clientsRaw = json?.clients || []
+      console.log(`[AUDIT] loadFromAPI setClients — ${clientsRaw.length} registros`)
+      setClients(sanitizeClients(clientsRaw))
+      const allContacts: ClientContact[] = []
+      const allInteractions: ClientInteraction[] = []
+      const allDocs: ClientDocument[] = []
+      const allFeedbacks: ClientFeedback[] = []
+      for (const c of clientsRaw) {
+        if (c.client_contacts) allContacts.push(...sanitizeContacts(c.client_contacts))
+        if (c.client_interactions) allInteractions.push(...sanitizeInteractions(c.client_interactions))
+        if (c.client_documents) allDocs.push(...(c.client_documents as ClientDocument[]))
+        if (c.client_feedbacks) allFeedbacks.push(...sanitizeFeedbacks(c.client_feedbacks))
       }
-      return d
+      setContacts(allContacts)
+      setInteractions(allInteractions)
+      setDocuments(allDocs)
+      setFeedbacks(allFeedbacks)
     } catch (err: any) {
       console.error('[CLIENTS] load error:', err)
       throw err
@@ -278,7 +285,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'client', id: newClient.id, ...c }),
@@ -304,7 +311,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setErrorMessage(null)
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'client', id, ...updates }),
@@ -328,7 +335,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setErrorMessage(null)
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -370,7 +377,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStatus('loading')
     setErrorMessage(null)
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'restore', id }),
@@ -396,7 +403,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newContact: ClientContact = { ...c, id: generateId() }
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'contact', id: newContact.id, ...c }),
@@ -414,7 +421,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateContact = async (id: string, updates: Partial<ClientContact>) => {
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'contact', id, ...updates }),
@@ -440,7 +447,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newInt: ClientInteraction = { ...i, id: generateId(), date: new Date().toISOString() }
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'interaction', ...i }),
@@ -461,7 +468,7 @@ export const ClientsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newFb: ClientFeedback = { ...f, id: generateId(), date: new Date().toISOString() }
 
     try {
-      const res = await fetch('/api/clients', {
+      const res = await fetch('/api/prisma/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ _type: 'feedback', ...f }),

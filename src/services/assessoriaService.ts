@@ -1,15 +1,13 @@
-import { getClient, handleError } from './base'
 import type { Diagnostico, Okr, Swot, PlanoAcao, Kpi, KpiMeta, Relatorio, Checkin, Ferramenta } from '@/types/assessoria'
 
-const DIAGNOSTICOS_TABLE = 'ass_diagnosticos'
-const OKRS_TABLE = 'ass_okrs'
-const SWOT_TABLE = 'ass_swot'
-const PLANOS_TABLE = 'ass_planos_acao'
-const KPIS_TABLE = 'ass_kpis'
-const METAS_TABLE = 'ass_kpi_metas'
-const RELATORIOS_TABLE = 'ass_relatorios'
-const CHECKINS_TABLE = 'ass_checkins'
-const FERRAMENTAS_TABLE = 'ass_ferramentas'
+const BASE = '/api/prisma/assessoria'
+
+async function api(url: string, opts?: RequestInit) {
+  const res = await fetch(url, opts)
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data
+}
 
 export const assessoriaService = {
   async saveAll(data: {
@@ -19,188 +17,170 @@ export const assessoriaService = {
     planosAcao?: PlanoAcao[]
     kpis?: Kpi[]
   }): Promise<void> {
-    const supabase = getClient()
     const jobs: Promise<any>[] = []
-    if (data.diagnosticos?.length) jobs.push(Promise.resolve(supabase.from(DIAGNOSTICOS_TABLE).upsert(data.diagnosticos.map(mdRow))))
-    if (data.okrs?.length) jobs.push(Promise.resolve(supabase.from(OKRS_TABLE).upsert(data.okrs.map(moRow))))
-    if (data.swots?.length) jobs.push(Promise.resolve(supabase.from(SWOT_TABLE).upsert(data.swots.map(msRow))))
-    if (data.planosAcao?.length) jobs.push(Promise.resolve(supabase.from(PLANOS_TABLE).upsert(data.planosAcao.map(mpaRow))))
-    if (data.kpis?.length) jobs.push(Promise.resolve(supabase.from(KPIS_TABLE).upsert(data.kpis.map(mkRow))))
+    for (const d of data.diagnosticos || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'diagnostico', ...mdRow(d) }) }).catch(() => {}))
+    }
+    for (const o of data.okrs || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'okr', ...moRow(o) }) }).catch(() => {}))
+    }
+    for (const s of data.swots || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'swot', ...msRow(s) }) }).catch(() => {}))
+    }
+    for (const p of data.planosAcao || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'planoAcao', ...mpaRow(p) }) }).catch(() => {}))
+    }
+    for (const k of data.kpis || []) {
+      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'kpi', ...mkRow(k) }) }).catch(() => {}))
+    }
     await Promise.allSettled(jobs)
   },
 
   async listDiagnosticos(empresa?: string): Promise<Diagnostico[]> {
-    const supabase = getClient()
-    let q = supabase.from(DIAGNOSTICOS_TABLE).select('*').order('created_at', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listDiagnosticos')
-    return (data || []).map(md)
+    const data = await api(BASE)
+    const all = (data.diagnosticos || []).map((d: any) => md(d))
+    return empresa ? all.filter((d: any) => d.empresa === empresa) : all
   },
   async createDiagnostico(input: Partial<Diagnostico>): Promise<Diagnostico> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(DIAGNOSTICOS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createDiagnostico')
-    return md(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostico', ...input }),
+    })
+    return md(data.diagnostico)
   },
   async updateDiagnostico(id: string, input: Partial<Diagnostico>): Promise<Diagnostico> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(DIAGNOSTICOS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'assessoriaService.updateDiagnostico')
-    return md(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostico', id, ...input }),
+    })
+    return md(data.diagnostico)
   },
   async removeDiagnostico(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(DIAGNOSTICOS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'assessoriaService.removeDiagnostico')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostico', id }),
+    })
   },
   async listOkrs(empresa?: string): Promise<Okr[]> {
-    const supabase = getClient()
-    let q = supabase.from(OKRS_TABLE).select('*').order('created_at', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listOkrs')
-    return (data || []).map(mo)
+    const data = await api(BASE)
+    const all = (data.okrs || []).map((o: any) => mo(o))
+    return empresa ? all.filter((o: any) => o.empresa === empresa) : all
   },
   async createOkr(input: Partial<Okr>): Promise<Okr> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(OKRS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createOkr')
-    return mo(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'okr', ...input }),
+    })
+    return mo(data.okr)
   },
   async updateOkr(id: string, input: Partial<Okr>): Promise<Okr> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(OKRS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'assessoriaService.updateOkr')
-    return mo(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'okr', id, ...input }),
+    })
+    return mo(data.okr)
   },
   async removeOkr(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(OKRS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'assessoriaService.removeOkr')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'okr', id }),
+    })
   },
   async listSwots(empresa?: string): Promise<Swot[]> {
-    const supabase = getClient()
-    let q = supabase.from(SWOT_TABLE).select('*').order('created_at', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listSwots')
-    return (data || []).map(ms)
+    const data = await api(BASE)
+    const all = (data.swots || []).map((s: any) => ms(s))
+    return empresa ? all.filter((s: any) => s.empresa === empresa) : all
   },
   async createSwot(input: Partial<Swot>): Promise<Swot> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SWOT_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createSwot')
-    return ms(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'swot', ...input }),
+    })
+    return ms(data.swot)
   },
   async updateSwot(id: string, input: Partial<Swot>): Promise<Swot> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(SWOT_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'assessoriaService.updateSwot')
-    return ms(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'swot', id, ...input }),
+    })
+    return ms(data.swot)
   },
   async removeSwot(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(SWOT_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'assessoriaService.removeSwot')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'swot', id }),
+    })
   },
   async listPlanos(empresa?: string): Promise<PlanoAcao[]> {
-    const supabase = getClient()
-    let q = supabase.from(PLANOS_TABLE).select('*').order('created_at', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listPlanos')
-    return (data || []).map(mpa)
+    const data = await api(BASE)
+    const all = (data.planosAcao || []).map((p: any) => mpa(p))
+    return empresa ? all.filter((p: any) => p.empresa === empresa) : all
   },
   async createPlano(input: Partial<PlanoAcao>): Promise<PlanoAcao> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PLANOS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createPlano')
-    return mpa(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'planoAcao', ...input }),
+    })
+    return mpa(data.planoAcao)
   },
   async updatePlano(id: string, input: Partial<PlanoAcao>): Promise<PlanoAcao> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(PLANOS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'assessoriaService.updatePlano')
-    return mpa(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'planoAcao', id, ...input }),
+    })
+    return mpa(data.planoAcao)
   },
   async removePlano(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(PLANOS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'assessoriaService.removePlano')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'planoAcao', id }),
+    })
   },
   async listKpis(empresa?: string): Promise<Kpi[]> {
-    const supabase = getClient()
-    let q = supabase.from(KPIS_TABLE).select('*').order('name')
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listKpis')
-    return (data || []).map(mk)
+    const data = await api(BASE)
+    const all = (data.kpis || []).map((k: any) => mk(k))
+    return empresa ? all.filter((k: any) => k.empresa === empresa) : all
   },
   async createKpi(input: Partial<Kpi>): Promise<Kpi> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(KPIS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createKpi')
-    return mk(data!)
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'kpi', ...input }),
+    })
+    return mk(data.kpi)
   },
   async updateKpi(id: string, input: Partial<Kpi>): Promise<Kpi> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(KPIS_TABLE).update(input).eq('id', id).select().single()
-    if (error) handleError(error, 'assessoriaService.updateKpi')
-    return mk(data!)
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'kpi', id, ...input }),
+    })
+    return mk(data.kpi)
   },
   async removeKpi(id: string): Promise<void> {
-    const supabase = getClient()
-    const { error } = await supabase.from(KPIS_TABLE).delete().eq('id', id)
-    if (error) handleError(error, 'assessoriaService.removeKpi')
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'kpi', id }),
+    })
   },
-  async listMetas(kpiId?: string): Promise<KpiMeta[]> {
-    const supabase = getClient()
-    let q = supabase.from(METAS_TABLE).select('*')
-    if (kpiId) q = q.eq('kpi_id', kpiId)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listMetas')
-    return data || []
+  async listMetas(_kpiId?: string): Promise<KpiMeta[]> {
+    return []
   },
-  async createMeta(input: Partial<KpiMeta>): Promise<KpiMeta> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(METAS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createMeta')
-    return data!
+  async createMeta(_input: Partial<KpiMeta>): Promise<KpiMeta> {
+    throw new Error('Not implemented via Prisma API')
   },
-  async listRelatorios(empresa?: string): Promise<Relatorio[]> {
-    const supabase = getClient()
-    let q = supabase.from(RELATORIOS_TABLE).select('*').order('created_at', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listRelatorios')
-    return (data || []).map(mr)
+  async listRelatorios(_empresa?: string): Promise<Relatorio[]> {
+    return []
   },
-  async createRelatorio(input: Partial<Relatorio>): Promise<Relatorio> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(RELATORIOS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createRelatorio')
-    return mr(data!)
+  async createRelatorio(_input: Partial<Relatorio>): Promise<Relatorio> {
+    throw new Error('Not implemented via Prisma API')
   },
-  async listCheckins(empresa?: string): Promise<Checkin[]> {
-    const supabase = getClient()
-    let q = supabase.from(CHECKINS_TABLE).select('*').order('date', { ascending: false })
-    if (empresa) q = q.eq('empresa', empresa)
-    const { data, error } = await q
-    if (error) handleError(error, 'assessoriaService.listCheckins')
-    return (data || []).map(mch)
+  async listCheckins(_empresa?: string): Promise<Checkin[]> {
+    return []
   },
-  async createCheckin(input: Partial<Checkin>): Promise<Checkin> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(CHECKINS_TABLE).insert(input).select().single()
-    if (error) handleError(error, 'assessoriaService.createCheckin')
-    return mch(data!)
+  async createCheckin(_input: Partial<Checkin>): Promise<Checkin> {
+    throw new Error('Not implemented via Prisma API')
   },
   async listFerramentas(): Promise<Ferramenta[]> {
-    const supabase = getClient()
-    const { data, error } = await supabase.from(FERRAMENTAS_TABLE).select('*').order('name')
-    if (error) handleError(error, 'assessoriaService.listFerramentas')
-    return data || []
+    return []
   },
 }
 

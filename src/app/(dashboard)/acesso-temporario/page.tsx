@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useAcessoTemporario, QuestionType, QuestionOption, Question } from './context/AcessoTemporarioContext'
 import { useCrm } from '../crm/context/CrmContext'
+import { useAdmin } from '../admin/context/AdminContext'
 import {
   Plus, X, Copy, Check, Trash2, Clock, ExternalLink, Key,
   UserCheck, UserX, Search, Calendar, Building2, Users,
@@ -91,10 +92,8 @@ function TokensTab({ ctx, crm }: { ctx: ReturnType<typeof useAcessoTemporario>; 
     const company = crm.companies.find(c => c.id === selectedCompanyId)
     if (!company) return
     const expires = new Date(Date.now() + expiresDays * 86400000).toISOString()
-    const stored = localStorage.getItem('current_user')
-    let createdBy = 'Administrador'
-    if (stored) { try { const u = JSON.parse(stored); createdBy = u.name } catch {} }
-    ctx.createAccess(company.id, company.tradeName || company.name, expires, createdBy)
+    const currentUserName = useAdmin().currentUser?.name || 'Administrador'
+    ctx.createAccess(company.id, company.tradeName || company.name, expires, currentUserName)
     setShowCreate(false); setSelectedCompanyId(''); setExpiresDays(30)
   }
 
@@ -199,10 +198,8 @@ function UsuariosTab({ ctx, crm }: { ctx: ReturnType<typeof useAcessoTemporario>
     if (!form.companyId || !form.name.trim() || !form.email.trim() || !form.password.trim()) return
     const company = crm.companies.find(c => c.id === form.companyId)
     if (!company) return
-    const stored = localStorage.getItem('current_user')
-    let createdBy = 'Administrador'
-    if (stored) { try { const u = JSON.parse(stored); createdBy = u.name } catch {} }
-    ctx.createTempUser({ companyId: form.companyId, companyName: company.tradeName || company.name, name: form.name.trim(), email: form.email.trim(), password: form.password, createdBy })
+    const currentUserName = useAdmin().currentUser?.name || 'Administrador'
+    ctx.createTempUser({ companyId: form.companyId, companyName: company.tradeName || company.name, name: form.name.trim(), email: form.email.trim(), password: form.password, createdBy: currentUserName })
     setShowCreate(false); setForm({ companyId: '', name: '', email: '', password: '' })
     setSearch('')
   }
@@ -327,13 +324,11 @@ function QuestionariosTab({ ctx }: { ctx: ReturnType<typeof useAcessoTemporario>
 
   const handleSave = () => {
     if (!form.title.trim()) return
-    const stored = localStorage.getItem('current_user')
-    let createdBy = 'Administrador'
-    if (stored) { try { const u = JSON.parse(stored); createdBy = u.name } catch {} }
+    const currentUserName = useAdmin().currentUser?.name || 'Administrador'
     if (editId) {
       ctx.updateQuestionnaire(editId, { title: form.title.trim(), description: form.description.trim() || undefined, instructions: form.instructions.trim() || undefined, questions })
     } else {
-      ctx.createQuestionnaire({ title: form.title.trim(), description: form.description.trim() || undefined, instructions: form.instructions.trim() || undefined, questions, createdBy })
+      ctx.createQuestionnaire({ title: form.title.trim(), description: form.description.trim() || undefined, instructions: form.instructions.trim() || undefined, questions, createdBy: currentUserName })
     }
     setShowCreate(false); resetForm()
   }

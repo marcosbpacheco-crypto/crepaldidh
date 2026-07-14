@@ -47,33 +47,18 @@ export async function updateSession(request: NextRequest) {
     // Supabase está inativo/indisponível localmente
   }
 
-  // Verifica o cookie de bypass local para desenvolvimento
-  const mockCookie = request.cookies.get('sb-mock-session')?.value
-  let mockUser = null
-  if (mockCookie) {
-    try {
-      const parsed = JSON.parse(mockCookie)
-      if (parsed.userId) mockUser = { id: parsed.userId, email: parsed.userName || 'user', name: parsed.userName }
-    } catch {
-      if (mockCookie === 'true') mockUser = { id: 'mock-user-id', email: 'admin@crepaldidh.com.br' }
-    }
-  }
-  const finalUser = user || mockUser
-
   // Define protected routes that require authentication
-  // Any route that isn't login or register is considered protected for now
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
   const isPortalRoute = request.nextUrl.pathname.startsWith('/portal')
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
 
-  if (!finalUser && !isAuthRoute && !isPortalRoute) {
-    // no user, potentially respond by redirecting the user to the login page
+  if (!user && !isAuthRoute && !isPortalRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in and tries to access auth routes, redirect to dashboard
-  if (finalUser && isAuthRoute && !isPortalRoute) {
+  if (user && isAuthRoute && !isPortalRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)

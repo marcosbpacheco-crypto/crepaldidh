@@ -229,17 +229,6 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const get = <T,>(key: string, fallback: T): T => {
-      try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : fallback }
-      catch { return fallback }
-    }
-    setParticipants(get('mentoring_participants', SEED_PARTICIPANTS))
-    setSessions(get('mentoring_sessions', SEED_SESSIONS))
-    setPDIPlans(get('mentoring_pdi', SEED_PDI_PLANS))
-    setCompetencies(get('mentoring_competencies', DEFAULT_COMPETENCIES))
-    setTools(get('mentoring_tools', DEFAULT_TOOLS))
-    setAssessments(get('mentoring_assessments', []))
-    setMentoringReports(get('mentoring_reports', []))
     Promise.all([
       mentoringService.listParticipants(),
       mentoringService.listSessions(),
@@ -256,10 +245,6 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (toolsArr.length > 0) setTools(toolsArr as unknown as DevelopmentTool[])
       if (assess.length > 0) setAssessments(assess)
       if (reports.length > 0) setMentoringReports(reports)
-      const d = { participants: parts, sessions: sess, pdiPlans: pdi, competencies: comps, tools: toolsArr, assessments: assess, mentoringReports: reports }
-      for (const [k, v] of Object.entries(d)) {
-        if (Array.isArray(v) && v.length > 0) localStorage.setItem(`mentoring_${k}`, JSON.stringify(v))
-      }
     }).catch((err) => console.error('[MentoringContext] load error:', err))
   }, [])
 
@@ -270,13 +255,6 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const timer = setTimeout(() => {
       mentoringService.saveAll({ participants, sessions, pdiPlans, competencies, tools: tools as any, assessments: assessments as any, mentoringReports })
         .catch(err => console.error('MentoringContext saveAll error:', err))
-      localStorage.setItem('mentoring_participants', JSON.stringify(participants))
-      localStorage.setItem('mentoring_sessions', JSON.stringify(sessions))
-      localStorage.setItem('mentoring_pdi', JSON.stringify(pdiPlans))
-      localStorage.setItem('mentoring_competencies', JSON.stringify(competencies))
-      localStorage.setItem('mentoring_tools', JSON.stringify(tools))
-      localStorage.setItem('mentoring_assessments', JSON.stringify(assessments))
-      localStorage.setItem('mentoring_reports', JSON.stringify(mentoringReports))
     }, 500)
     return () => clearTimeout(timer)
   }, [participants, sessions, pdiPlans, competencies, tools, assessments, mentoringReports])
