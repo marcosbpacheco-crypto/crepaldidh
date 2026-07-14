@@ -182,7 +182,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [lgpdConsents, setLgpdConsents] = useState<LgpdConsent[]>([])
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequest[]>([])
-  const [currentUserId, setCurrentUserIdState] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserIdState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = document.cookie.split('; ').find(c => c.startsWith('session='))
+      if (raw) return JSON.parse(decodeURIComponent(raw.split('=')[1])).userId || null
+    } catch { }
+    return null
+  })
 
   const setCurrentUserId = useCallback((id: string | null) => {
     setCurrentUserIdState(id)
@@ -197,15 +204,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAuditLogs([])
     setLgpdConsents([])
     setPrivacyRequests([])
-
-    // Restore session from cookie (not httpOnly, accessible via document.cookie)
-    try {
-      const raw = document.cookie.split('; ').find(c => c.startsWith('session='))
-      if (raw) {
-        const parsed = JSON.parse(decodeURIComponent(raw.split('=')[1]))
-        if (parsed.userId) setCurrentUserIdState(parsed.userId)
-      }
-    } catch { /* ignore */ }
 
     // Load from service
     Promise.all([
