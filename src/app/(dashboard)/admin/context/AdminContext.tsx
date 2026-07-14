@@ -198,10 +198,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setLgpdConsents([])
     setPrivacyRequests([])
 
-    // Restore session from server (httpOnly cookie)
-    fetch('/api/session/me').then(r => r.json()).then(data => {
-      if (data.user?.userId) setCurrentUserIdState(data.user.userId)
-    }).catch(() => {})
+    // Restore session from cookie (not httpOnly, accessible via document.cookie)
+    try {
+      const raw = document.cookie.split('; ').find(c => c.startsWith('session='))
+      if (raw) {
+        const parsed = JSON.parse(decodeURIComponent(raw.split('=')[1]))
+        if (parsed.userId) setCurrentUserIdState(parsed.userId)
+      }
+    } catch { /* ignore */ }
 
     // Load from service
     Promise.all([
