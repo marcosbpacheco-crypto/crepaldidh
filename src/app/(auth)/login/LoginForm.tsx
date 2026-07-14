@@ -46,7 +46,8 @@ export function LoginForm() {
         return
       }
 
-      await setSessionCookie(user.id, user.name, user.roleName)
+      const roleName = user.roleName || user.role_name || ''
+      await setSessionCookie(user.id, user.name, roleName)
       window.location.href = '/'
     } catch {
       setError('Erro ao conectar ao servidor. Tente novamente.')
