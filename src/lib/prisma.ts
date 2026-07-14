@@ -7,7 +7,7 @@ export function createPrismaClient() {
     throw new Error(`Prisma: missing env vars: ${missing.join(', ')}`)
   }
 
-  const poolConfig = { connectionString: process.env.DIRECT_URL!, max: 3 }
+  const poolConfig = { connectionString: process.env.DATABASE_URL!, max: 3 }
   const adapter = new PrismaPg(poolConfig)
   return new PrismaClient({ adapter })
 }
