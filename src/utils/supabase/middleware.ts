@@ -47,18 +47,22 @@ export async function updateSession(request: NextRequest) {
     // Supabase está inativo/indisponível localmente
   }
 
+  // Also check our custom session cookie (used by the legacy login system)
+  const sessionCookie = request.cookies.get('session')?.value
+  const hasSession = !!sessionCookie
+
   // Define protected routes that require authentication
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
   const isPortalRoute = request.nextUrl.pathname.startsWith('/portal')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
 
-  if (!user && !isAuthRoute && !isPortalRoute && !isApiRoute) {
+  if (!user && !hasSession && !isAuthRoute && !isPortalRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthRoute && !isPortalRoute) {
+  if ((user || hasSession) && isAuthRoute && !isPortalRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
