@@ -1,23 +1,36 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const REQUIRED_ENV = ['DATABASE_URL', 'DIRECT_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'] as const
-for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`)
+export function createPrismaClient() {
+  const missing = ['DATABASE_URL', 'DIRECT_URL'].filter(k => !process.env[k])
+  if (missing.length > 0) {
+    throw new Error(`Prisma: missing env vars: ${missing.join(', ')}`)
   }
+
+  const poolConfig = { connectionString: process.env.DIRECT_URL!, max: 3 }
+  const adapter = new PrismaPg(poolConfig)
+  return new PrismaClient({ adapter })
 }
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient() {
-  const poolConfig = { connectionString: process.env.DIRECT_URL!, max: 3 }
-  const adapter = new PrismaPg(poolConfig)
-  return new PrismaClient({ adapter })
+function getPrisma(): PrismaClient {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma
+  try {
+    globalForPrisma.prisma = createPrismaClient()
+  } catch (e) {
+    console.error('[prisma] failed to initialize:', e)
+    throw e
+  }
+  return globalForPrisma.prisma
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+const _prisma = new Proxy<PrismaClient>({} as PrismaClient, {
+  get(_, prop) {
+    return getPrisma()[prop as keyof PrismaClient]
+  },
+})
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export const prisma = _prisma
