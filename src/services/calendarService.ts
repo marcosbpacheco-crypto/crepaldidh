@@ -10,23 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const calendarService = {
-  async saveAll(data: {
-    events?: CalendarEvent[]
-    participants?: CalendarParticipant[]
-    reminders?: CalendarReminder[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const e of data.events || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'event', ...meRow(e) }) }).catch(() => {}))
-    }
-    for (const p of data.participants || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
-    }
-    for (const r of data.reminders || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'reminder', ...mrRow(r) }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
   async list(): Promise<CalendarEvent[]> {
     const data = await api(BASE)
     return (data.events || []).map(mapEvent)

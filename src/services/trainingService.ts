@@ -11,39 +11,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const trainingService = {
-  async saveAll(data: {
-    events?: TrainingEvent[]
-    participants?: TrainingParticipant[]
-    feedbacks?: TrainingFeedback[]
-    certificates?: TrainingCertificate[]
-    materials?: TrainingMaterial[]
-    reports?: TrainingReport[]
-    sipats?: SipatProgram[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const e of data.events || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'event', ...meRow(e) }) }).catch(() => {}))
-    }
-    for (const p of data.participants || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
-    }
-    for (const f of data.feedbacks || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'feedback', ...f }) }).catch(() => {}))
-    }
-    for (const c of data.certificates || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'certificate', ...mcRow(c) }) }).catch(() => {}))
-    }
-    for (const m of data.materials || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'material', ...m }) }).catch(() => {}))
-    }
-    for (const r of data.reports || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
-    }
-    for (const s of data.sipats || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'sipat', ...s }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
   async listEvents(): Promise<TrainingEvent[]> {
     const data = await api(BASE)
     return (data.events || []).map(me)

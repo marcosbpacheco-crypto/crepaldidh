@@ -10,32 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const assessoriaService = {
-  async saveAll(data: {
-    diagnosticos?: Diagnostico[]
-    okrs?: Okr[]
-    swots?: Swot[]
-    planosAcao?: PlanoAcao[]
-    kpis?: Kpi[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const d of data.diagnosticos || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'diagnostico', ...mdRow(d) }) }).catch(() => {}))
-    }
-    for (const o of data.okrs || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'okr', ...moRow(o) }) }).catch(() => {}))
-    }
-    for (const s of data.swots || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'swot', ...msRow(s) }) }).catch(() => {}))
-    }
-    for (const p of data.planosAcao || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'planoAcao', ...mpaRow(p) }) }).catch(() => {}))
-    }
-    for (const k of data.kpis || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'kpi', ...mkRow(k) }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
-
   async listDiagnosticos(empresa?: string): Promise<Diagnostico[]> {
     const data = await api(BASE)
     const all = (data.diagnosticos || []).map((d: any) => md(d))

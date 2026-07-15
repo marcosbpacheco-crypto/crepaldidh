@@ -86,9 +86,6 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto py-3 custom-scrollbar">
-        <div className="px-4 pb-2" style={{fontSize:9,opacity:0.5,color:'#aaa'}}>
-          userId: {admin.currentUser?.id?.substring(0,8) || 'null'} role: {admin.currentUser?.roleName || '-'}
-        </div>
         <ul className="space-y-0.5 px-4">
           {menuItems.filter(item => !item.module || admin.checkPermission(item.module, 'view')).map((item) => (
             <li key={item.name}>

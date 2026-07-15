@@ -10,44 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const mentoringService = {
-  async saveAll(data: {
-    participants?: Participant[]
-    sessions?: MentoringSession[]
-    pdiPlans?: PDIPlan[]
-    assessments?: any[]
-    reports?: any[]
-    competencies?: any[]
-    tools?: any[]
-    mentoringReports?: any[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const p of data.participants || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'participant', ...mpRow(p) }) }).catch(() => {}))
-    }
-    for (const s of data.sessions || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'session', ...msRow(s) }) }).catch(() => {}))
-    }
-    for (const p of data.pdiPlans || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'pdiPlan', ...mppRow(p) }) }).catch(() => {}))
-    }
-    for (const a of data.assessments || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'assessment', ...a }) }).catch(() => {}))
-    }
-    for (const r of data.reports || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
-    }
-    for (const c of data.competencies || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'competency', ...c }) }).catch(() => {}))
-    }
-    for (const t of data.tools || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'tool', ...t }) }).catch(() => {}))
-    }
-    for (const r of data.mentoringReports || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'report', ...r }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
-
   async listInstitutions(): Promise<Institution[]> {
     return []
   },

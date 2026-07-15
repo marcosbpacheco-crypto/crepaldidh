@@ -10,41 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const crmService = {
-  async saveAll(data: {
-    companies?: Company[]
-    contacts?: Contact[]
-    deals?: Deal[]
-    activities?: Activity[]
-    tasks?: Task[]
-    proposals?: Proposal[]
-    contracts?: Contract[]
-    clients?: CrmClient[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const c of data.companies || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'company', ...mcRow(c) }) }).catch(() => {}))
-    }
-    for (const c of data.contacts || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'contact', ...mapContactRow(c) }) }).catch(() => {}))
-    }
-    for (const d of data.deals || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'deal', ...mdRow(d) }) }).catch(() => {}))
-    }
-    for (const a of data.activities || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'activity', ...maRow(a) }) }).catch(() => {}))
-    }
-    for (const t of data.tasks || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'task', ...mtRow(t) }) }).catch(() => {}))
-    }
-    for (const p of data.proposals || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'proposal', ...mprRow(p) }) }).catch(() => {}))
-    }
-    for (const c of data.contracts || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'contract', ...mctRow(c) }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
-
   async listCompanies(): Promise<Company[]> {
     const data = await api(BASE)
     return (data.companies || []).map(mc)

@@ -95,31 +95,6 @@ function mapPrivacyRequest(r: any): PrivacyRequest {
 }
 
 export const userService = {
-  async saveAll(data: {
-    users?: User[]
-    permissions?: Permission[]
-    auditLogs?: AuditLog[]
-    lgpdConsents?: LgpdConsent[]
-    privacyRequests?: PrivacyRequest[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const u of data.users || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'user', ...u }) }).catch(() => {}))
-    }
-    for (const p of data.permissions || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'permission', ...p }) }).catch(() => {}))
-    }
-    for (const a of data.auditLogs || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'auditLog', ...a }) }).catch(() => {}))
-    }
-    for (const l of data.lgpdConsents || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'lgpdConsent', ...l }) }).catch(() => {}))
-    }
-    for (const p of data.privacyRequests || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'privacyRequest', ...p }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
   async list(): Promise<User[]> {
     const data = await api(BASE)
     return (data.users || []).map(mapUser)

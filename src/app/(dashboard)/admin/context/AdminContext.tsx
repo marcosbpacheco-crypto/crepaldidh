@@ -235,20 +235,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     // Try API first
     let createdUserId: string | null = null
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await fetch('/api/prisma/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          _type: 'user',
           email: u.email,
           password: u.password,
           name: u.name,
           phone: u.phone,
           avatar: u.avatar,
-          role_id: u.roleId,
-          role_name: u.roleName,
-          is_external: u.isExternal,
-          company_id: u.companyId,
-          company_name: u.companyName,
+          roleId: u.roleId,
+          roleName: u.roleName,
+          isExternal: u.isExternal,
+          companyId: u.companyId,
+          companyName: u.companyName,
           active: u.active,
         }),
       })
@@ -282,20 +283,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = useCallback(async (id: string, updates: Partial<User>) => {
     try {
-      await fetch('/api/admin/users', {
+      await fetch('/api/prisma/admin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          _type: 'user',
           id,
           email: updates.email,
           name: updates.name,
           phone: updates.phone,
           avatar: updates.avatar,
-          role_id: updates.roleId,
-          role_name: updates.roleName,
-          is_external: updates.isExternal,
-          company_id: updates.companyId,
-          company_name: updates.companyName,
+          roleId: updates.roleId,
+          roleName: updates.roleName,
+          isExternal: updates.isExternal,
+          companyId: updates.companyId,
+          companyName: updates.companyName,
           active: updates.active,
         }),
       })
@@ -309,10 +311,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const user = users.find(u => u.id === id)
     if (!user) return
     try {
-      await fetch('/api/admin/users', {
+      await fetch('/api/prisma/admin', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ _type: 'user', id }),
       })
     } catch (err) {
       console.warn('API delete user failed, falling back to local:', err)
@@ -327,10 +329,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
     const becomingActive = !user.active
     try {
-      await fetch('/api/admin/users', {
+      await fetch('/api/prisma/admin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, active: becomingActive }),
+        body: JSON.stringify({ _type: 'user', id, active: becomingActive }),
       })
     } catch (err) {
       console.warn('API toggle active failed, falling back to local:', err)

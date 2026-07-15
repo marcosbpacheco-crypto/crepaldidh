@@ -10,44 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const financeService = {
-  async saveAll(data: {
-    categories?: FinancialCategory[]
-    paymentMethods?: PaymentMethod[]
-    receivables?: AccountReceivable[]
-    payables?: AccountPayable[]
-    recurringRules?: RecurringRule[]
-    invoices?: FinancialInvoice[]
-    transactions?: FinancialTransaction[]
-    bankTransactions?: BankTransaction[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const c of data.categories || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'category', ...c }) }).catch(() => {}))
-    }
-    for (const p of data.paymentMethods || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'paymentMethod', ...p }) }).catch(() => {}))
-    }
-    for (const r of data.receivables || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'receivable', ...mrRow(r) }) }).catch(() => {}))
-    }
-    for (const p of data.payables || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'payable', ...mpRow(p) }) }).catch(() => {}))
-    }
-    for (const r of data.recurringRules || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'recurringRule', ...mrrRow(r) }) }).catch(() => {}))
-    }
-    for (const i of data.invoices || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'invoice', ...minvRow(i) }) }).catch(() => {}))
-    }
-    for (const t of data.transactions || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'transaction', ...mtRow(t) }) }).catch(() => {}))
-    }
-    for (const b of data.bankTransactions || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'bankTransaction', ...mbtRow(b) }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
-
   // Categories
   async listCategories(): Promise<FinancialCategory[]> {
     const data = await api(BASE)

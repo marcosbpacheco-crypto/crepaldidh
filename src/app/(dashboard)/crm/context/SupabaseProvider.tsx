@@ -2,8 +2,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { SupabaseClient, Session } from '@supabase/supabase-js';
 
-// Supabase client is created in src/lib/supabaseClient.ts and exported as default.
-import supabase from '../../../../lib/supabaseClient';
+import { createClient } from '@/lib/supabase/client';
+const supabase = createClient();
 
 interface SupabaseContextProps {
   supabase: SupabaseClient<any>;

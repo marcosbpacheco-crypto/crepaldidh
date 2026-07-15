@@ -10,23 +10,6 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const documentService = {
-  async saveAll(data: {
-    documents?: Document[]
-    versions?: DocumentVersion[]
-    accessLogs?: DocumentAccessLog[]
-  }): Promise<void> {
-    const jobs: Promise<any>[] = []
-    for (const d of data.documents || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'document', ...mdRow(d) }) }).catch(() => {}))
-    }
-    for (const v of data.versions || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'version', ...mvRow(v) }) }).catch(() => {}))
-    }
-    for (const a of data.accessLogs || []) {
-      jobs.push(api(BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _type: 'accessLog', ...maRow(a) }) }).catch(() => {}))
-    }
-    await Promise.allSettled(jobs)
-  },
   async list(): Promise<Document[]> {
     const data = await api(BASE)
     return (data.documents || []).map(md)
