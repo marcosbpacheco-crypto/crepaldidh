@@ -345,17 +345,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }).catch((err) => console.error('[FinancialContext] load error:', err))
   }, [])
 
-  // ---- Sync to Supabase via financeService ----
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = categories.length > 0 || paymentMethods.length > 0 || receivables.length > 0 || payables.length > 0 || transactions.length > 0 || invoices.length > 0 || recurringRules.length > 0 || bankTransactions.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      financeService.saveAll({ categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions })
-        .catch(err => console.error('[FinancialContext] saveAll error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [categories, paymentMethods, receivables, payables, transactions, invoices, recurringRules, bankTransactions])
+  // Persistência é feita individualmente nas operações CRUD
 
   // ==========================================
   // COMPUTED KPIs

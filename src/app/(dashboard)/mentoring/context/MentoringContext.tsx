@@ -248,16 +248,7 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }).catch((err) => console.error('[MentoringContext] load error:', err))
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = participants.length > 0 || sessions.length > 0 || pdiPlans.length > 0 || competencies.length > 0 || tools.length > 0 || assessments.length > 0 || mentoringReports.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      mentoringService.saveAll({ participants, sessions, pdiPlans, competencies, tools: tools as any, assessments: assessments as any, mentoringReports })
-        .catch(err => console.error('MentoringContext saveAll error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [participants, sessions, pdiPlans, competencies, tools, assessments, mentoringReports])
+  // Persistência é feita individualmente nas operações CRUD
 
   // Computed
   const now = new Date()

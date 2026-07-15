@@ -221,26 +221,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }).catch((err) => console.error('[AdminContext] load error:', err))
   }, [])
 
-  // Sync users to service
-  useEffect(() => {
-    if (users.length === 0) return
-    const timer = setTimeout(() => {
-      userService.saveAll({ users }).catch((err) => console.error('[AdminContext] save users error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [users])
-
-  // Sync admin collections to service
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = permissions.length > 0 || auditLogs.length > 0 || lgpdConsents.length > 0 || privacyRequests.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      userService.saveAll({ permissions, auditLogs, lgpdConsents, privacyRequests })
-        .catch((err) => console.error('[AdminContext] save collections error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [permissions, auditLogs, lgpdConsents, privacyRequests])
+  // Persistência é feita individualmente em addUser/updateUser/deleteUser
+  // Nenhum debounce batch necessário
 
   // Cross-device sync is UNIDIRECTIONAL: local → server only.
   // A direcao reversa (server → local) nao deve restaurar usuarios deletados.

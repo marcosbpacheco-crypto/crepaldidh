@@ -30,16 +30,7 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
   const { events } = useCalendar()
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('alerts_read_ids')
-      if (stored) setReadIds(new Set(JSON.parse(stored)))
-    } catch {}
-  }, [])
 
-  useEffect(() => {
-    try { localStorage.setItem('alerts_read_ids', JSON.stringify([...readIds])) } catch {}
-  }, [readIds])
 
   const alerts = useMemo<OperationalAlert[]>(() => {
     const result: OperationalAlert[] = []

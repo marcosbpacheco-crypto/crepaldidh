@@ -6,56 +6,30 @@ export type TenantStatus = 'active' | 'suspended' | 'trial' | 'cancelled'
 export type BillingStatus = 'paid' | 'pending' | 'overdue' | 'cancelled'
 
 export interface TenantPlan {
-  id: string
-  name: string
-  code: string
-  description: string
-  maxUsers: number
-  maxClients: number
-  maxProjects: number
-  storageLimitMb: number
-  hasAi: boolean
-  hasPortal: boolean
-  hasReports: boolean
-  monthlyPrice: number
-  annualPrice: number
+  id: string; name: string; code: string; description: string
+  maxUsers: number; maxClients: number; maxProjects: number; storageLimitMb: number
+  hasAi: boolean; hasPortal: boolean; hasReports: boolean
+  monthlyPrice: number; annualPrice: number
 }
 
 export interface Tenant {
-  id: string
-  name: string
-  cnpj: string
-  planId: string
-  planName: string
-  status: TenantStatus
-  maxUsers: number
-  storageLimitMb: number
-  startDate: string
-  renewalDate?: string
-  responsibleName: string
-  responsibleEmail: string
-  responsiblePhone: string
-  logoUrl?: string
-  createdAt: string
+  id: string; name: string; cnpj: string; planId: string; planName: string
+  status: TenantStatus; maxUsers: number; storageLimitMb: number
+  startDate: string; renewalDate?: string
+  responsibleName: string; responsibleEmail: string; responsiblePhone: string
+  logoUrl?: string; createdAt: string
 }
 
 export interface TenantUsage {
-  id: string
-  tenantId: string
+  id: string; tenantId: string
   metric: 'users' | 'clients' | 'projects' | 'storage_mb' | 'ai_requests'
-  value: number
-  recordedAt: string
+  value: number; recordedAt: string
 }
 
 export interface TenantBilling {
-  id: string
-  tenantId: string
-  invoiceNumber: string
-  amount: number
-  status: BillingStatus
-  dueDate: string
-  paidAt?: string
-  createdAt: string
+  id: string; tenantId: string; invoiceNumber: string
+  amount: number; status: BillingStatus
+  dueDate: string; paidAt?: string; createdAt: string
 }
 
 interface TenantContextType {
@@ -92,12 +66,6 @@ const SEED_PLANS: TenantPlan[] = [
   { id: 'plan-enterprise', name: 'Enterprise', code: 'enterprise', description: 'Solução corporativa com suporte dedicado e customizações', maxUsers: 999, maxClients: 99999, maxProjects: 9999, storageLimitMb: 500000, hasAi: true, hasPortal: true, hasReports: true, monthlyPrice: 2497, annualPrice: 24970 },
 ]
 
-const SEED_TENANTS: Tenant[] = []
-
-function seedUsage(): TenantUsage[] { return [] }
-
-function seedBilling(): TenantBilling[] { return [] }
-
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [tenantsUsage, setTenantsUsage] = useState<TenantUsage[]>([])
@@ -114,49 +82,37 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined' || loadedRef.current) return
     loadedRef.current = true
 
-    const loadFromLocal = () => {
-      try {
-        const t = localStorage.getItem('tenant_tenants'); if (t) setTenants(JSON.parse(t)); else setTenants(SEED_TENANTS)
-        const u = localStorage.getItem('tenant_usage'); if (u) setTenantsUsage(JSON.parse(u)); else setTenantsUsage(seedUsage())
-        const b = localStorage.getItem('tenant_billing'); if (b) setBilling(JSON.parse(b)); else setBilling(seedBilling())
-      } catch { setTenants(SEED_TENANTS); setTenantsUsage(seedUsage()); setBilling(seedBilling()) }
-    }
-
-    fetch('/api/sync/tenants')
+    fetch('/api/prisma/admin')
       .then(r => r.ok ? r.json() : null)
       .then(res => {
-        if (res?.data) {
-          const d = res.data
-          if (Array.isArray(d.tenants) && d.tenants.length > 0) setTenants(d.tenants as Tenant[])
-          if (Array.isArray(d.tenantsUsage) && d.tenantsUsage.length > 0) setTenantsUsage(d.tenantsUsage as TenantUsage[])
-          if (Array.isArray(d.billing) && d.billing.length > 0) setBilling(d.billing as TenantBilling[])
-          for (const [k, v] of Object.entries(d)) {
-            if (Array.isArray(v) && v.length > 0) localStorage.setItem(`tenant_${k}`, JSON.stringify(v))
-          }
-        } else {
-          loadFromLocal()
+        if (res?.tenants && Array.isArray(res.tenants) && res.tenants.length > 0) {
+          setTenants(res.tenants.map((t: any) => ({
+            id: t.id ?? '',
+            name: t.name ?? '',
+            cnpj: t.cnpj ?? '',
+            planId: t.plan_id ?? '',
+            planName: t.plan_name ?? '',
+            status: t.status ?? 'active',
+            maxUsers: t.max_users ?? 5,
+            storageLimitMb: t.storage_limit_mb ?? 1000,
+            startDate: t.start_date ?? '',
+            renewalDate: t.renewal_date ?? '',
+            responsibleName: t.responsible_name ?? '',
+            responsibleEmail: t.responsible_email ?? '',
+            responsiblePhone: t.responsible_phone ?? '',
+            logoUrl: t.logo_url ?? '',
+            createdAt: t.created_at ?? '',
+          })))
+        }
+        if (res?.usage && Array.isArray(res.usage)) {
+          setTenantsUsage(res.usage.map((u: any) => ({
+            id: u.id ?? '', tenantId: u.tenant_id ?? '',
+            metric: u.metric ?? 'users', value: u.value ?? 0, recordedAt: u.recorded_at ?? '',
+          })))
         }
       })
-      .catch(() => loadFromLocal())
+      .catch(() => {})
   }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = tenants.length > 0 || tenantsUsage.length > 0 || billing.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      const payload = { tenants, tenantsUsage, billing }
-      fetch('/api/sync/tenants', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merged: payload }),
-      }).catch((err) => console.error('[TenantContext] sync error:', err))
-      localStorage.setItem('tenant_tenants', JSON.stringify(tenants))
-      localStorage.setItem('tenant_usage', JSON.stringify(tenantsUsage))
-      localStorage.setItem('tenant_billing', JSON.stringify(billing))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [tenants, tenantsUsage, billing])
 
   const currentTenant = useMemo(() => tenants.find(t => t.id === currentTenantId) || null, [tenants, currentTenantId])
 

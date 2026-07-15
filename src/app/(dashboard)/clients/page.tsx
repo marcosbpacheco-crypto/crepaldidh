@@ -33,6 +33,9 @@ function ClientsMainContent() {
   const handleRestore = useCallback(async (id: string) => {
     try { await restoreClient(id); router.refresh() } catch {}
   }, [restoreClient, router])
+  const handleUpdateClient = useCallback(async (id: string, input: Partial<Client>) => {
+    await updateClient(id, input)
+  }, [updateClient])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'churned'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -230,7 +233,7 @@ function ClientsMainContent() {
       {editingClient && (
         <NewClientModal
           editData={editingClient}
-          onUpdate={updateClient}
+          onUpdate={handleUpdateClient}
           onClose={() => setEditingClient(null)}
           formatCurrency={formatCurrency}
           hasFinancialAccess={hasFinancialAccess}

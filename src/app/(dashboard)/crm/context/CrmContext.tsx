@@ -812,19 +812,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
-  // Persist CRM data to Prisma via crmService (debounced)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = companies.length > 0 || contacts.length > 0 || deals.length > 0 ||
-      activities.length > 0 || tasks.length > 0 || proposals.length > 0 ||
-      contracts.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      crmService.saveAll({ companies, contacts, deals, activities, tasks, proposals, contracts, clients })
-        .catch((err) => console.error('[CRM] saveAll error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [companies, contacts, deals, activities, tasks, proposals, contracts, clients])
+  // Persistência é feita individualmente nas operações CRUD
 
   // Helper helper
   function getRoleUserName(role: UserRole): string {

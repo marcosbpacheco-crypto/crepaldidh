@@ -1,4 +1,4 @@
-import { getClient } from './base'
+import { createClient } from '@/lib/supabase/client'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 type TableName =
@@ -52,7 +52,7 @@ const TABLE_QUERY_KEYS: Record<TableName, string[]> = {
 }
 
 export function createRealtimeInvalidator(queryClient: any) {
-  const supabase = getClient()
+  const supabase = createClient()
   if (!supabase) return () => {}
 
   const tables = Object.keys(TABLE_QUERY_KEYS) as TableName[]

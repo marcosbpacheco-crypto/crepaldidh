@@ -112,16 +112,7 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
     }).catch((err) => console.error('[AssessoriaContext] load error:', err))
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = diagnosticos.length > 0 || okrs.length > 0 || swots.length > 0 || planosAcao.length > 0 || kpis.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      assessoriaService.saveAll({ diagnosticos, okrs, swots, planosAcao, kpis })
-        .catch(err => console.error('AssessoriaContext saveAll error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [diagnosticos, okrs, swots, planosAcao, kpis])
+  // Persistência é feita individualmente nas operações CRUD
 
   const addDiagnostico = useCallback((d: Omit<Diagnostico, 'id' | 'dataCriacao'>) => { setDiagnosticos(prev => [...prev, { ...d, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
   const updateDiagnostico = useCallback((id: string, updates: Partial<Diagnostico>) => { setDiagnosticos(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d)) }, [])

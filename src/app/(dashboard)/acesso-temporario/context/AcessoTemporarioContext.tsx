@@ -91,16 +91,7 @@ export function AcessoTemporarioProvider({ children }: { children: React.ReactNo
     }).catch((err) => console.error('[AcessoTemporarioContext] load error:', err))
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const hasData = accesses.length > 0 || tempUsers.length > 0 || questionnaires.length > 0 || responses.length > 0
-    if (!hasData) return
-    const timer = setTimeout(() => {
-      acessoService.saveAll({ accesses, tempUsers, questionnaires, responses })
-        .catch(err => console.error('AcessoTemporarioContext saveAll error:', err))
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [accesses, tempUsers, questionnaires, responses])
+  // Persistência é feita individualmente nas operações CRUD
 
   // --- Access Tokens ---
   const createAccess = useCallback((companyId: string, companyName: string, expiresAt: string, createdBy: string) => {
