@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { setSessionCookie } from './actions'
+import { login, setSessionCookie } from './actions'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 
 export function LoginForm() {
@@ -17,42 +17,16 @@ export function LoginForm() {
     setError('')
     setPending(true)
 
-    const emailNorm = email.trim().toLowerCase()
-    const passNorm = password.trim()
+    const formData = new FormData()
+    formData.set('email', email.trim().toLowerCase())
+    formData.set('password', password)
 
-    try {
-      const res = await fetch('/api/prisma/admin')
-      if (!res.ok) throw new Error('Erro ao carregar usuários')
-      const data = await res.json()
-      const users: any[] = data.users || []
-
-      const user = users.find(u => u.email?.trim().toLowerCase() === emailNorm)
-
-      if (!user) {
-        setError('E-mail ou senha inválidos.')
-        setPending(false)
-        return
-      }
-
-      if (!user.active) {
-        setError('Usuário inativo. Contate o administrador.')
-        setPending(false)
-        return
-      }
-
-      if (user.password !== passNorm) {
-        setError('E-mail ou senha inválidos.')
-        setPending(false)
-        return
-      }
-
-      const roleName = user.roleName || user.role_name || ''
-      await setSessionCookie(user.id, user.name, roleName)
-      window.location.href = '/'
-    } catch {
-      setError('Erro ao conectar ao servidor. Tente novamente.')
+    const result = await login(formData)
+    if (result?.error) {
+      setError(result.error)
       setPending(false)
     }
+    // If no error, login() calls redirect('/') — this line won't execute
   }
 
   const handleForgotPassword = async () => {
