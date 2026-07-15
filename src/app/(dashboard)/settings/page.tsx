@@ -1,7 +1,9 @@
 ﻿'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useAdmin, type ModuleName, type Permission } from '../admin/context/AdminContext'
+import { safeArray } from '@/lib/safe-array'
+import { AdminErrorBoundary } from '@/components/AdminErrorBoundary'
 import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
   Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
@@ -59,7 +61,7 @@ export default function SettingsPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const [privacyForm, setPrivacyForm] = useState({ userId: '', requestType: 'access', description: '' })
-  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', phone: '', password: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
   const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '', roleId: '', isExternal: false, companyId: '', companyName: '' })
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passwordTargetUser, setPasswordTargetUser] = useState<typeof admin.users[0] | null>(null)
@@ -67,8 +69,16 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetConfirmText, setResetConfirmText] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const hasAccess = currentRole && ALLOWED_ROLES.includes(currentRole)
+
+  const safeUsers = safeArray(admin.users)
+  const safeAuditLogs = safeArray(admin.auditLogs)
+  const safePrivacyRequests = safeArray(admin.privacyRequests)
+  const safeLgpd = safeArray(admin.lgpdConsents)
+  const safeRoles = safeArray(admin.roles)
 
   const openEditUser = (u: typeof admin.users[0]) => {
     setEditingUserId(u.id)
@@ -76,52 +86,66 @@ export default function SettingsPage() {
     setShowEditUser(true)
   }
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!editingUserId || !editUserForm.name.trim() || !editUserForm.email.trim()) return
-    const role = admin.roles.find(r => r.id === editUserForm.roleId)
-    const originalUser = admin.users.find(u => u.id === editingUserId)
-    admin.updateUser(editingUserId, {
-      name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
-      avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
-      roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
-      companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
-    })
-    admin.addAuditLog({
-      userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
-      action: 'update', entity: 'user', entityId: editingUserId,
-      description: `Editou usuário: ${originalUser?.name || 'N/A'}`,
-      ipAddress: '127.0.0.1',
-    })
-    setShowEditUser(false)
-    setEditingUserId(null)
+    setIsSubmitting(true)
+    try {
+      const role = admin.roles.find(r => r.id === editUserForm.roleId)
+      const originalUser = admin.users.find(u => u.id === editingUserId)
+      await admin.updateUser(editingUserId, {
+        name: editUserForm.name, email: editUserForm.email, phone: editUserForm.phone,
+        avatar: editUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+        roleId: editUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: editUserForm.isExternal,
+        companyId: editUserForm.companyId || undefined, companyName: editUserForm.companyName || undefined,
+      })
+      admin.addAuditLog({
+        userId: admin.currentUserId || '', userName: admin.currentUser?.name || 'Sistema', userRole: 'admin',
+        action: 'update', entity: 'user', entityId: editingUserId,
+        description: `Editou usuário: ${originalUser?.name || 'N/A'}`,
+        ipAddress: '127.0.0.1',
+      })
+      setShowEditUser(false)
+      setEditingUserId(null)
+    } catch (err) {
+      console.error('Erro ao editar usuário:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const filteredUsers = useMemo(() =>
-    admin.users.filter(u => {
+    safeUsers.filter(u => {
       if (searchUser) { const q = searchUser.toLowerCase(); return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.roleName.toLowerCase().includes(q) }
       return true
-    }), [admin.users, searchUser])
+    }), [safeUsers, searchUser])
 
   const filteredAuditLogs = useMemo(() =>
-    admin.auditLogs.filter(a => {
+    safeAuditLogs.filter(a => {
       if (searchAudit) { const q = searchAudit.toLowerCase(); return a.userName.toLowerCase().includes(q) || a.action.toLowerCase().includes(q) || a.entity.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) }
       return true
-    }), [admin.auditLogs, searchAudit])
+    }), [safeAuditLogs, searchAudit])
 
-  const pendingPrivacyRequests = admin.privacyRequests.filter(r => r.status === 'pending')
+  const pendingPrivacyRequests = safePrivacyRequests.filter(r => r.status === 'pending')
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUserForm.name.trim() || !newUserForm.email.trim()) return
-    const role = admin.roles.find(r => r.id === newUserForm.roleId)
-    admin.addUser({
-      name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone,
-      avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
-      roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
-      companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
-      active: true, password: '123456', loginAttempts: 0, mfaEnabled: false,
-    })
-    setShowAddUser(false)
-    setNewUserForm({ name: '', email: '', phone: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+    setIsSubmitting(true)
+    try {
+      const role = admin.roles.find(r => r.id === newUserForm.roleId)
+      await admin.addUser({
+        name: newUserForm.name, email: newUserForm.email, phone: newUserForm.phone,
+        avatar: newUserForm.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase(),
+        roleId: newUserForm.roleId, roleName: role?.label || 'Sem perfil', isExternal: newUserForm.isExternal,
+        companyId: newUserForm.companyId || undefined, companyName: newUserForm.companyName || undefined,
+        active: true, password: newUserForm.password || '123456', loginAttempts: 0, mfaEnabled: false,
+      })
+      setShowAddUser(false)
+      setNewUserForm({ name: '', email: '', phone: '', password: '', roleId: 'role-consultant', isExternal: false, companyId: '', companyName: '' })
+    } catch (err) {
+      console.error('Erro ao criar usuário:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handlePasswordChange = () => {
@@ -219,6 +243,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
 }
 
   return (
+    <AdminErrorBoundary>
     <div className="min-h-screen">
       <div className="flex items-center gap-2 mb-6">
         <Settings className="w-5 h-5 text-slate-600" />
@@ -272,7 +297,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={searchUser} onChange={e => setSearchUser(e.target.value)} placeholder="Buscar usuários..." className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
-            <button onClick={() => setShowAddUser(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all"><Plus className="w-3.5 h-3.5" /> Novo Usuário</button>
+              {admin.checkPermission('admin', 'create') && <button onClick={() => setShowAddUser(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all"><Plus className="w-3.5 h-3.5" /> Novo Usuário</button>}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -311,12 +336,12 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => { setPasswordTargetUser(u); setNewPassword(''); setConfirmPassword(''); setShowPasswordModal(true) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600" title="Alterar senha"><KeyRound className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
+                          {admin.checkPermission('admin', 'edit') && <button onClick={() => openEditUser(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
+                          {admin.checkPermission('admin', 'edit') && <button onClick={() => { setPasswordTargetUser(u); setNewPassword(''); setConfirmPassword(''); setShowPasswordModal(true) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600" title="Alterar senha"><KeyRound className="w-3.5 h-3.5" /></button>}
+                          {admin.checkPermission('admin', 'edit') && <button onClick={() => admin.toggleUserActive(u.id)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600" title={u.active ? 'Desativar' : 'Ativar'}>
                             {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
-                          </button>
-                          <button onClick={() => admin.deleteUser(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </button>}
+                          {admin.checkPermission('admin', 'delete') && <button onClick={() => setShowDeleteConfirm(u.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>}
                         </div>
                       </td>
                     </tr>
@@ -328,10 +353,10 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Total</p><p className="text-lg font-black text-slate-800">{admin.users.length}</p></div>
-            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Ativos</p><p className="text-lg font-black text-emerald-600">{admin.users.filter(u => u.active).length}</p></div>
-            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Externos</p><p className="text-lg font-black text-amber-600">{admin.users.filter(u => u.isExternal).length}</p></div>
-            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">MFA</p><p className="text-lg font-black text-brand-teal">{admin.users.filter(u => u.mfaEnabled).length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Total</p><p className="text-lg font-black text-slate-800">{safeUsers.length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Ativos</p><p className="text-lg font-black text-emerald-600">{safeUsers.filter(u => u.active).length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">Externos</p><p className="text-lg font-black text-amber-600">{safeUsers.filter(u => u.isExternal).length}</p></div>
+            <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm"><p className="text-[9px] font-semibold text-slate-400 uppercase">MFA</p><p className="text-lg font-black text-brand-teal">{safeUsers.filter(u => u.mfaEnabled).length}</p></div>
           </div>
 
           {showAddUser && (
@@ -341,6 +366,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
                 <div className="space-y-3">
                   <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nome</label><input value={newUserForm.name} onChange={e => setNewUserForm(p => ({ ...p, name: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
                   <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Email</label><input value={newUserForm.email} onChange={e => setNewUserForm(p => ({ ...p, email: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+                  <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Senha</label><input type="password" value={newUserForm.password} onChange={e => setNewUserForm(p => ({ ...p, password: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
                   <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Telefone</label><input value={newUserForm.phone} onChange={e => setNewUserForm(p => ({ ...p, phone: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
                   <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Perfil</label>
                     <select value={newUserForm.roleId} onChange={e => setNewUserForm(p => ({ ...p, roleId: e.target.value }))} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
@@ -352,7 +378,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
-                  <button onClick={handleAddUser} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Criar Usuário</button>
+                  <button onClick={handleAddUser} disabled={isSubmitting} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Criando...' : 'Criar Usuário'}</button>
                   <button onClick={() => setShowAddUser(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
                 </div>
               </div>
@@ -385,7 +411,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
-              <button onClick={handleEditUser} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">Salvar Alterações</button>
+              <button onClick={handleEditUser} disabled={isSubmitting} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Salvando...' : 'Salvar Alterações'}</button>
               <button onClick={() => { setShowEditUser(false); setEditingUserId(null) }} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>
@@ -417,6 +443,29 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-500" /></div>
+              <div><h3 className="text-sm font-black text-slate-800">Excluir Usuário</h3><p className="text-[10px] text-slate-500">Esta ação desativará o usuário</p></div>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4">
+              <p className="text-[10px] text-amber-700">O usuário será marcado como <strong>inativo</strong> e não poderá acessar o sistema. Os dados históricos (logins, logs, registros) serão preservados para auditoria. É possível reativá-lo depois.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={async () => {
+                const id = showDeleteConfirm
+                setShowDeleteConfirm(null)
+                await admin.deleteUser(id)
+              }} className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-colors">Confirmar Exclusão</button>
+              <button onClick={() => setShowDeleteConfirm(null)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Permissions */}
       {tab === 'permissions' && (
         <PermissionsPanel admin={admin} />
@@ -436,8 +485,8 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-50">
-              {filteredAuditLogs.length === 0 && <div className="p-12 text-center text-slate-400 text-xs">Nenhum registro de auditoria</div>}
-              {filteredAuditLogs.map(a => (
+              {(filteredAuditLogs ?? []).length === 0 && <div className="p-12 text-center text-slate-400 text-xs">Nenhum registro de auditoria</div>}
+              {(filteredAuditLogs ?? []).map(a => (
                 <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
                   <div className="mt-0.5"><ActionIcon action={a.action} /></div>
                   <div className="flex-1 min-w-0">
@@ -705,6 +754,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
         </div>
       )}
     </div>
+    </AdminErrorBoundary>
   )
 }
 

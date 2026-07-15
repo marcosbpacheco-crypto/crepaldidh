@@ -23,7 +23,7 @@ export const CrmCompanies: React.FC = () => {
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
   const { 
     companies, contacts, deals, activities,
-    addCompany, updateCompany, deleteCompany, hardDeleteCompany,
+    addCompany, updateCompany, deleteCompany, hardDeleteCompany, restoreCompany,
     addContact, updateContact, deleteContact
   } = useCrm()
 
@@ -37,6 +37,7 @@ export const CrmCompanies: React.FC = () => {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [isEditContactOpen, setIsEditContactOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   
   // Selected Contact for editing
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
@@ -310,22 +311,37 @@ export const CrmCompanies: React.FC = () => {
                 </button>
                 {isAdminOrDiretor && (
                   <>
-                    <button
-                      onClick={() => { setShowDeleteConfirm(true); }}
-                      className="p-2 border border-amber-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
-                      title="Inativar Empresa"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      Inativar
-                    </button>
-                    <button
-                      onClick={() => { hardDeleteCompany(selectedCompany.id); }}
-                      className="p-2 border border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
-                      title="Excluir Permanentemente"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Excluir
-                    </button>
+                    {selectedCompany.status !== 'inactive' ? (
+                      <>
+                        <button
+                          onClick={() => { setShowDeleteConfirm(true); }}
+                          className="p-2 border border-amber-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
+                          title="Inativar Empresa"
+                        >
+                          <AlertCircle className="w-4 h-4" />
+                          Inativar
+                        </button>
+                        <button
+                          onClick={async () => { setDeletingId(selectedCompany.id); await hardDeleteCompany(selectedCompany.id); setDeletingId(null); }}
+                          disabled={deletingId === selectedCompany.id}
+                          className="p-2 border border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+                          title="Excluir Permanentemente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {deletingId === selectedCompany.id ? '...' : 'Excluir'}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={async () => { setDeletingId(selectedCompany.id); await restoreCompany(selectedCompany.id); setDeletingId(null); }}
+                        disabled={deletingId === selectedCompany.id}
+                        className="p-2 border border-emerald-200 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+                        title="Restaurar Empresa"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        {deletingId === selectedCompany.id ? 'Restaurando...' : 'Restaurar'}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -1236,7 +1252,7 @@ export const CrmCompanies: React.FC = () => {
               A empresa será marcada como <strong>inativa</strong> e todos os dados vinculados (contatos, negócios, propostas, contratos, atividades) serão preservados.
             </p>
             <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-              <button onClick={() => { deleteCompany(selectedCompany.id); setShowDeleteConfirm(false) }} className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-all">Confirmar Inativação</button>
+              <button onClick={async () => { setDeletingId(selectedCompany.id); await deleteCompany(selectedCompany.id); setDeletingId(null); setShowDeleteConfirm(false) }} disabled={deletingId === selectedCompany.id} className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-all disabled:opacity-50">{deletingId === selectedCompany.id ? 'Inativando...' : 'Confirmar Inativação'}</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
             </div>
           </div>

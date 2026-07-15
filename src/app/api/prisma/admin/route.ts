@@ -3,20 +3,33 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const [users, auditLogs, lgpdConsents, privacyRequests, permissions, tenants, plans, usage] =
-      await Promise.all([
-        prisma.admin_users.findMany({ where: { active: true }, orderBy: { created_at: 'desc' } }),
-        prisma.admin_audit_logs.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.admin_lgpd_consents.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.admin_privacy_requests.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.admin_permissions.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.tenants.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.tenant_plans.findMany({ orderBy: { created_at: 'desc' } }),
-        prisma.tenant_usage.findMany({ orderBy: { recorded_at: 'desc' } }),
-      ])
-    return NextResponse.json({ users, auditLogs, lgpdConsents, privacyRequests, permissions, tenants, plans, usage })
+    const results = await Promise.allSettled([
+      prisma.admin_users.findMany({ where: { active: true }, orderBy: { created_at: 'desc' } }),
+      prisma.admin_audit_logs.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.admin_lgpd_consents.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.admin_privacy_requests.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.admin_permissions.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.tenants.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.tenant_plans.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.tenant_usage.findMany({ orderBy: { recorded_at: 'desc' } }),
+    ])
+    const extract = <T>(r: PromiseSettledResult<T[]>, fallback: T[] = []): T[] => r.status === 'fulfilled' ? r.value : fallback
+    return NextResponse.json({
+      users: extract(results[0]),
+      auditLogs: extract(results[1]),
+      lgpdConsents: extract(results[2]),
+      privacyRequests: extract(results[3]),
+      permissions: extract(results[4]),
+      tenants: extract(results[5]),
+      plans: extract(results[6]),
+      usage: extract(results[7]),
+    })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({
+      users: [], auditLogs: [], lgpdConsents: [], privacyRequests: [],
+      permissions: [], tenants: [], plans: [], usage: [],
+      error: err.message,
+    }, { status: 500 })
   }
 }
 

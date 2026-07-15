@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Bell, X, LogIn, LogOut, UserPlus, Edit2, Trash2, Download, Eye, Activity, Clock } from 'lucide-react'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
+import { safeArray } from '@/lib/safe-array'
 
 const ACTION_ICONS: Record<string, typeof LogIn> = {
   login: LogIn, logout: LogOut, create: UserPlus, update: Edit2,
@@ -32,7 +33,7 @@ export function NotificationDropdown() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const ref = useRef<HTMLDivElement>(null)
 
-  const logs = admin.auditLogs.slice(0, 10)
+  const logs = safeArray(admin.auditLogs).slice(0, 10)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { userService } from '@/services/userService'
+import { safeArray } from '@/lib/safe-array'
 
 export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
@@ -229,7 +230,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const roles = SEED_ROLES
 
-  const currentUser = useMemo(() => users.find(u => u.id === currentUserId) || null, [users, currentUserId])
+  const currentUser = useMemo(() => safeArray(users).find(u => u.id === currentUserId) || null, [users, currentUserId])
 
   const addUser = useCallback(async (u: Omit<User, 'id' | 'createdAt'>) => {
     // Try API first
@@ -270,10 +271,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       id: createdUserId || gid(),
       createdAt: new Date().toISOString(),
     }
-    setUsers(prev => [...prev, newUser])
+    setUsers(prev => [...safeArray(prev), newUser])
     addAuditLogLocal({
       userId: currentUserId || '',
-      userName: users.find(x => x.id === currentUserId)?.name || 'Sistema',
+      userName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema',
       userRole: 'admin', action: 'create', entity: 'user',
       entityId: newUser.id,
       description: 'Criou usuário: ' + newUser.name,
@@ -304,11 +305,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('API update user failed, falling back to local:', err)
     }
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u))
+    setUsers(prev => safeArray(prev).map(u => u.id === id ? { ...u, ...updates } : u))
   }, [])
 
   const deleteUser = useCallback(async (id: string) => {
-    const user = users.find(u => u.id === id)
+    const safeUsers = safeArray(users)
+    const user = safeUsers.find(u => u.id === id)
     if (!user) return
     try {
       await fetch('/api/prisma/admin', {
@@ -320,12 +322,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       console.warn('API delete user failed, falling back to local:', err)
     }
     // Soft delete: marca como inativo em vez de remover — dados preservados para auditoria
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: false } : u))
-    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu (desativou) usuário: ' + user.name, ipAddress: '127.0.0.1' })
+    setUsers(prev => safeArray(prev).map(u => u.id === id ? { ...u, active: false } : u))
+    addAuditLogLocal({ userId: currentUserId || '', userName: safeUsers.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'delete', entity: 'user', entityId: id, description: 'Excluiu (desativou) usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
   const toggleUserActive = useCallback(async (id: string) => {
-    const user = users.find(u => u.id === id)
+    const safeUsers = safeArray(users)
+    const user = safeUsers.find(u => u.id === id)
     if (!user) return
     const becomingActive = !user.active
     try {
@@ -337,17 +340,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('API toggle active failed, falling back to local:', err)
     }
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, active: becomingActive } : u))
-    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
+    setUsers(prev => safeArray(prev).map(u => u.id === id ? { ...u, active: becomingActive } : u))
+    addAuditLogLocal({ userId: currentUserId || '', userName: safeUsers.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: becomingActive ? 'update' : 'delete', entity: 'user', entityId: id, description: (becomingActive ? 'Ativou' : 'Desativou') + ' usuário: ' + user.name, ipAddress: '127.0.0.1' })
   }, [currentUserId, users])
 
-  const getPermissionsForRole = useCallback((roleId: string) => permissions.filter(p => p.roleId === roleId), [permissions])
-  const getPermissionsForUser = useCallback((userId: string) => permissions.filter(p => p.userId === userId), [permissions])
+  const getPermissionsForRole = useCallback((roleId: string) => safeArray(permissions).filter(p => p.roleId === roleId), [permissions])
+  const getPermissionsForUser = useCallback((userId: string) => safeArray(permissions).filter(p => p.userId === userId), [permissions])
 
   const checkPermission = useCallback((module: ModuleName, action: 'view' | 'create' | 'edit' | 'delete' | 'export', userId?: string): boolean => {
     const uid = userId || currentUserId
     if (!uid) return false
-    const user = users.find(u => u.id === uid)
+    const user = safeArray(users).find(u => u.id === uid)
     if (!user) return false
     if (!user.active) return false
     if (user.roleName === 'Administrador') return true
@@ -361,12 +364,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const setUserPermission = useCallback((userId: string, module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => {
     setPermissions(prev => {
-      const existing = prev.find(p => p.userId === userId && p.module === module)
+      const safePrev = safeArray(prev)
+      const existing = safePrev.find(p => p.userId === userId && p.module === module)
       if (existing) {
-        return prev.map(p => p.id === existing.id ? { ...p, [field]: value } : p)
+        return safePrev.map(p => p.id === existing.id ? { ...p, [field]: value } : p)
       }
-      const user = users.find(u => u.id === userId)
-      const rolePerms = prev.filter(p => p.roleId === user?.roleId && p.module === module)
+      const user = safeArray(users).find(u => u.id === userId)
+      const rolePerms = safePrev.filter(p => p.roleId === user?.roleId && p.module === module)
       const defaults = { canView: false, canCreate: false, canEdit: false, canDelete: false, canExport: false }
       if (rolePerms.length > 0) {
         const rp = rolePerms[0]
@@ -374,23 +378,23 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         defaults.canEdit = rp.canEdit; defaults.canDelete = rp.canDelete
         defaults.canExport = rp.canExport
       }
-      return [...prev, { id: gid(), userId, module, ...defaults, [field]: value }]
+      return [...safePrev, { id: gid(), userId, module, ...defaults, [field]: value }]
     })
-    const perm = permissions.find(p => p.userId === userId && p.module === module)
-    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'user_permission', entityId: userId, description: 'Permissão ' + field + ' em ' + module + ' alterada para ' + (value ? 'concedido' : 'negado') + ' (usuário)', ipAddress: '127.0.0.1' })
+    const perm = safeArray(permissions).find(p => p.userId === userId && p.module === module)
+    addAuditLogLocal({ userId: currentUserId || '', userName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'user_permission', entityId: userId, description: 'Permissão ' + field + ' em ' + module + ' alterada para ' + (value ? 'concedido' : 'negado') + ' (usuário)', ipAddress: '127.0.0.1' })
   }, [currentUserId, users, permissions])
 
   const updatePermission = useCallback((id: string, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>, value: boolean) => {
-    setPermissions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
-    const perm = permissions.find(p => p.id === id)
+    setPermissions(prev => safeArray(prev).map(p => p.id === id ? { ...p, [field]: value } : p))
+    const perm = safeArray(permissions).find(p => p.id === id)
     if (perm) {
-      addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'permission', entityId: id, description: 'Permissão ' + field + ' em ' + perm.module + ' alterada para ' + (value ? 'concedido' : 'negado'), ipAddress: '127.0.0.1' })
+      addAuditLogLocal({ userId: currentUserId || '', userName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'permission', entityId: id, description: 'Permissão ' + field + ' em ' + perm.module + ' alterada para ' + (value ? 'concedido' : 'negado'), ipAddress: '127.0.0.1' })
     }
   }, [currentUserId, users, permissions])
 
   const addAuditLogLocal = useCallback((entry: Omit<AuditLog, 'id' | 'createdAt'>) => {
     const log: AuditLog = { ...entry, id: gid(), createdAt: new Date().toISOString() }
-    setAuditLogs(prev => [log, ...prev].slice(0, 1000))
+    setAuditLogs(prev => [log, ...safeArray(prev)].slice(0, 1000))
   }, [])
 
   const addAuditLog = useCallback((entry: Omit<AuditLog, 'id' | 'createdAt'>) => {
@@ -399,24 +403,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const addLgpdConsent = useCallback((c: Omit<LgpdConsent, 'id' | 'grantedAt' | 'revokedAt'>) => {
     const consent: LgpdConsent = { ...c, id: gid(), grantedAt: c.granted ? new Date().toISOString() : undefined }
-    setLgpdConsents(prev => [...prev, consent])
+    setLgpdConsents(prev => [...safeArray(prev), consent])
   }, [])
 
   const revokeLgpdConsent = useCallback((id: string) => {
-    setLgpdConsents(prev => prev.map(c => c.id === id ? { ...c, granted: false, revokedAt: new Date().toISOString() } : c))
-    addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'lgpd_consent', entityId: id, description: 'Revogou consentimento LGPD', ipAddress: '127.0.0.1' })
+    setLgpdConsents(prev => safeArray(prev).map(c => c.id === id ? { ...c, granted: false, revokedAt: new Date().toISOString() } : c))
+    addAuditLogLocal({ userId: currentUserId || '', userName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'lgpd_consent', entityId: id, description: 'Revogou consentimento LGPD', ipAddress: '127.0.0.1' })
   }, [currentUserId, users, addAuditLogLocal])
 
   const addPrivacyRequest = useCallback((r: Omit<PrivacyRequest, 'id' | 'createdAt' | 'processedAt'>) => {
     const req: PrivacyRequest = { ...r, id: gid(), createdAt: new Date().toISOString() }
-    setPrivacyRequests(prev => [...prev, req])
-    addAuditLogLocal({ userId: currentUserId || '', userName: (users.find(u => u.id === currentUserId)?.name) || 'Sistema', userRole: '', action: 'create', entity: 'privacy_request', entityId: req.id, description: 'Solicitação LGPD: ' + r.requestType, ipAddress: '127.0.0.1' })
+    setPrivacyRequests(prev => [...safeArray(prev), req])
+    addAuditLogLocal({ userId: currentUserId || '', userName: (safeArray(users).find(u => u.id === currentUserId)?.name) || 'Sistema', userRole: '', action: 'create', entity: 'privacy_request', entityId: req.id, description: 'Solicitação LGPD: ' + r.requestType, ipAddress: '127.0.0.1' })
   }, [currentUserId, users, addAuditLogLocal])
 
   const updatePrivacyRequest = useCallback((id: string, updates: Partial<PrivacyRequest>) => {
-    setPrivacyRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates, processedAt: updates.status === 'completed' || updates.status === 'rejected' ? new Date().toISOString() : r.processedAt } : r))
+    setPrivacyRequests(prev => safeArray(prev).map(r => r.id === id ? { ...r, ...updates, processedAt: updates.status === 'completed' || updates.status === 'rejected' ? new Date().toISOString() : r.processedAt } : r))
     if (updates.status) {
-      addAuditLogLocal({ userId: currentUserId || '', userName: users.find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'privacy_request', entityId: id, description: 'Atualizou solicitação de privacidade: ' + updates.status, ipAddress: '127.0.0.1' })
+      addAuditLogLocal({ userId: currentUserId || '', userName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema', userRole: 'admin', action: 'update', entity: 'privacy_request', entityId: id, description: 'Atualizou solicitação de privacidade: ' + updates.status, ipAddress: '127.0.0.1' })
     }
   }, [currentUserId, users, addAuditLogLocal])
 

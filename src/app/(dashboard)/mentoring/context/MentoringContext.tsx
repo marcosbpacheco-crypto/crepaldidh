@@ -240,10 +240,10 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ]).then(([parts, sess, pdi, comps, toolsArr, assess, reports]) => {
       if (parts.length > 0) setParticipants(parts)
       if (sess.length > 0) setSessions(sess)
-      if (pdi.length > 0) setPDIPlans(pdi)
+      if (pdi.length > 0) setPDIPlans(pdi.map((plan: any) => ({ ...plan, goals: Array.isArray(plan.goals) ? plan.goals : [] })))
       if (comps.length > 0) setCompetencies(comps)
       if (toolsArr.length > 0) setTools(toolsArr as unknown as DevelopmentTool[])
-      if (assess.length > 0) setAssessments(assess)
+      if (assess.length > 0) setAssessments(assess.map((a: any) => ({ ...a, competencyScores: Array.isArray(a.competencyScores) ? a.competencyScores : [] })))
       if (reports.length > 0) setMentoringReports(reports)
     }).catch((err) => console.error('[MentoringContext] load error:', err))
   }, [])
@@ -258,9 +258,9 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const d = new Date(s.date)
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }).length
-  const completedGoals = pdiPlans.reduce((acc, p) => acc + p.goals.filter(g => g.status === 'concluido').length, 0)
+  const completedGoals = pdiPlans.reduce((acc, p) => acc + (Array.isArray(p.goals) ? p.goals.filter(g => g?.status === 'concluido').length : 0), 0)
   const overdueGoals = pdiPlans.reduce((acc, p) =>
-    acc + p.goals.filter(g => g.status !== 'concluido' && new Date(g.deadline) < now).length, 0)
+    acc + (Array.isArray(p.goals) ? p.goals.filter(g => g?.status !== 'concluido' && g?.deadline && new Date(g.deadline) < now).length : 0), 0)
 
   // Participants
   const addParticipant = (p: Omit<Participant, 'id' | 'createdAt'>): Participant => {

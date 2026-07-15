@@ -332,7 +332,7 @@ export function BiProvider({ children }: { children: React.ReactNode }) {
   }, [men.sessions])
 
   const competencyEvolution: BiChartData[] = useMemo(() => {
-    const evals = men.assessments.flatMap(a => a.competencyScores)
+    const evals = men.assessments.flatMap(a => Array.isArray(a.competencyScores) ? a.competencyScores : [])
     if (!evals.length) return [{ name: 'Sem dados', value: 1, color: '#e2e8f0' }]
     const byComp = countBy(evals, e => {
       const comp = men.competencies.find(c => c.id === e.competencyId)
@@ -342,9 +342,9 @@ export function BiProvider({ children }: { children: React.ReactNode }) {
   }, [men.assessments, men.competencies])
 
   const pdiStatus: BiChartData[] = useMemo(() => {
-    const allGoals = men.pdiPlans.flatMap(p => p.goals)
+    const allGoals = men.pdiPlans.flatMap(p => Array.isArray(p.goals) ? p.goals : [])
     if (!allGoals.length) return [{ name: 'Sem PDIs', value: 1, color: '#e2e8f0' }]
-    const status = countBy(allGoals, g => g.status)
+    const status = countBy(allGoals, g => g?.status ?? 'nao_iniciado')
     return [
       { name: 'Não Iniciado', value: status['nao_iniciado'] || 0, color: '#94a3b8' },
       { name: 'Em Andamento', value: status['em_andamento'] || 0, color: '#eab308' },
@@ -493,7 +493,7 @@ export function BiProvider({ children }: { children: React.ReactNode }) {
     overdueContracts.forEach(c => list.push({ severity: 'high', title: 'Contrato Vencido', description: `${c.title} — venceu em ${new Date(c.endDate).toLocaleDateString('pt-BR')}`, module: 'crm' }))
     const noAction = crm.actionPlans.filter(a => a.status === 'pending' && new Date(a.deadline) < new Date())
     noAction.forEach(a => list.push({ severity: 'medium', title: 'Plano de Ação Atrasado', description: a.task.substring(0, 60), module: 'nr01' }))
-    men.pdiPlans.flatMap(p => p.goals.filter(g => g.status === 'atrasado')).forEach(g => list.push({ severity: 'medium', title: 'Meta PDI Atrasada', description: g.objective.substring(0, 60), module: 'mentoring' }))
+    men.pdiPlans.flatMap(p => Array.isArray(p.goals) ? p.goals.filter(g => g?.status === 'atrasado') : []).forEach(g => { if (g) list.push({ severity: 'medium', title: 'Meta PDI Atrasada', description: g.objective?.substring(0, 60) || '', module: 'mentoring' }) })
     const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
     return list.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3))
   }, [fin, crm, men])

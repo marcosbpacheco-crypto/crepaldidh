@@ -73,8 +73,8 @@ export default function ParticipantsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(p => {
           const pPDI = pdiPlans.find(pl => pl.participantId === p.id)
-          const completedPDI = pPDI?.goals.filter(g => g.status === 'concluido').length ?? 0
-          const totalPDI = pPDI?.goals.length ?? 0
+          const completedPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.filter(g => g?.status === 'concluido').length : 0
+          const totalPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.length : 0
           const pct = totalPDI > 0 ? Math.round((completedPDI / totalPDI) * 100) : 0
           const sessCount = sessions.filter(s => s.participantIds.includes(p.id)).length
 

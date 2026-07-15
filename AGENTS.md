@@ -1,4 +1,34 @@
-<!-- BEGIN:nextjs-agent-rules -->
+## Session 2026-07-15 — Check constraints fix + homologação operacional
+
+### Problema
+3 CHECK constraints no banco PostgreSQL (herdadas do `supabaseMigration.sql`) tinham valores desatualizados que não correspondiam aos enviados pelo frontend, causando erro 500 ao criar registros via API Prisma.
+
+### Constraints corrigidas (via `pg` diretamente no DIRECT_URL)
+
+| Tabela | Coluna | Antigos valores | Novos valores (união) |
+|--------|--------|----------------|----------------------|
+| `calendar_events` | `event_type` | `meeting, training, deadline, reminder, appointment, other` | + `commercial_meeting, client_meeting, mentoring, lecture, sipat, nr01_interview, technical_visit, internal_activity` |
+| `calendar_events` | `status` | `confirmed, tentative, cancelled` | + `scheduled, completed, canceled, rescheduled` |
+| `documents` | `type` | `contract, proposal, report, template, certificate, other` | + `diagnostic, inventory, action_plan, attendance_list, training_material, evidence, meeting_minutes, financial` |
+
+### Demais constraints verificadas — nenhuma alteração necessária
+- CRM activities: `comment` já aceito (embora `crm_schema.sql` tenha `note`, o DB real aceita ambos)
+- Client interactions: `whatsapp`, `visit`, `support` já aceitos
+- Mentoring session type: `coletiva`, `lideranca`, `executiva` já aceitos
+- Proposal/contract status: valores do frontend (`draft`, `sent`, `approved`, `active`, etc.) batem com DB
+- Financial category type: `income`, `expense` batem com DB
+- Training events/modality/status: já em português, batem com DB
+
+### Migration SQL
+`supabase/migrations/002_fix_check_constraints.sql` — contém os `ALTER TABLE` para referência futura.
+
+### Homologação — resultados finais
+- **10/10 módulos aprovados** (CRM, Clientes, Financeiro, Treinamentos, Mentoring, Documentos, Assessoria, Admin, Calendário, Acesso Temporário)
+- **APIs**: todas as 10 rotas Prisma respondem HTTP 200
+- **0 erros 500** nos valores válidos do frontend
+- **Erro handling**: DELETE/PATCH sem `id` → 400, rota inexistente → 404, campo obrigatório faltando → 500 com mensagem clara
+
+## Session 2026-07-15 — FASE 3/4: TanStack Query + limpeza pós-Prisma + fix Dashboard crash
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -292,7 +322,45 @@ Problema: clientes deletados reapareciam apos refresh porque **CrmContext reconc
 ### Build
 50/50 rotas, TypeScript compilado, sem erros.
 
-## Session 2026-07-13 � Fix Realtime channel collision + sync-admin-users 500
+## Session 2026-07-15 — FASE 3/4: TanStack Query + limpeza pós-Prisma + fix Dashboard crash
+
+### FASE 3: Client module — TanStack Query migration
+- `clientService.ts` reescrito: Supabase JS → `fetch('/api/prisma/clients')` com mapeamento snake_case/camelCase
+- `useClientsHooks.ts` criado com TanStack Query (`useQuery` + `useMutation`) + todas operações
+- `ClientsContext.tsx` delegado para hooks TQ (não armazena listas como fonte de verdade)
+- `api-helpers.ts` criado
+
+### FASE 4: Infra cleanup — localStorage removido dos contexts remanescentes
+- `TenantContext.tsx`, `AlertsContext.tsx` — localStorage removido
+- Debounce `saveAll` (500ms) removido de 7 contexts
+
+### FASE 5: Login migrado para Supabase Auth
+- `actions.ts`: tenta Supabase Auth, se falhar migra de `admin_users` para `auth.users`
+- `LoginForm.tsx` chama server action
+- `logout()` limpa cookie + supabase signOut
+
+### FASE 7: Dead code removal
+- `saveAll()` removido de 9 services; `base.ts` removido; `supabase/service.ts`, `syncService.ts`, `supabaseSync.ts`, `supabaseClient.ts`, `useSyncModule.ts` removidos
+- 6 API routes legadas removidas; `useClientsQuery.ts` removido
+
+### Outros
+- `AdminContext` migrado para `/api/prisma/admin`
+- Sidebar debug line removida
+- **Dashboard crash pós-login**: fix `?? []` defensivo em `.filter()`/`.reduce()`
+- **Crash MentoringContext**: `p.goals?.filter(...) ?? 0` (p.goals undefined sem metas)
+
+### Auditoria final — 59 rotas, build limpo, deploy Vercel
+- `src/lib/safe-array.ts` — utilitário `safeArray()` que garante array em qualquer operação filter/map/reduce/find/some
+- **API `/api/prisma/admin/route.ts`**: `Promise.allSettled` em vez de `Promise.all` + `extract()` que retorna `[]` em caso de falha de query individual; catch retorna `{ error, users: [], ... }` em vez de só `{ error }`
+- **`AdminContext.tsx`**: todos os `filter/map/find/reduce/some` agora usam `safeArray()` nos arrays do state (users, permissions, auditLogs, lgpdConsents, privacyRequests)
+- **`admin/page.tsx`**: `safeArray()` aplicado a todos os `users/auditLogs/privacyRequests/lgpdConsents/roles` — variáveis seguras extraídas no topo do componente; `rolePerms` vindo de `getPermissionsForRole` também passa por `safeArray()`
+- **`NotificationDropdown.tsx`**: `safeArray(admin.auditLogs).slice(0, 10)`
+- **`AdminErrorBoundary.tsx`**: novo Error Boundary (componente de classe) na página de Configurações — captura qualquer crash de render, mostra mensagem amigável + botão recarregar
+- **Sidebar**: já segura (menuItems hardcoded, checkPermission com early return se user não encontrado)
+- Build: 59 rotas, TypeScript compilado, sem erros
+- Deploy: `https://crepaldidh.vercel.app`
+
+## Session 2026-07-13 — Fix Realtime channel collision + sync-admin-users 500
 
 ### Problema 1: Realtime channel error
 **Erro**: `Uncaught Error: cannot add 'postgres_changes' callbacks for realtime:client_list-changes after 'subscribe()'`
@@ -382,3 +450,45 @@ Browser → Context → *Service → fetch(/api/prisma/...) → Prisma → Postg
 - ~~Remover contexts legados baseados em localStorage~~ ✅ **Concluído**
 - TenantContext (admin/tenants) ainda usa localStorage com sync próprio — refatorar para usar Prisma API
 - Deploy em produção
+
+## Session 2026-07-15 — Fix runtime crash: `Cannot read properties of undefined (reading 'status')`
+
+### Root cause (2 passagens)
+1. **`p.goals` é `undefined`** em PDI plans da API (relação opcional do Prisma sem include). `flatMap(p => p.goals)` produz `[undefined]`, e `g.status` crasha.
+2. **`a.competencyScores` é `undefined`** em assessments da API. `flatMap(a => a.competencyScores)` produz `[undefined]`, e `e.competencyId` crasha.
+
+### Sanitização na fronteira (MentoringContext)
+Em vez de consertar cada consumer individualmente, sanitiza os dados ASSIM QUE ENTRAM no context:
+
+- **`MentoringContext.tsx:243`** — `pdi.map(plan => ({ ...plan, goals: Array.isArray(plan.goals) ? plan.goals : [] }))`
+- **`MentoringContext.tsx:246`** — `assess.map(a => ({ ...a, competencyScores: Array.isArray(a.competencyScores) ? a.competencyScores : [] }))`
+
+Isso garante que **todos os consumers** (BiContext, Mentoring pages, etc.) sempre encontrem arrays reais, nunca undefined/null.
+
+### Files modificados (consumer-side, redundante com sanitização na fronteira)
+1. **`src/app/(dashboard)/bi/context/BiContext.tsx:335`** — `flatMap(a => a.competencyScores)` → `flatMap(a => Array.isArray(a.competencyScores) ? a.competencyScores : [])`
+2. **`src/app/(dashboard)/bi/context/BiContext.tsx:345`** — `flatMap(p => p.goals)` → `flatMap(p => Array.isArray(p.goals) ? p.goals : [])` + `g => g?.status ?? 'nao_iniciado'`
+3. **`src/app/(dashboard)/bi/context/BiContext.tsx:496`** — `p.goals.filter(...)` → `Array.isArray(p.goals) ? p.goals.filter(g => g?.status === 'atrasado') : []` + `if (g)` guard
+4. **`src/app/(dashboard)/mentoring/context/MentoringContext.tsx:261-263`** — `p.goals?.filter(...).length ?? 0` → `Array.isArray(p.goals) ? p.goals.filter(g => g?.status === ...).length : 0` + `g?.deadline` guard
+5. **`src/app/(dashboard)/mentoring/page.tsx:47`** — `flatMap(p => p.goals)` → `flatMap(p => Array.isArray(p.goals) ? p.goals : [])` + `g &&` guard
+6. **`src/app/(dashboard)/mentoring/page.tsx:118`** — `pPDI?.goals.filter(...)` → `(pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.filter(g => g?.status === ...).length : 0`
+7. **`src/app/(dashboard)/mentoring/pdi/page.tsx:155-156`** — `plan.goals.filter(...)` → `Array.isArray(plan.goals) ? plan.goals.filter(g => g?.status === ...).length : 0`
+8. **`src/app/(dashboard)/mentoring/pdi/page.tsx:182`** — `plan.goals.filter(...)` → `Array.isArray(plan.goals) ? plan.goals.filter(g => g?.status === ...).length : 0`
+9. **`src/app/(dashboard)/mentoring/pdi/page.tsx:240,248`** — `selectedPlan.goals.length/map` → `Array.isArray(selectedPlan.goals)` guards
+10. **`src/app/(dashboard)/mentoring/participants/page.tsx:76-77`** — `pPDI?.goals.filter(...)` → `(pPDI && Array.isArray(pPDI.goals)) ? ...`
+11. **`src/app/(dashboard)/mentoring/participants/[id]/page.tsx:244,248`** — `pPDI?.goals.length/filter` → `pPDI && Array.isArray(pPDI.goals)` guards
+
+### Also: `/admin` → redirect to `/settings`
+- **`src/app/(dashboard)/admin/page.tsx`** substituído por redirect client-side para `/settings`
+- **`src/app/(dashboard)/settings/page.tsx`** mergeado com features do admin:
+  - `AdminErrorBoundary` wrapper
+  - `safeArray()` em todos os arrays
+  - `handleAddUser`/`handleEditUser` `async` com try/catch + `isSubmitting`
+  - Campo Senha no formulário "Novo Usuário"
+  - Modal de confirmação ao excluir
+  - `admin.checkPermission()` nos botões de ação
+  - `?? []` fallback nos logs de auditoria
+
+### Build & Deploy
+59/59 rotas, TypeScript compilado, sem erros.
+Deploy: `https://crepaldidh.vercel.app`

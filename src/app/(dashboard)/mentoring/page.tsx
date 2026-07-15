@@ -44,8 +44,8 @@ export default function MentoringPage() {
 
   const recentSessions = sessions.slice(0, 4)
   const upcomingSessions = sessions.filter(s => s.status === 'agendada').slice(0, 3)
-  const allGoals = pdiPlans.flatMap(p => p.goals)
-  const overdueGoalsList = allGoals.filter(g => g.status !== 'concluido' && new Date(g.deadline) < new Date()).slice(0, 3)
+  const allGoals = pdiPlans.flatMap(p => Array.isArray(p.goals) ? p.goals : [])
+  const overdueGoalsList = allGoals.filter(g => g && g.status !== 'concluido' && new Date(g.deadline) < new Date()).slice(0, 3)
 
   const kpis = [
     { label: 'Mentorias Ativas', value: activeMentorings, icon: Users, color: 'from-blue-500 to-blue-600', light: 'bg-blue-50 text-blue-600', trend: '+2 esse mês' },
@@ -115,8 +115,8 @@ export default function MentoringPage() {
             {participants.slice(0, 4).map(p => {
               const pSessions = sessions.filter(s => s.participantIds.includes(p.id))
               const pPDI = pdiPlans.find(pl => pl.participantId === p.id)
-              const completedPDI = pPDI?.goals.filter(g => g.status === 'concluido').length ?? 0
-              const totalPDI = pPDI?.goals.length ?? 0
+              const completedPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.filter(g => g?.status === 'concluido').length : 0
+              const totalPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.length : 0
               const pct = totalPDI > 0 ? Math.round((completedPDI / totalPDI) * 100) : 0
 
               return (

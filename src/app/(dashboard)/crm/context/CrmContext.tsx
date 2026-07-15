@@ -157,8 +157,9 @@ interface CrmContextType {
   setCurrentRole: (role: UserRole) => void;
   addCompany: (company: Omit<Company, 'id' | 'createdAt'>) => Company;
   updateCompany: (id: string, updates: Partial<Company>) => void;
-  deleteCompany: (id: string) => void;
-  hardDeleteCompany: (id: string) => void;
+  deleteCompany: (id: string) => Promise<void>;
+  hardDeleteCompany: (id: string) => Promise<void>;
+  restoreCompany: (id: string) => Promise<void>;
   addContact: (contact: Omit<Contact, 'id'>) => Contact;
   updateContact: (id: string, updates: Partial<Contact>) => void;
   deleteContact: (id: string) => void;
@@ -530,12 +531,39 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateCompaniesState(updated)
   }
 
-  const deleteCompany = (id: string) => {
-    updateCompaniesState(companies.map(c => c.id === id ? { ...c, status: 'inactive' } : c))
+  const deleteCompany = async (id: string) => {
+    try {
+      await crmService.removeCompany(id)
+      updateCompaniesState(companies.map(c => c.id === id ? { ...c, status: 'inactive', deleted_at: new Date().toISOString() } : c))
+    } catch (err) {
+      console.error('[CRM] deleteCompany error:', err)
+    }
   }
 
-  const hardDeleteCompany = (id: string) => {
-    updateCompaniesState(companies.filter(c => c.id !== id))
+  const hardDeleteCompany = async (id: string) => {
+    try {
+      await crmService.removeCompany(id)
+      updateCompaniesState(companies.filter(c => c.id !== id))
+    } catch (err) {
+      console.error('[CRM] hardDeleteCompany error:', err)
+    }
+  }
+
+  const restoreCompany = async (id: string) => {
+    try {
+      const res = await fetch('/api/prisma/crm', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: 'restore', id }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (data.company) {
+        updateCompaniesState(companies.map(c => c.id === id ? { ...c, ...data.company, deleted_at: null, status: 'active' } : c))
+      }
+    } catch (err) {
+      console.error('[CRM] restoreCompany error:', err)
+    }
   }
 
   // Contacts CRUD
@@ -859,6 +887,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateCompany,
         deleteCompany,
         hardDeleteCompany,
+        restoreCompany,
         addContact,
         updateContact,
         deleteContact,

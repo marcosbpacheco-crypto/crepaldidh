@@ -70,11 +70,11 @@ export default function DashboardPage() {
     return () => clearTimeout(timer)
   }, [])
 
-  const projects: Project[] = useMemo(() => ctxProjects.map(p => ({
+  const projects: Project[] = useMemo(() => (ctxProjects ?? []).map(p => ({
     id: p.id,
     name: p.name,
     companyId: p.company_id,
-    companyName: companies.find(c => c.id === p.company_id)?.name || '',
+    companyName: (companies ?? []).find(c => c.id === p.company_id)?.name || '',
     description: p.description || '',
     startDate: p.start_date || '',
     endDate: p.end_date || '',
@@ -82,8 +82,8 @@ export default function DashboardPage() {
     budget: 0,
   })), [ctxProjects, companies])
 
-  const activeProjects = projects.filter(p => p.status === 'em_andamento' || p.status === 'planejado')
-  const recentProjects = projects.slice(0, 5)
+  const activeProjects = (projects ?? []).filter(p => p.status === 'em_andamento' || p.status === 'planejado')
+  const recentProjects = (projects ?? []).slice(0, 5)
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,11 +99,11 @@ export default function DashboardPage() {
     setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
   }
 
-  const revenueValue = totalReceived > 0 ? totalReceived : trainingRevenue > 0 ? trainingRevenue : projects.reduce((acc, p) => acc + p.budget, 0)
-  const activeCompanies = companies.filter(c => c.status === 'active').length
-  const activeClients = clients.filter(c => c.status === 'active').length
-  const paidReceivables = receivables.filter(r => r.status === 'paid')
-  const totalPaid = paidReceivables.reduce((s, r) => s + r.amount, 0)
+  const revenueValue = totalReceived > 0 ? totalReceived : trainingRevenue > 0 ? trainingRevenue : (projects ?? []).reduce((acc, p) => acc + p.budget, 0)
+  const activeCompanies = (companies ?? []).filter(c => c.status === 'active').length
+  const activeClients = (clients ?? []).filter(c => c.status === 'active').length
+  const paidReceivables = (receivables ?? []).filter(r => r.status === 'paid')
+  const totalPaid = (paidReceivables ?? []).reduce((s, r) => s + r.amount, 0)
 
   // Simulated monthly revenue for chart (last 6 months)
   const monthlyRevenue = useMemo(() => {

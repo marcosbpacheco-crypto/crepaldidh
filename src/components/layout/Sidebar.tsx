@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useAdmin, type ModuleName } from "@/app/(dashboard)/admin/context/AdminContext"
 import { useSidebar } from "./SidebarContext"
+import { safeArray } from "@/lib/safe-array"
 import { X } from "lucide-react"
 import {
   LayoutDashboard, 

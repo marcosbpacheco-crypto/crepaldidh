@@ -241,11 +241,11 @@ export default function ParticipantDetailPage() {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-slate-500 block">Metas Ativas</span>
-                        <span className="font-bold text-slate-700 text-sm">{pPDI?.goals.length ?? 0}</span>
+                        <span className="font-bold text-slate-700 text-sm">{pPDI && Array.isArray(pPDI.goals) ? pPDI.goals.length : 0}</span>
                       </div>
                       <div>
                         <span className="text-slate-500 block">Metas Concluídas</span>
-                        <span className="font-bold text-slate-700 text-sm">{pPDI?.goals.filter(g => g.status === 'concluido').length ?? 0}</span>
+                        <span className="font-bold text-slate-700 text-sm">{pPDI && Array.isArray(pPDI.goals) ? pPDI.goals.filter(g => g?.status === 'concluido').length : 0}</span>
                       </div>
                     </div>
                   </div>

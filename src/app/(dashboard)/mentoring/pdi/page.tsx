@@ -152,8 +152,8 @@ export default function PDIPage() {
           <div className="space-y-3">
             {filteredPlans.map(plan => {
               const p = participants.find(part => part.id === plan.participantId)
-              const done = plan.goals.filter(g => g.status === 'concluido').length
-              const total = plan.goals.length
+              const done = Array.isArray(plan.goals) ? plan.goals.filter(g => g?.status === 'concluido').length : 0
+              const total = Array.isArray(plan.goals) ? plan.goals.length : 0
               const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
               return (
@@ -179,7 +179,7 @@ export default function PDIPage() {
                       </div>
                       <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
                         <span>{done}/{total} metas concluídas</span>
-                        <span>{plan.goals.filter(g => g.status === 'atrasado').length} atrasadas</span>
+                        <span>{Array.isArray(plan.goals) ? plan.goals.filter(g => g?.status === 'atrasado').length : 0} atrasadas</span>
                       </div>
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function PDIPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Metas & Competências</h3>
 
-                {selectedPlan.goals.length === 0 ? (
+                {!Array.isArray(selectedPlan.goals) || selectedPlan.goals.length === 0 ? (
                   <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl">
                     <Target className="w-10 h-10 text-slate-200 mx-auto mb-2" />
                     <p className="text-slate-500 text-sm font-medium">Nenhuma meta definida</p>
@@ -245,7 +245,7 @@ export default function PDIPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {selectedPlan.goals.map(goal => (
+                    {(Array.isArray(selectedPlan.goals) ? selectedPlan.goals : []).map(goal => (
                       <div key={goal.id} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-4">
                         <div className="flex justify-between items-start gap-4">
                           <div>
