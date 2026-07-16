@@ -158,9 +158,32 @@ export const assessoriaService = {
   },
 }
 
-function md(r: any): Diagnostico { return { ...r, areasAnalisadas: r.areas_analisadas, pontosFortes: r.pontos_fortes, pontosMelhoria: r.pontos_melhoria, createdAt: r.created_at } }
-function mo(r: any): Okr { return { ...r, keyResults: r.key_results, ciclo: r.ciclo, createdAt: r.created_at } }
-function ms(r: any): Swot { return { ...r, forcas: r.forcas, fraquezas: r.fraquezas, oportunidades: r.oportunidades, ameacas: r.ameacas, createdAt: r.created_at } }
+function normalizeArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((item): item is string => typeof item === 'string')
+  if (typeof v === 'string' && v.trim()) return [v]
+  return []
+}
+
+function md(r: any): Diagnostico {
+  return {
+    ...r,
+    areasAvaliadas: normalizeArray(r.areasAvaliadas ?? r.areas_avaliadas ?? r.areasAnalisadas ?? r.areas_analisadas),
+    pontosFortes: normalizeArray(r.pontosFortes ?? r.pontos_fortes),
+    pontosMelhoria: normalizeArray(r.pontosMelhoria ?? r.pontos_melhoria),
+    createdAt: r.created_at,
+  }
+}
+function mo(r: any): Okr { return { ...r, keyResults: Array.isArray(r.key_results) ? r.key_results : [], ciclo: r.ciclo, createdAt: r.created_at } }
+function ms(r: any): Swot {
+  return {
+    ...r,
+    forcas: normalizeArray(r.forcas),
+    fraquezas: normalizeArray(r.fraquezas),
+    oportunidades: normalizeArray(r.oportunidades),
+    ameacas: normalizeArray(r.ameacas),
+    createdAt: r.created_at,
+  }
+}
 function mpa(r: any): PlanoAcao { return { ...r, dataInicio: r.data_inicio, dataFim: r.data_fim, responsavel: r.responsavel, createdAt: r.created_at } }
 function mk(r: any): Kpi { return { ...r, unidade: r.unidade, periodicidade: r.periodicidade, createdAt: r.created_at } }
 function mr(r: any): Relatorio { return { ...r, tipo: r.tipo, dataInicio: r.data_inicio, dataFim: r.data_fim, conteudo: r.conteudo, createdAt: r.created_at } }

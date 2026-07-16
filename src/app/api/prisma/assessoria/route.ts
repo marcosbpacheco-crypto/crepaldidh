@@ -10,7 +10,24 @@ export async function GET() {
       prisma.assessoria_action_plans.findMany({ orderBy: { created_at: 'desc' } }),
       prisma.assessoria_kpis.findMany({ orderBy: { created_at: 'desc' } }),
     ])
-    return NextResponse.json({ diagnosticos, okrs, swots, planosAcao, kpis })
+    const normalizeArray = (v: unknown): string[] => {
+      if (Array.isArray(v)) return v.filter((item): item is string => typeof item === 'string')
+      if (typeof v === 'string' && v.trim()) return [v]
+      return []
+    }
+    return NextResponse.json({
+      diagnosticos: diagnosticos.map(d => ({
+        ...d,
+        areasAvaliadas: normalizeArray((d as any).areasAvaliadas ?? (d as any).areas_avaliadas),
+      })),
+      okrs: okrs.map(o => ({
+        ...o,
+        key_results: Array.isArray(o.key_results) ? o.key_results : [],
+      })),
+      swots,
+      planosAcao,
+      kpis,
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

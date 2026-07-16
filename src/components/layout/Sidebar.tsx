@@ -32,7 +32,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Gestão de Pessoas", href: "/crm", icon: Users, module: 'crm' },
+  { name: "Gestão de Empresas", href: "/crm", icon: Users, module: 'crm' },
   { name: "Clientes", href: "/clients", icon: Users, module: 'clients' },
   { name: "Projetos", href: "/projects", icon: Briefcase, module: 'projects' },
   { name: "Tarefas", href: "/tasks", icon: CheckSquare, module: 'tasks' },

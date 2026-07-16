@@ -589,7 +589,7 @@ export default function EventsPage() {
             <form onSubmit={handleCreateParticipant} className="p-6 space-y-4">
               
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Vincular do CRM (Gestão de Pessoas)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Vincular do CRM (Gestão de Empresas)</label>
                 <select value={partForm.crmContactId} onChange={e => handleCrmContactSelect(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white">
                   <option value="">Selecione do CRM...</option>

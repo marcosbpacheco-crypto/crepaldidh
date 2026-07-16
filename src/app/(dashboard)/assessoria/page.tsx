@@ -109,7 +109,7 @@ function DiagnosticosTab({ ctx, search }: { ctx: ReturnType<typeof useAssessoria
               <td className="px-4 py-3 text-center">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.pontuacaoGeral >= 70 ? 'bg-emerald-50 text-emerald-700' : d.pontuacaoGeral >= 50 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{d.pontuacaoGeral}%</span>
               </td>
-              <td className="px-4 py-3 text-slate-500 text-[10px]">{d.areasAvaliadas.join(', ')}</td>
+              <td className="px-4 py-3 text-slate-500 text-[10px]">{(Array.isArray(d.areasAvaliadas) ? d.areasAvaliadas : []).join(', ')}</td>
               <td className="px-4 py-3 text-center">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${d.status === 'concluido' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>{d.status === 'concluido' ? 'Concluído' : 'Rascunho'}</span>
               </td>
