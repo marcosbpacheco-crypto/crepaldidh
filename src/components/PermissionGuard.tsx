@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { useAdmin, type ModuleName } from '@/app/(dashboard)/admin/context/AdminContext'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   '/crm': 'crm',
@@ -27,6 +27,18 @@ export function PermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const admin = useAdmin()
   const moduleName = ROUTE_MODULE_MAP[pathname] ?? Object.entries(ROUTE_MODULE_MAP).find(([route]) => pathname.startsWith(route))?.[1]
+
+  // Show loading spinner while admin context initializes (prevents false "Access Restricted")
+  if (admin.loading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-brand-teal animate-spin mx-auto mb-2" />
+          <p className="text-sm text-slate-500">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (moduleName && !admin.checkPermission(moduleName, 'view')) {
     return (

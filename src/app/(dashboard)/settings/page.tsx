@@ -8,7 +8,7 @@ import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
   Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
   Activity, LogIn, LogOut, UserPlus, Clock, Globe, Lock, Unlock,
-  Shield, AlertTriangle, KeyRound, Trash, Database
+  Shield, AlertTriangle, KeyRound, Trash, Database, Loader2
 } from 'lucide-react'
 
 // Only admin and director roles can access settings
@@ -185,59 +185,433 @@ export default function SettingsPage() {
   )
 }
 
-// ── Profile View Panel (admin only — preview what a role sees) ──
+// ── Profile View Panel (admin only — preview + edit what a role sees) ──
 function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
   const [selectedRoleId, setSelectedRoleId] = useState('role-consultant')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [permState, setPermState] = useState<Record<string, boolean>>({})
+  const [originalPermState, setOriginalPermState] = useState<Record<string, boolean>>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showCriticalConfirm, setShowCriticalConfirm] = useState(false)
+  const [pendingSaveAction, setPendingSaveAction] = useState<(() => Promise<void>) | null>(null)
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
+  const [pendingTabChange, setPendingTabChange] = useState<string | null>(null)
+
+  const selectAllRef = React.useRef<HTMLInputElement>(null)
 
   const selectedRole = admin.roles.find(r => r.id === selectedRoleId)
   const rolePerms = admin.permissions.filter(p => p.roleId === selectedRoleId)
 
   const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+  const actions = ['view', 'create', 'edit', 'delete', 'export'] as const
+  const fields: Record<string, string> = { view: 'canView', create: 'canCreate', edit: 'canEdit', delete: 'canDelete', export: 'canExport' }
+
+  function permKey(mod: ModuleName, action: string): string { return `${mod}_${action}` }
+
+  // Build all possible (module × action) keys
+  function allPermKeys(): string[] {
+    return moduleList.flatMap(mod => actions.map(a => permKey(mod, a)))
+  }
+
+  // Build current state from rolePerms
+  function buildStateFromPerms(): Record<string, boolean> {
+    const state: Record<string, boolean> = {}
+    moduleList.forEach(mod => {
+      const p = rolePerms.find(rp => rp.module === mod)
+      actions.forEach(a => { state[permKey(mod, a)] = p ? !!p[fields[a] as keyof typeof p] : false })
+    })
+    return state
+  }
+
+  // Editable permission keys (always ALL 85)
+  const editableKeys = allPermKeys()
+
+  // Current values derived from permState
+  const totalSelected = editableKeys.filter(k => permState[k]).length
+  const totalPerms = editableKeys.length
+  const allSelected = totalPerms > 0 && editableKeys.every(k => permState[k])
+  const someSelected = editableKeys.some(k => permState[k])
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected
+    }
+  }, [someSelected, allSelected])
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), toastMessage.type === 'success' ? 3000 : 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
+
+  function initEditState() {
+    setEditName(selectedRole?.label || '')
+    setEditDescription(selectedRole?.description || '')
+    const state = buildStateFromPerms()
+    setPermState(state)
+    setOriginalPermState({ ...state })
+  }
+
+  function enterEditMode() {
+    initEditState()
+    setIsEditing(true)
+  }
+
+  function cancelEdit() {
+    if (hasChanges()) { setShowCancelConfirm(true); return }
+    setIsEditing(false)
+  }
+
+  function hasChanges(): boolean {
+    const current = JSON.stringify(editableKeys.map(k => ({ k, v: permState[k] })).sort())
+    const original = JSON.stringify(editableKeys.map(k => ({ k, v: originalPermState[k] })).sort())
+    if (current !== original) return true
+    if (editName !== (selectedRole?.label || '')) return true
+    if (editDescription !== (selectedRole?.description || '')) return true
+    return false
+  }
+
+  function isCriticalChange(): boolean {
+    const removedKeys = editableKeys.filter(k => !permState[k] && originalPermState[k])
+    const addedKeys = editableKeys.filter(k => permState[k] && !originalPermState[k])
+    const hasRemovedAdmin = removedKeys.some(k => k.startsWith('admin_'))
+    const hasAddedFinancial = addedKeys.some(k => k.startsWith('financial_'))
+    const hasAddedAdmin = addedKeys.some(k => k.startsWith('admin_'))
+    return hasRemovedAdmin || hasAddedFinancial || hasAddedAdmin
+  }
+
+  async function handleSave() {
+    if (!selectedRole) return
+    if (isCriticalChange()) {
+      setShowCriticalConfirm(true)
+      setPendingSaveAction(async () => { await executeSave() })
+      return
+    }
+    await executeSave()
+  }
+
+  async function executeSave() {
+    if (!selectedRole) return
+    setIsSaving(true)
+    try {
+      // Build permissions array from permState
+      const permPayload = rolePerms.map(p => {
+        const canView = permState[permKey(p.module, 'view')] ?? false
+        const canCreate = permState[permKey(p.module, 'create')] ?? false
+        const canEdit = permState[permKey(p.module, 'edit')] ?? false
+        const canDelete = permState[permKey(p.module, 'delete')] ?? false
+        const canExport = permState[permKey(p.module, 'export')] ?? false
+        return { id: p.id, module: p.module, canView, canCreate, canEdit, canDelete, canExport }
+      })
+      await admin.updateRolePermissions(selectedRoleId, editName, editDescription, permPayload)
+      setToastMessage({ type: 'success', text: 'Permissões salvas com sucesso!' })
+      setIsEditing(false)
+      setOriginalPermState({ ...permState })
+    } catch (err: any) {
+      setToastMessage({ type: 'error', text: err.message || 'Erro ao salvar permissões' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleCriticalConfirm() {
+    setShowCriticalConfirm(false)
+    if (pendingSaveAction) { pendingSaveAction(); setPendingSaveAction(null) }
+  }
+
+  function handleCancelConfirm() {
+    setShowCancelConfirm(false)
+    setIsEditing(false)
+    setPermState({ ...originalPermState })
+  }
+
+  function togglePermission(mod: ModuleName, action: string) {
+    setPermState(prev => ({ ...prev, [permKey(mod, action)]: !prev[permKey(mod, action)] }))
+  }
+
+  function toggleModule(mod: ModuleName, select: boolean) {
+    setPermState(prev => {
+      const next = { ...prev }
+      actions.forEach(a => { next[permKey(mod, a)] = select })
+      return next
+    })
+  }
+
+  function toggleAll(select: boolean) {
+    setPermState(prev => {
+      const next = { ...prev }
+      editableKeys.forEach(k => { next[k] = select })
+      return next
+    })
+  }
+
+  function getModuleSelectedCount(mod: ModuleName): { selected: number; total: number } {
+    const selected = actions.filter(a => permState[permKey(mod, a)]).length
+    return { selected, total: actions.length }
+  }
+
+  function handleRoleChange(newRoleId: string) {
+    if (isEditing && hasChanges()) { setShowUnsavedConfirm(true); setPendingTabChange(newRoleId); return }
+    setSelectedRoleId(newRoleId)
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <label className="text-[9px] font-semibold text-slate-400 uppercase">Perfil:</label>
-        <select value={selectedRoleId} onChange={e => setSelectedRoleId(e.target.value)}
-          className="text-[11px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
-          {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-        </select>
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-lg border text-[11px] font-semibold flex items-center gap-2 ${
+          toastMessage.type === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {toastMessage.type === 'success' ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+          {toastMessage.text}
+        </div>
+      )}
+
+      {/* Role selector + Edit button */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
+          <label className="text-[9px] font-semibold text-slate-400 uppercase">Perfil:</label>
+          <select value={selectedRoleId} onChange={e => handleRoleChange(e.target.value)}
+            className="text-[11px] border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+            {admin.roles.filter(r => !r.isExternal).map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select>
+          {selectedRole && (
+            <span className="text-[10px] text-slate-400 hidden sm:inline">{selectedRole.description}</span>
+          )}
+        </div>
+        {!isEditing && (
+          <button onClick={enterEditMode}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all">
+            <Edit2 className="w-3.5 h-3.5" /> Editar perfil
+          </button>
+        )}
+      </div>
+
+      {/* Edit mode: name and description fields */}
+      {isEditing && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Nome do Perfil</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+            </div>
+            <div>
+              <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Descrição</label>
+              <input value={editDescription} onChange={e => setEditDescription(e.target.value)}
+                className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission count */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-slate-500">
+          {isEditing
+            ? `${totalSelected} de ${totalPerms} permissões selecionadas`
+            : `${totalPerms} permissões no total`
+          }
+        </p>
         {selectedRole && (
           <span className="text-[10px] text-slate-400">{selectedRole.description}</span>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* Select All (edit mode only) */}
+      {isEditing && (
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allSelected}
+              onChange={e => toggleAll(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-brand-teal focus:ring-brand-teal/20" />
+            <span className="text-[11px] font-semibold text-slate-700">Selecionar tudo</span>
+            <span className="text-[9px] text-slate-400">({totalSelected} de {totalPerms} selecionadas)</span>
+          </label>
+        </div>
+      )}
+
+      {/* Permissions grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         {moduleList.map(mod => {
           const perm = rolePerms.find(p => p.module === mod)
-          const canView = perm?.canView ?? false
-          const canCreate = perm?.canCreate ?? false
-          const canEdit = perm?.canEdit ?? false
-          const canDelete = perm?.canDelete ?? false
-          const canExport = perm?.canExport ?? false
+          const hasView = perm?.canView ?? false
+          const modSelected = getModuleSelectedCount(mod)
+
           return (
-            <div key={mod} className={`bg-white rounded-xl border p-3 shadow-sm transition-colors ${canView ? 'border-slate-200' : 'border-slate-100 opacity-50'}`}>
-              <p className="text-[11px] font-bold text-slate-700 mb-2">{MODULE_LABELS[mod] || mod}</p>
+            <div key={mod} className={`bg-white rounded-xl border p-3 shadow-sm transition-colors ${hasView ? 'border-slate-200' : 'border-slate-100 opacity-50'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-bold text-slate-700">{MODULE_LABELS[mod] || mod}</p>
+                {isEditing && (
+                  <span className="text-[9px] text-slate-400">{modSelected.selected}/{modSelected.total}</span>
+                )}
+              </div>
               <div className="space-y-1">
                 {[
-                  { label: 'Visualizar', value: canView },
-                  { label: 'Criar', value: canCreate },
-                  { label: 'Editar', value: canEdit },
-                  { label: 'Excluir', value: canDelete },
-                  { label: 'Exportar', value: canExport },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <span className="text-[9px] text-slate-500">{item.label}</span>
-                    {item.value
-                      ? <Check className="w-3 h-3 text-emerald-600" />
-                      : <X className="w-3 h-3 text-slate-300" />}
-                  </div>
-                ))}
+                  { label: 'Visualizar', key: 'view' },
+                  { label: 'Criar', key: 'create' },
+                  { label: 'Editar', key: 'edit' },
+                  { label: 'Excluir', key: 'delete' },
+                  { label: 'Exportar', key: 'export' },
+                ].map(item => {
+                  const isChecked = permState[permKey(mod, item.key)] ?? rolePerms.find(p => p.module === mod)?.[fields[item.key] as keyof typeof rolePerms[0]] ?? false
+                  return (
+                    <div key={item.key} className="flex items-center justify-between">
+                      <span className="text-[9px] text-slate-500">{item.label}</span>
+                      {isEditing ? (
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(mod, item.key)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-brand-teal focus:ring-brand-teal/20" />
+                      ) : (
+                        isChecked
+                          ? <Check className="w-3 h-3 text-emerald-600" />
+                          : <X className="w-3 h-3 text-slate-300" />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
+              {isEditing && (
+                <div className="mt-2 pt-2 border-t border-slate-100 flex gap-1">
+                  <button onClick={() => toggleModule(mod, true)}
+                    className="flex-1 px-2 py-1 text-[9px] font-semibold text-brand-teal bg-brand-teal/5 border border-brand-teal/20 rounded-lg hover:bg-brand-teal/10 transition-colors">
+                    Selecionar módulo
+                  </button>
+                  <button onClick={() => toggleModule(mod, false)}
+                    className="flex-1 px-2 py-1 text-[9px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                    Limpar módulo
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
       </div>
+
+      {/* Action bar (edit mode) */}
+      {isEditing && (
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 -mx-4 sm:-mx-6 lg:-mx-8 mt-4 shadow-lg flex items-center justify-between gap-3">
+          <div className="text-[10px] text-slate-500">
+            {totalSelected} de {totalPerms} permissões selecionadas
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={cancelEdit}
+              className="px-4 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button onClick={handleSave}
+              disabled={isSaving || !hasChanges()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {isSaving ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Salvando...</>
+              ) : (
+                'Salvar alterações'
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Alterações não salvas</h3>
+                <p className="text-[10px] text-slate-500">Existem alterações não salvas. Deseja descartá-las?</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleCancelConfirm}
+                className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-colors">
+                Descartar alterações
+              </button>
+              <button onClick={() => setShowCancelConfirm(false)}
+                className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">
+                Continuar editando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Critical change confirmation modal */}
+      {showCriticalConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowCriticalConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Alteração Crítica</h3>
+                <p className="text-[10px] text-slate-500">Esta alteração poderá afetar o acesso ao sistema. Deseja continuar?</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleCriticalConfirm}
+                className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-colors">
+                Continuar
+              </button>
+              <button onClick={() => { setShowCriticalConfirm(false); setPendingSaveAction(null) }}
+                className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved changes confirmation modal */}
+      {showUnsavedConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowUnsavedConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Alterações não salvas</h3>
+                <p className="text-[10px] text-slate-500">Existem alterações não salvas. Deseja descartá-las?</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => {
+                setShowUnsavedConfirm(false)
+                setIsEditing(false)
+                setPermState({ ...originalPermState })
+                if (pendingTabChange) {
+                  setSelectedRoleId(pendingTabChange)
+                  setPendingTabChange(null)
+                }
+              }}
+                className="flex-1 px-3 py-2 bg-red-600 text-white text-[11px] font-bold rounded-xl hover:bg-red-700 transition-colors">
+                Descartar
+              </button>
+              <button onClick={() => { setShowUnsavedConfirm(false); setPendingTabChange(null) }}
+                className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">
+                Continuar editando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

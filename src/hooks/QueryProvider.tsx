@@ -1,8 +1,7 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { createRealtimeInvalidator } from '@/services/realtimeInvalidator'
+import { useState, type ReactNode } from 'react'
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -11,21 +10,13 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
-            refetchOnWindowFocus: true,
+            gcTime: 300_000,
+            refetchOnWindowFocus: false,
             retry: 1,
           },
         },
       })
   )
-
-  const cleanupRef = useRef<(() => void) | null>(null)
-
-  useEffect(() => {
-    cleanupRef.current = createRealtimeInvalidator(queryClient)
-    return () => {
-      cleanupRef.current?.()
-    }
-  }, [queryClient])
 
   return (
     <QueryClientProvider client={queryClient}>

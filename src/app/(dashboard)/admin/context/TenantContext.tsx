@@ -74,13 +74,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [filterPlan, setFilterPlan] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<TenantStatus | null>(null)
   const [searchTenant, setSearchTenant] = useState('')
-  const loadedRef = useRef(false)
 
   const plans = SEED_PLANS
 
   useEffect(() => {
-    if (typeof window === 'undefined' || loadedRef.current) return
-    loadedRef.current = true
+    if (typeof window === 'undefined') return
 
     fetch('/api/prisma/admin')
       .then(r => r.ok ? r.json() : null)
@@ -126,22 +124,51 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     [tenants, searchTenant, filterPlan, filterStatus]
   )
 
+  const callApi = useCallback(async (type: string, method: string, payload: any) => {
+    try {
+      const res = await fetch('/api/prisma/admin', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _type: type, ...payload }),
+      })
+      return await res.json()
+    } catch {
+      return null
+    }
+  }, [])
+
   const addTenant = useCallback((t: Omit<Tenant, 'id' | 'createdAt'>) => {
     const plan = plans.find(p => p.id === t.planId)
     const newTenant: Tenant = { ...t, id: gid(), planName: plan?.name || 'Sem plano', createdAt: new Date().toISOString() }
     setTenants(prev => [...prev, newTenant])
+    callApi('tenant', 'POST', {
+      id: newTenant.id,
+      name: t.name,
+      slug: t.name.toLowerCase().replace(/\s+/g, '-'),
+      planId: t.planId,
+      status: t.status,
+      settings: { cnpj: t.cnpj, maxUsers: t.maxUsers, storageLimitMb: t.storageLimitMb, responsibleName: t.responsibleName, responsibleEmail: t.responsibleEmail, responsiblePhone: t.responsiblePhone, logoUrl: t.logoUrl },
+    })
     return newTenant
-  }, [plans])
+  }, [plans, callApi])
 
   const updateTenant = useCallback((id: string, updates: Partial<Tenant>) => {
     setTenants(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
-  }, [])
+    callApi('tenant', 'PATCH', {
+      id,
+      name: updates.name,
+      status: updates.status,
+      planId: updates.planId,
+      settings: updates.cnpj || updates.maxUsers ? { cnpj: updates.cnpj, maxUsers: updates.maxUsers, storageLimitMb: updates.storageLimitMb, responsibleName: updates.responsibleName, responsibleEmail: updates.responsibleEmail, responsiblePhone: updates.responsiblePhone } : undefined,
+    })
+  }, [callApi])
 
   const deleteTenant = useCallback((id: string) => {
     setTenants(prev => prev.filter(t => t.id !== id))
     setTenantsUsage(prev => prev.filter(u => u.tenantId !== id))
     setBilling(prev => prev.filter(b => b.tenantId !== id))
-  }, [])
+    callApi('tenant', 'DELETE', { id })
+  }, [callApi])
 
   const toggleTenantStatus = useCallback((id: string) => {
     setTenants(prev => prev.map(t => {
@@ -149,13 +176,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const next: Record<TenantStatus, TenantStatus> = { active: 'suspended', suspended: 'active', trial: 'active', cancelled: 'trial' }
       return { ...t, status: next[t.status] }
     }))
-  }, [])
+    const current = tenants.find(t => t.id === id)
+    if (current) {
+      const next: Record<TenantStatus, TenantStatus> = { active: 'suspended', suspended: 'active', trial: 'active', cancelled: 'trial' }
+      callApi('tenant', 'PATCH', { id, status: next[current.status] })
+    }
+  }, [tenants, callApi])
 
   const getPlanById = useCallback((planId: string) => plans.find(p => p.id === planId), [plans])
 
   const addUsage = useCallback((tenantId: string, metric: TenantUsage['metric'], value: number = 1) => {
-    setTenantsUsage(prev => [...prev, { id: gid(), tenantId, metric, value, recordedAt: new Date().toISOString() }])
-  }, [])
+    const entry = { id: gid(), tenantId, metric, value, recordedAt: new Date().toISOString() }
+    setTenantsUsage(prev => [...prev, entry])
+    callApi('tenantUsage', 'POST', { tenantId, metric, value })
+  }, [callApi])
 
   const getUsage = useCallback((tenantId: string, metric: TenantUsage['metric']): number => {
     return tenantsUsage.filter(u => u.tenantId === tenantId && u.metric === metric).reduce((acc, u) => acc + u.value, 0)
@@ -164,7 +198,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const addBilling = useCallback((b: Omit<TenantBilling, 'id' | 'createdAt'>) => {
     const newBill: TenantBilling = { ...b, id: gid(), createdAt: new Date().toISOString() }
     setBilling(prev => [...prev, newBill])
-  }, [])
+    callApi('tenantBilling', 'POST', {
+      id: newBill.id,
+      tenantId: b.tenantId,
+      planId: '',
+      amount: b.amount,
+      dueDate: b.dueDate,
+      status: b.status,
+    })
+  }, [callApi])
 
   const getTenantBilling = useCallback((tenantId: string) => billing.filter(b => b.tenantId === tenantId), [billing])
 

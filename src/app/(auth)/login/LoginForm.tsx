@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { login, setSessionCookie } from './actions'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 
 export function LoginForm() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -14,19 +16,43 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (pending) return // prevent duplicate submit
+    console.log('[LOGIN] submit iniciado')
     setError('')
     setPending(true)
 
-    const formData = new FormData()
-    formData.set('email', email.trim().toLowerCase())
-    formData.set('password', password)
+    try {
+      const formData = new FormData()
+      formData.set('email', email.trim().toLowerCase())
+      formData.set('password', password)
 
-    const result = await login(formData)
-    if (result?.error) {
-      setError(result.error)
+      const result = await login(formData)
+      console.log('[LOGIN] resultado da action:', result ? 'ok' : 'sem resposta')
+
+      if (result?.error) {
+        console.log('[LOGIN] erro retornado:', result.error)
+        setError(result.error)
+        return
+      }
+
+      if (result?.success) {
+        console.log('[LOGIN] sucesso, redirecionando para /')
+        router.replace('/')
+        router.refresh()
+        return
+      }
+
+      // fallback: in case result is undefined or missing both error and success
+      console.log('[LOGIN] resposta inesperada, tentando redirect')
+      router.replace('/')
+      router.refresh()
+    } catch (err) {
+      console.error('[LOGIN] exceção capturada:', err)
+      setError('Erro inesperado. Tente novamente.')
+    } finally {
       setPending(false)
+      console.log('[LOGIN] loading finalizado')
     }
-    // If no error, login() calls redirect('/') — this line won't execute
   }
 
   const handleForgotPassword = async () => {

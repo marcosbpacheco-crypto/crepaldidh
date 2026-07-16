@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { CrmProvider, useCrm } from './context/CrmContext'
+import { useCrmRealtime } from '@/hooks/useCrmRealtime'
 import { CrmDashboard } from './components/CrmDashboard'
 import { CrmPipeline } from './components/CrmPipeline'
 import { CrmCompanies } from './components/CrmCompanies'
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 
 function CrmMainContent() {
+  useCrmRealtime()
   const { currentRole, setCurrentRole } = useCrm()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'pipeline' | 'companies' | 'proposals' | 'timeline' | 'ai'>('dashboard')
 

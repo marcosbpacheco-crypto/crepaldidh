@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
+import { useClients } from '@/app/(dashboard)/clients/context/ClientsContext'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useFinancial } from '@/app/(dashboard)/financial/context/FinancialContext'
-import { useClients } from '@/app/(dashboard)/clients/context/ClientsContext'
 import { useProjects } from '@/app/(dashboard)/projects/context/ProjectContext'
+import { useDashboardKpis } from '@/hooks/useDashboardKpis'
+import { ProjectSection } from './sections/ProjectSection'
 import {
   Users, Briefcase, GraduationCap, TrendingUp, Calendar, ChevronRight,
   Plus, X, FileDown, Building2, Clock, MapPin, Download, Loader2,
@@ -40,18 +42,48 @@ const STATUS_LABELS: Record<string, string> = {
   pausado: 'Pausado',
 }
 
-const ACTIVITY_ICONS: Record<string, React.ElementType> = {
-  call: Phone, meeting: Users, whatsapp: MessageSquare, email: Mail,
-  visit: MapPin, proposal: FileDown, contract: FileDown, comment: MessageSquare,
+function KpiCard({ label, value, icon: Icon, color, trend }: { label: string; value: string; icon: React.ElementType; color: string; trend: string }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 transition-all hover:shadow-md">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+        <div className={`p-2.5 rounded-xl ${color} text-white shadow-sm`}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+      <p className="text-2xl font-black text-slate-800">{value}</p>
+      <p className="text-[10px] font-medium text-slate-400 mt-1">{trend}</p>
+    </div>
+  )
 }
+
+function KpiSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="h-3 bg-slate-100 rounded w-24 mb-3" />
+          <div className="h-8 bg-slate-100 rounded w-20 mb-2" />
+          <div className="h-2 bg-slate-100 rounded w-16" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const ActivitySection = lazy(() => import('./sections/ActivitySection').then(m => ({ default: m.ActivitySection })))
+const CalendarSection = lazy(() => import('./sections/CalendarSection').then(m => ({ default: m.CalendarSection })))
+const RevenueChartSection = lazy(() => import('./sections/RevenueChartSection').then(m => ({ default: m.RevenueChartSection })))
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { data: kpiData, isLoading: kpiLoading } = useDashboardKpis()
   const { companies, activities } = useCrm()
+  const { events } = useCalendar()
+  const { completedEvents } = useTrainings()
+  const { dre, totalReceived, receivables, monthlyBilling } = useFinancial()
+  const { projects: ctxProjects = [], createProject, tasks } = useProjects()
   const { clients } = useClients()
-  const { todayEvents, events } = useCalendar()
-  const { completedEvents, totalRevenue: trainingRevenue } = useTrainings()
-  const { dre, totalReceived, receivables } = useFinancial()
 
   const [showReportDropdown, setShowReportDropdown] = useState(false)
   const [showProjectForm, setShowProjectForm] = useState(false)
@@ -60,13 +92,17 @@ export default function DashboardPage() {
   const [pdfLoading, setPdfLoading] = useState(false)
   const [form, setForm] = useState({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado' as const, budget: 0 })
   const [loaded, setLoaded] = useState(false)
+  const [showBelowFold, setShowBelowFold] = useState(false)
 
   const reportRef = useRef<HTMLDivElement>(null)
 
-  const { projects: ctxProjects = [], createProject } = useProjects()
-
   useEffect(() => {
     const timer = setTimeout(() => setLoaded(true), 200)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowBelowFold(true), 500)
     return () => clearTimeout(timer)
   }, [])
 
@@ -82,7 +118,6 @@ export default function DashboardPage() {
     budget: 0,
   })), [ctxProjects, companies])
 
-  const activeProjects = (projects ?? []).filter(p => p.status === 'em_andamento' || p.status === 'planejado')
   const recentProjects = (projects ?? []).slice(0, 5)
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -99,44 +134,13 @@ export default function DashboardPage() {
     setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
   }
 
-  const revenueValue = totalReceived > 0 ? totalReceived : trainingRevenue > 0 ? trainingRevenue : (projects ?? []).reduce((acc, p) => acc + p.budget, 0)
-  const activeCompanies = (companies ?? []).filter(c => c.status === 'active').length
-  const activeClients = (clients ?? []).filter(c => c.status === 'active').length
-  const paidReceivables = (receivables ?? []).filter(r => r.status === 'paid')
-  const totalPaid = (paidReceivables ?? []).reduce((s, r) => s + r.amount, 0)
+  const kpis = kpiData?.kpis
+  const profitMargin = dre?.profitMargin ?? 0
 
-  // Simulated monthly revenue for chart (last 6 months)
-  const monthlyRevenue = useMemo(() => {
-    const months: { label: string; value: number; pct: number }[] = []
-    const maxVal = Math.max(totalPaid || revenueValue, 1)
-    const now = new Date()
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const label = d.toLocaleDateString('pt-BR', { month: 'short' })
-      const base = totalPaid / 6
-      const variance = base * 0.4 * Math.sin(i * 1.2 + 1)
-      const val = Math.max(0, base + variance)
-      months.push({ label, value: val, pct: (val / maxVal) * 100 })
-    }
-    return months
-  }, [totalPaid, revenueValue])
-
-  const recentActivities = useMemo(() => {
-    return [...activities].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6)
-  }, [activities])
-
-  const upcomingEvents = useMemo(() => {
-    return [...events].filter(e => e.status === 'scheduled' || e.status === 'confirmed')
-      .sort((a, b) => new Date(a.eventDate + 'T' + a.startTime).getTime() - new Date(b.eventDate + 'T' + b.startTime).getTime())
-      .slice(0, 5)
+  const todayEvents = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return (events ?? []).filter(e => e.eventDate === today)
   }, [events])
-
-  const stats = [
-    { label: "Empresas (CRM)", value: activeCompanies.toString(), icon: Building2, color: "bg-blue-500", trend: `${activeCompanies} ativas` },
-    { label: "Clientes", value: activeClients.toString(), icon: Users, color: "bg-brand-teal", trend: `${activeClients} ativos` },
-    { label: "Treinamentos", value: completedEvents.toString(), icon: GraduationCap, color: "bg-indigo-500", trend: `${completedEvents} realizados` },
-    { label: "Receita", value: `R$ ${revenueValue.toLocaleString('pt-BR')}`, icon: TrendingUp, color: "bg-emerald-500", trend: `${dre?.profitMargin || 0}% margem` },
-  ]
 
   const handleExportDashboardPDF = useCallback(async () => {
     setPdfLoading(true)
@@ -164,13 +168,13 @@ export default function DashboardPage() {
         <h2 style="font-size:14px;font-weight:700;color:#334155;margin:0 0 12px">Indicadores</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
           <tr>
-            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Clientes</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${activeC}</p></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Clientes</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.activeClients ?? 0}</p></td>
             <td style="width:8px"></td>
-            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Projetos Ativos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${activeProjects.length}</p></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Projetos Ativos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.activeProjects ?? 0}</p></td>
             <td style="width:8px"></td>
-            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Treinamentos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${completedEvents}</p></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Treinamentos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.completedTrainings ?? 0}</p></td>
             <td style="width:8px"></td>
-            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Receita</p><p style="font-size:24px;font-weight:800;color:#059669;margin:6px 0 0">R$ ${revenueValue.toLocaleString('pt-BR')}</p></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Receita</p><p style="font-size:24px;font-weight:800;color:#059669;margin:6px 0 0">R$ ${(kpis?.totalRevenue ?? 0).toLocaleString('pt-BR')}</p></td>
           </tr>
         </table>
         <h2 style="font-size:14px;font-weight:700;color:#334155;margin:0 0 12px">Projetos</h2>
@@ -197,7 +201,8 @@ export default function DashboardPage() {
       document.body.appendChild(tempDiv)
       const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, logging: false })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const { jsPDF: JsPDF } = await import('jspdf')
+      const pdf = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pw = pdf.internal.pageSize.getWidth()
       const ph = pdf.internal.pageSize.getHeight()
       const margin = 8
@@ -207,7 +212,6 @@ export default function DashboardPage() {
       for (let i = 0; i < totalPages; i++) {
         if (i > 0) pdf.addPage()
         const srcY = (canvas.height / totalPages) * i
-        const srcH = canvas.height / totalPages
         const destY = margin
         const destH = Math.min(imgH - (imgH / totalPages) * i, ph - margin * 2)
         pdf.addImage(imgData, 'PNG', margin, destY, imgW, destH, undefined, undefined, srcY)
@@ -219,7 +223,7 @@ export default function DashboardPage() {
       document.body.removeChild(tempDiv)
     } catch { alert('Erro ao gerar PDF. Tente novamente.') }
     finally { setPdfLoading(false) }
-  }, [companies, activeProjects, completedEvents, revenueValue, projects])
+  }, [companies, kpis, projects])
 
   const handleExportCompanyPDF = useCallback(async () => {
     if (!reportCompanyId) return
@@ -228,7 +232,7 @@ export default function DashboardPage() {
     setPdfLoading(true)
     try {
       const html2canvas = (await import('html2canvas')).default
-      const { jsPDF } = await import('jspdf')
+      const { jsPDF: JsPDF } = await import('jspdf')
       const cp = projects.filter(p => p.companyId === reportCompanyId)
       const rev = cp.reduce((acc, p) => acc + p.budget, 0)
       const evts = todayEvents.filter(e => e.companyId === reportCompanyId)
@@ -292,7 +296,8 @@ export default function DashboardPage() {
       document.body.appendChild(tempDiv)
       const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, logging: false })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const { jsPDF: JsPDF2 } = await import('jspdf')
+      const pdf = new JsPDF2({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pw = pdf.internal.pageSize.getWidth()
       const ph = pdf.internal.pageSize.getHeight()
       const margin = 8
@@ -302,7 +307,6 @@ export default function DashboardPage() {
       for (let i = 0; i < totalPages; i++) {
         if (i > 0) pdf.addPage()
         const srcY = (canvas.height / totalPages) * i
-        const srcH = canvas.height / totalPages
         const destY = margin
         const destH = Math.min(imgH - (imgH / totalPages) * i, ph - margin * 2)
         pdf.addImage(imgData, 'PNG', margin, destY, imgW, destH, undefined, undefined, srcY)
@@ -317,6 +321,13 @@ export default function DashboardPage() {
     } catch { alert('Erro ao gerar PDF. Tente novamente.') }
     finally { setPdfLoading(false) }
   }, [reportCompanyId, companies, projects, todayEvents])
+
+  const stats = kpiLoading ? null : [
+    { label: "Empresas (CRM)", value: String(kpis?.activeCompanies ?? 0), icon: Building2, color: "bg-blue-500", trend: `${kpis?.activeCompanies ?? 0} ativas` },
+    { label: "Clientes", value: String(kpis?.activeClients ?? 0), icon: Users, color: "bg-brand-teal", trend: `${kpis?.activeClients ?? 0} ativos` },
+    { label: "Treinamentos", value: String(kpis?.completedTrainings ?? 0), icon: GraduationCap, color: "bg-indigo-500", trend: `${kpis?.completedTrainings ?? 0} realizados` },
+    { label: "Receita", value: `R$ ${(kpis?.totalRevenue ?? 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: "bg-emerald-500", trend: `${profitMargin}% margem` },
+  ]
 
   if (!loaded) {
     return (
@@ -379,213 +390,36 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${i * 80}ms` } as React.CSSProperties}>
-            <div className="flex justify-between items-start mb-4 relative z-10">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white ${stat.color} shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded-full">{stat.trend}</span>
-            </div>
-            <div className="relative z-10">
-              <h3 className="text-slate-500 text-sm font-medium">{stat.label}</h3>
-              <p className="text-3xl font-bold text-slate-800 mt-1">{stat.value}</p>
-            </div>
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${stat.color} opacity-5 group-hover:scale-150 group-hover:opacity-10 transition-all duration-500`}></div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiLoading ? (
+          <KpiSkeleton />
+        ) : stats?.map((s, i) => (
+          <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: `${i * 80}ms` } as React.CSSProperties}>
+            <KpiCard {...s} />
           </div>
         ))}
       </div>
 
-      {/* Row 2: Revenue Chart + Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Mini-Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-emerald-500" /> Receita Mensal
-            </h2>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-              R$ {revenueValue.toLocaleString('pt-BR')}
-            </span>
-          </div>
-          <div className="flex items-end gap-2 h-40">
-            {monthlyRevenue.map((m, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                <span className="text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  R${Math.round(m.value).toLocaleString()}
-                </span>
-                <div className="w-full bg-slate-100 rounded-t-lg relative overflow-hidden" style={{ height: '100%' }}>
-                  <div
-                    className="absolute bottom-0 w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-t-lg transition-all duration-1000 ease-out"
-                    style={{ height: `${m.pct}%` }}
-                  />
-                </div>
-                <span className="text-[10px] text-slate-500 font-medium">{m.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activities */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-violet-500" /> Atividades Recentes
-            </h2>
-            <button onClick={() => router.push('/crm')} className="text-brand-teal text-sm font-medium hover:underline flex items-center">
-              Ver todas <ChevronRight className="w-4 h-4 ml-1" />
-            </button>
-          </div>
-          <div className="space-y-0">
-            {recentActivities.length === 0 ? (
-              <div className="py-10 text-center border-2 border-dashed border-slate-200 rounded-xl">
-                <Activity className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">Nenhuma atividade registrada ainda.</p>
-                <p className="text-[10px] text-slate-300 mt-1">As atividades do CRM aparecerão aqui.</p>
-              </div>
-            ) : (
-              <div className="relative">
-                <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-slate-100" />
-                {recentActivities.map((a, i) => {
-                  const Icon = ACTIVITY_ICONS[a.type] || Activity
-                  const comp = companies.find(c => c.id === a.companyId)
-                  return (
-                    <div key={a.id} className="flex items-start gap-4 pb-5 relative animate-in fade-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${i * 60}ms` } as React.CSSProperties}>
-                      <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0 z-10 border-2 border-white shadow-sm">
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                        <p className="text-xs font-semibold text-slate-800">{a.title}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{a.description}</p>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
-                          <span>{new Date(a.date).toLocaleDateString('pt-BR')}</span>
-                          {comp && <><span>·</span><span>{comp.tradeName || comp.name}</span></>}
-                          <span>·</span><span>{a.author}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: Projects + Calendar + Upcoming Events */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Projects */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-amber-500" /> Projetos Recentes
-            </h2>
-            <button onClick={() => router.push('/projects')} className="text-brand-teal text-sm font-medium hover:underline flex items-center">
-              Ver todos <ChevronRight className="w-4 h-4 ml-1" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {recentProjects.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                <Briefcase className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-xs">Nenhum projeto ainda.</p>
-                <p className="text-[10px] text-slate-300 mt-1">Clique em "Novo Projeto" para começar.</p>
-              </div>
-            ) : recentProjects.map((p) => (
-              <div key={p.id} onClick={() => router.push('/projects')}
-                className="flex items-center justify-between p-4 rounded-xl border border-slate-50 hover:bg-slate-50 hover:border-slate-100 transition-all cursor-pointer group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    {p.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">{p.name}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                      <Building2 className="w-3 h-3" /> {p.companyName}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-1 text-[10px] font-semibold rounded border ${STATUS_COLORS[p.status]}`}>
-                    {STATUS_LABELS[p.status]}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Agenda + Próximos Eventos */}
-        <div className="space-y-6">
-          {/* Today's Agenda */}
-          <div className="bg-gradient-to-br from-brand-blue to-blue-700 rounded-2xl shadow-md p-6 relative overflow-hidden text-white">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-teal/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 blur-2xl rounded-full -translate-x-1/4 translate-y-1/4 pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-brand-teal" /> Hoje
-                </h2>
-                <span className="text-[10px] bg-white/20 rounded-full px-2 py-0.5">{todayEvents.length} eventos</span>
-              </div>
-              <div className="space-y-3">
-                {todayEvents.length === 0 ? (
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-                    <Calendar className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                    <p className="text-xs text-slate-200">Nenhum evento hoje</p>
-                  </div>
-                ) : todayEvents.slice(0, 3).map((evt) => (
-                  <div key={evt.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-brand-teal mt-1.5 flex-shrink-0" style={{ backgroundColor: evt.color || '#14b8a6' }} />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-semibold truncate">{evt.title}</h4>
-                        <p className="text-[10px] text-slate-200 mt-1 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {evt.startTime} - {evt.endTime}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => router.push('/calendar')}
-                className="w-full mt-4 py-2.5 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-black/10 hover:-translate-y-0.5">
-                Agenda Completa
-              </button>
+      {/* Below-fold sections (loaded after 500ms) */}
+      {showBelowFold && (
+        <Suspense fallback={<div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="animate-pulse bg-white rounded-2xl border border-slate-100 p-6 h-64" /><div className="lg:col-span-2 animate-pulse bg-white rounded-2xl border border-slate-100 p-6 h-64" /></div>}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <RevenueChartSection monthlyBilling={kpiData?.monthlyBilling ?? []} kpiRevenue={kpis?.totalRevenue ?? 0} />
+            <div className="lg:col-span-2">
+              <ActivitySection activities={activities} companies={companies} />
             </div>
           </div>
-
-          {/* Próximos Eventos */}
-          {upcomingEvents.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                <Target className="w-4 h-4 text-violet-500" /> Próximos Eventos
-              </h2>
-              <div className="space-y-3">
-                {upcomingEvents.slice(0, 4).map(e => (
-                  <div key={e.id} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center w-8 flex-shrink-0">
-                      <span className="text-[15px] font-black text-slate-700 leading-none">{new Date(e.eventDate).getDate()}</span>
-                      <span className="text-[8px] text-slate-400 uppercase font-bold">
-                        {new Date(e.eventDate).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-semibold text-slate-800 truncate">{e.title}</p>
-                      <p className="text-[10px] text-slate-400">{e.startTime}hs{e.companyName ? ` · ${e.companyName}` : ''}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <ProjectSection projects={recentProjects} />
             </div>
-          )}
-        </div>
-      </div>
+            <CalendarSection events={events} />
+          </div>
+        </Suspense>
+      )}
 
-      {/* Modals remain the same */}
+      {/* Company Report Modal */}
       {showCompanyReport && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowCompanyReport(false); setReportCompanyId('') }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>

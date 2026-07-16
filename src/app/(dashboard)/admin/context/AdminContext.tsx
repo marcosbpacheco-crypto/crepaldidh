@@ -94,6 +94,7 @@ interface AdminContextType {
   currentUserId: string | null
   setCurrentUserId: (id: string | null) => void
   currentUser: User | null
+  loading: boolean
   addUser: (u: Omit<User, 'id' | 'createdAt'>) => Promise<void>
   updateUser: (id: string, updates: Partial<User>) => Promise<void>
   deleteUser: (id: string) => Promise<void>
@@ -108,6 +109,7 @@ interface AdminContextType {
   revokeLgpdConsent: (id: string) => void
   addPrivacyRequest: (r: Omit<PrivacyRequest, 'id' | 'createdAt' | 'processedAt'>) => void
   updatePrivacyRequest: (id: string, updates: Partial<PrivacyRequest>) => void
+  updateRolePermissions: (roleId: string, name: string, description: string, permissions: any[]) => Promise<{ role: any; permissions: any[] }>
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined)
@@ -183,6 +185,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [lgpdConsents, setLgpdConsents] = useState<LgpdConsent[]>([])
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequest[]>([])
+  const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     try {
@@ -220,6 +223,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       if (lgpd.length > 0) setLgpdConsents(lgpd)
       if (priv.length > 0) setPrivacyRequests(priv)
     }).catch((err) => console.error('[AdminContext] load error:', err))
+      .finally(() => setLoading(false))
   }, [])
 
   // Persistência é feita individualmente em addUser/updateUser/deleteUser
@@ -424,13 +428,51 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUserId, users, addAuditLogLocal])
 
+  const updateRolePermissions = useCallback(async (roleId: string, name: string, description: string, permissions: any[]) => {
+    const res = await fetch(`/api/settings/roles/${roleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        description,
+        permissions,
+        auditUserId: currentUserId,
+        auditUserName: safeArray(users).find(x => x.id === currentUserId)?.name || 'Sistema',
+        auditUserRole: 'admin',
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar permissões')
+
+    if (data.permissions) {
+      setPermissions(prev => {
+        const safePrev = safeArray(prev)
+        const nonRolePerms = safePrev.filter(p => p.roleId !== roleId)
+        const mappedPerms = data.permissions.map((p: any) => ({
+          id: p.id,
+          roleId: p.roleId || p.role_id || roleId,
+          userId: p.userId || p.user_id || undefined,
+          module: p.module,
+          canView: p.canView ?? p.can_view ?? false,
+          canCreate: p.canCreate ?? p.can_create ?? false,
+          canEdit: p.canEdit ?? p.can_edit ?? false,
+          canDelete: p.canDelete ?? p.can_delete ?? false,
+          canExport: p.canExport ?? p.can_export ?? false,
+        }))
+      return [...nonRolePerms, ...mappedPerms]
+    })
+    }
+
+    return data
+  }, [currentUserId, users])
+
   return (
     <AdminContext.Provider value={{
       users, roles, permissions, auditLogs, lgpdConsents, privacyRequests,
-      currentUserId, setCurrentUserId, currentUser,
+      currentUserId, setCurrentUserId, currentUser, loading,
       addUser, updateUser, deleteUser, toggleUserActive,
       getPermissionsForRole, getPermissionsForUser, checkPermission, updatePermission, setUserPermission,
-      addAuditLog, addLgpdConsent, revokeLgpdConsent, addPrivacyRequest, updatePrivacyRequest,
+      addAuditLog, addLgpdConsent, revokeLgpdConsent, addPrivacyRequest, updatePrivacyRequest, updateRolePermissions,
     }}>
       {children}
     </AdminContext.Provider>

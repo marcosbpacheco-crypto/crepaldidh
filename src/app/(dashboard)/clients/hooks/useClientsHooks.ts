@@ -6,24 +6,35 @@ import type { Client, ClientContact, ClientInteraction, ClientFeedbackRanking } 
 
 const CLIENTS_KEY = ['clients']
 
+const QUERY_OPTIONS = {
+  staleTime: 30_000,
+  gcTime: 300_000,
+  refetchOnWindowFocus: false,
+  retry: 1,
+}
+
 export function useClients() {
   const qc = useQueryClient()
 
   const clientsQuery = useQuery({
     queryKey: CLIENTS_KEY,
     queryFn: () => clientService.list(),
+    ...QUERY_OPTIONS,
   })
   const contactsQuery = useQuery({
     queryKey: [...CLIENTS_KEY, 'contacts'],
     queryFn: () => clientService.listAllContacts(),
+    ...QUERY_OPTIONS,
   })
   const interactionsQuery = useQuery({
     queryKey: [...CLIENTS_KEY, 'interactions'],
     queryFn: () => clientService.listAllInteractions(),
+    ...QUERY_OPTIONS,
   })
   const feedbacksQuery = useQuery({
     queryKey: [...CLIENTS_KEY, 'feedbacks'],
     queryFn: () => clientService.listAllFeedbacks(),
+    ...QUERY_OPTIONS,
   })
 
   const clients = clientsQuery.data ?? []

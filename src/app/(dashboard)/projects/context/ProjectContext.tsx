@@ -1,7 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { projectService } from '@/services/projectService'
+import React, { createContext, useContext, useCallback } from 'react'
+import { useProjects as useProjectsTQ } from '@/hooks/useProjectsQuery'
 
 export interface Project {
   id: string
@@ -39,11 +39,11 @@ interface ProjectContextType {
   projects: Project[]
   tasks: ProjectTask[]
   loading: boolean
-  createProject: (data: Partial<Project>) => Promise<void>
-  updateProject: (id: string, data: Partial<Project>) => Promise<void>
+  createProject: (data: Partial<Project>) => Promise<Project>
+  updateProject: (id: string, data: Partial<Project>) => Promise<Project>
   deleteProject: (id: string) => Promise<void>
-  createTask: (data: Partial<ProjectTask>) => Promise<void>
-  updateTask: (id: string, data: Partial<ProjectTask>) => Promise<void>
+  createTask: (data: Partial<ProjectTask>) => Promise<ProjectTask>
+  updateTask: (id: string, data: Partial<ProjectTask>) => Promise<ProjectTask>
   deleteTask: (id: string) => Promise<void>
   getTasksByProject: (projectId: string) => ProjectTask[]
 }
@@ -51,91 +51,26 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType>({} as ProjectContextType)
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [tasks, setTasks] = useState<ProjectTask[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
-      const [pList, tList] = await Promise.all([
-        projectService.list(),
-        projectService.listTasks(),
-      ])
-      setProjects(pList)
-      setTasks(tList)
-    } catch (err) {
-      console.error('[ProjectContext] load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { load() }, [load])
-
-  const createProject = useCallback(async (data: Partial<Project>) => {
-    try {
-      await projectService.create(data)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] createProject error:', err)
-    }
-  }, [load])
-
-  const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
-    try {
-      await projectService.update(id, data)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] updateProject error:', err)
-    }
-  }, [load])
-
-  const deleteProject = useCallback(async (id: string) => {
-    try {
-      await projectService.remove(id)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] deleteProject error:', err)
-    }
-  }, [load])
-
-  const createTask = useCallback(async (data: Partial<ProjectTask>) => {
-    try {
-      await projectService.createTask(data)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] createTask error:', err)
-    }
-  }, [load])
-
-  const updateTask = useCallback(async (id: string, data: Partial<ProjectTask>) => {
-    try {
-      await projectService.updateTask(id, data)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] updateTask error:', err)
-    }
-  }, [load])
-
-  const deleteTask = useCallback(async (id: string) => {
-    try {
-      await projectService.removeTask(id)
-      await load()
-    } catch (err) {
-      console.error('[ProjectContext] deleteTask error:', err)
-    }
-  }, [load])
+  const tq = useProjectsTQ()
 
   const getTasksByProject = useCallback((projectId: string) => {
-    return tasks.filter(t => t.project_id === projectId)
-  }, [tasks])
+    return tq.tasks.filter(t => t.project_id === projectId)
+  }, [tq.tasks])
+
+  const deleteTask = useCallback(async (id: string) => {
+    await tq.deleteTask(id)
+  }, [tq])
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, loading,
-      createProject, updateProject, deleteProject,
-      createTask, updateTask, deleteTask, getTasksByProject,
+      projects: tq.projects, tasks: tq.tasks, loading: tq.isLoading,
+      createProject: tq.createProject,
+      updateProject: tq.updateProject,
+      deleteProject: tq.deleteProject,
+      createTask: tq.createTask,
+      updateTask: tq.updateTask,
+      deleteTask,
+      getTasksByProject,
     }}>
       {children}
     </ProjectContext.Provider>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useProjects } from './context/ProjectContext'
+import { useProjectsRealtime } from '@/hooks/useProjectsRealtime'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
@@ -40,6 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default function ProjectsPage() {
+  useProjectsRealtime()
   const { projects: ctxProjects = [], createProject, updateProject } = useProjects()
   const { events } = useTrainings()
   const { companies } = useCrm()

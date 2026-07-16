@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { useCalendar, CalendarEvent, CalendarView, EventType } from './context/CalendarContext'
+import { useCalendarRealtime } from '@/hooks/useCalendarRealtime'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useClients } from '@/app/(dashboard)/clients/context/ClientsContext'
 import {
@@ -38,6 +39,7 @@ function getDuration(start: string, end: string) {
 }
 
 export default function CalendarPage() {
+  useCalendarRealtime()
   const cal = useCalendar()
   const { companies } = useCrm()
   const { clients } = useClients()

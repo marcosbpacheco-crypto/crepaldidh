@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Client, ClientService, ContractType } from '@/types/clients'
 import { useClients } from './hooks/useClientsHooks'
+import { useClientsRealtime } from '@/hooks/useClientsRealtime'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import {
@@ -18,6 +19,7 @@ const NoAccess = () => (
 )
 
 function ClientsMainContent() {
+  useClientsRealtime()
   const router = useRouter()
   const admin = useAdmin()
   const hasFinancialAccess = admin.checkPermission('financial', 'view')

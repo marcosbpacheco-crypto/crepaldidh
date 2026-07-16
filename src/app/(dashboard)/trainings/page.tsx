@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTrainings } from './context/TrainingsContext'
+import { useTrainingRealtime } from '@/hooks/useTrainingRealtime'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import Link from 'next/link'
 import {
@@ -15,6 +16,7 @@ const NoAccess = () => (
 )
 
 export default function TrainingsDashboardPage() {
+  useTrainingRealtime()
   const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
   const {
     events,

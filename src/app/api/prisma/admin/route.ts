@@ -151,6 +151,66 @@ export async function POST(request: Request) {
       return NextResponse.json({ privacyRequest })
     }
 
+    if (_type === 'tenant') {
+      const tId = id || crypto.randomUUID()
+      const tenant = await prisma.tenants.upsert({
+        where: { id: tId },
+        create: {
+          id: tId,
+          name: data.name,
+          slug: data.slug || data.name?.toLowerCase().replace(/\s+/g, '-') || `tenant-${Date.now()}`,
+          plan_id: data.planId || data.plan_id || null,
+          status: data.status || 'active',
+          settings: data.settings || {},
+        },
+        update: {
+          name: data.name,
+          slug: data.slug || undefined,
+          plan_id: data.planId || data.plan_id || null,
+          status: data.status || undefined,
+          settings: data.settings || undefined,
+        },
+      })
+      return NextResponse.json({ tenant })
+    }
+
+    if (_type === 'tenantUsage') {
+      const usage = await prisma.tenant_usage.create({
+        data: {
+          tenant_id: data.tenantId || data.tenant_id,
+          metric: data.metric,
+          value: data.value ?? 1,
+          recorded_at: new Date(),
+        },
+      })
+      return NextResponse.json({ usage })
+    }
+
+    if (_type === 'tenantBilling') {
+      const bId = id || crypto.randomUUID()
+      const bill = await prisma.tenant_billing.upsert({
+        where: { id: bId },
+        create: {
+          id: bId,
+          tenant_id: data.tenantId || data.tenant_id,
+          plan_id: data.planId || data.plan_id,
+          amount: data.amount ?? 0,
+          due_date: data.dueDate || data.due_date ? new Date(data.dueDate || data.due_date) : new Date(),
+          paid_at: data.paidAt || data.paid_at ? new Date(data.paidAt || data.paid_at) : null,
+          status: data.status || 'pending',
+        },
+        update: {
+          tenant_id: data.tenantId || data.tenant_id,
+          plan_id: data.planId || data.plan_id,
+          amount: data.amount ?? 0,
+          due_date: data.dueDate || data.due_date ? new Date(data.dueDate || data.due_date) : undefined,
+          paid_at: data.paidAt || data.paid_at ? new Date(data.paidAt || data.paid_at) : null,
+          status: data.status || undefined,
+        },
+      })
+      return NextResponse.json({ bill })
+    }
+
     if (_type === 'permission') {
       const permId = id || crypto.randomUUID()
       const permission = await prisma.admin_permissions.upsert({
@@ -212,6 +272,21 @@ export async function PATCH(request: Request) {
         },
       })
       return NextResponse.json({ privacyRequest })
+    }
+
+    if (_type === 'tenant') {
+      const tenant = await prisma.tenants.update({
+        where: { id },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(data.slug && { slug: data.slug }),
+          ...(data.planId && { plan_id: data.planId }),
+          ...(data.plan_id && { plan_id: data.plan_id }),
+          ...(data.status && { status: data.status }),
+          ...(data.settings && { settings: data.settings }),
+        },
+      })
+      return NextResponse.json({ tenant })
     }
 
     if (_type === 'permission') {
@@ -300,6 +375,19 @@ export async function DELETE(request: Request) {
 
     if (_type === 'privacyRequest') {
       await prisma.admin_privacy_requests.delete({ where: { id } })
+      return NextResponse.json({ success: true })
+    }
+
+    if (_type === 'tenant') {
+      await prisma.tenants.update({
+        where: { id },
+        data: { status: 'cancelled' },
+      })
+      return NextResponse.json({ success: true })
+    }
+
+    if (_type === 'tenantBilling') {
+      await prisma.tenant_billing.delete({ where: { id } })
       return NextResponse.json({ success: true })
     }
 
