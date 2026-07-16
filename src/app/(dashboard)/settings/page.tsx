@@ -1135,29 +1135,117 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
 // ── Permissions Panel ──
 function PermissionsPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
   const [selectedUserId, setSelectedUserId] = useState('')
+  const [permState, setPermState] = useState<Record<string, boolean>>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const selectedUser = admin.users.find(u => u.id === selectedUserId)
   const isAdminUser = selectedUser?.roleName === 'Administrador'
   const canEdit = admin.currentUser?.roleName === 'Administrador' || admin.currentUser?.roleName === 'Diretor'
 
   const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+  const actions = ['view', 'create', 'edit', 'delete', 'export'] as const
+  const fields: Record<string, string> = { view: 'canView', create: 'canCreate', edit: 'canEdit', delete: 'canDelete', export: 'canExport' }
 
-  function getEffectivePerm(module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>): boolean {
-    if (!selectedUser) return false
-    const userPerm = admin.permissions.find(p => p.userId === selectedUser.id && p.module === module)
-    if (userPerm) return userPerm[field]
-    const rolePerm = admin.permissions.find(p => p.roleId === selectedUser.roleId && p.module === module)
-    return rolePerm ? rolePerm[field] : false
+  function permKey(mod: ModuleName, action: string): string { return `${mod}_${action}` }
+  function allPermKeys(): string[] { return moduleList.flatMap(mod => actions.map(a => permKey(mod, a))) }
+
+  function buildStateFromUser(): Record<string, boolean> {
+    if (!selectedUser) return {}
+    const state: Record<string, boolean> = {}
+    moduleList.forEach(mod => {
+      const userPerm = admin.permissions.find(p => p.userId === selectedUser.id && p.module === mod)
+      const rolePerm = admin.permissions.find(p => p.roleId === selectedUser.roleId && p.module === mod)
+      actions.forEach(a => {
+        const field = fields[a] as keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>
+        state[permKey(mod, a)] = userPerm ? !!userPerm[field] : rolePerm ? !!rolePerm[field] : false
+      })
+    })
+    return state
   }
 
-  function handleToggle(module: ModuleName, field: keyof Pick<Permission, 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canExport'>) {
-    if (!selectedUser || !canEdit) return
-    const newValue = !getEffectivePerm(module, field)
-    admin.setUserPermission(selectedUser.id, module, field, newValue)
+  useEffect(() => {
+    if (selectedUser) setPermState(buildStateFromUser())
+    else setPermState({})
+  }, [selectedUserId, admin.permissions])
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), toastMessage.type === 'success' ? 3000 : 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
+
+  if (!canEdit) {
+    return (
+      <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100 shadow-sm">
+        Apenas administradores e diretores podem gerenciar permissões.
+      </div>
+    )
+  }
+
+  const totalSelected = allPermKeys().filter(k => permState[k]).length
+  const totalPerms = allPermKeys().length
+  const allSelected = totalPerms > 0 && allPermKeys().every(k => permState[k])
+
+  function togglePermission(mod: ModuleName, action: string) {
+    if (!selectedUser || isAdminUser) return
+    setPermState(prev => ({ ...prev, [permKey(mod, action)]: !prev[permKey(mod, action)] }))
+  }
+
+  function toggleModule(mod: ModuleName, select: boolean) {
+    if (!selectedUser || isAdminUser) return
+    setPermState(prev => {
+      const next = { ...prev }
+      actions.forEach(a => { next[permKey(mod, a)] = select })
+      return next
+    })
+  }
+
+  function toggleAll(select: boolean) {
+    if (!selectedUser || isAdminUser) return
+    setPermState(prev => {
+      const next = { ...prev }
+      allPermKeys().forEach(k => { next[k] = select })
+      return next
+    })
+  }
+
+  async function handleSave() {
+    if (!selectedUser || isAdminUser) return
+    setIsSaving(true)
+    try {
+      const perms = moduleList.map(mod => {
+        const canView = permState[permKey(mod, 'view')] ?? false
+        const canCreate = permState[permKey(mod, 'create')] ?? false
+        const canEdit = permState[permKey(mod, 'edit')] ?? false
+        const canDelete = permState[permKey(mod, 'delete')] ?? false
+        const canExport = permState[permKey(mod, 'export')] ?? false
+        return { module: mod, canView, canCreate, canEdit, canDelete, canExport }
+      })
+      await admin.saveUserPermissions(selectedUser.id, perms)
+      setToastMessage({ type: 'success', text: 'Permissões do usuário salvas com sucesso!' })
+    } catch (err: any) {
+      setToastMessage({ type: 'error', text: err.message || 'Erro ao salvar permissões' })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
     <div className="space-y-4">
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-lg border text-[11px] font-semibold flex items-center gap-2 ${
+          toastMessage.type === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {toastMessage.type === 'success' ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+          {toastMessage.text}
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <label className="text-[9px] font-semibold text-slate-400 uppercase">Usuário:</label>
         <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
@@ -1176,59 +1264,89 @@ function PermissionsPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
         <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100 shadow-sm">
           Selecione um usuário para configurar as permissões.
         </div>
+      ) : isAdminUser ? (
+        <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100 shadow-sm">
+          Administradores têm acesso total a todos os módulos. Não é necessário configurar permissões individuais.
+        </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Módulo</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Visualizar</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Criar</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Editar</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Excluir</th>
-                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500">Exportar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {moduleList.map(mod => (
-                  <tr key={mod} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2.5 font-semibold text-slate-700">{MODULE_LABELS[mod] || mod}</td>
-                    {(['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport'] as const).map(field => {
-                      const hasPerm = getEffectivePerm(mod, field)
-                      const hasOverride = admin.permissions.some(p => p.userId === selectedUser.id && p.module === mod)
+        <>
+          {/* Select All / Clear All */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] text-slate-500">{totalSelected} de {totalPerms} permissões selecionadas</p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => toggleAll(true)}
+                className="px-3 py-1.5 text-[10px] font-semibold text-brand-teal bg-brand-teal/5 border border-brand-teal/20 rounded-lg hover:bg-brand-teal/10 transition-colors">
+                Selecionar tudo
+              </button>
+              <button onClick={() => toggleAll(false)}
+                className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                Limpar tudo
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {moduleList.map(mod => {
+              const modSelected = actions.filter(a => permState[permKey(mod, a)]).length
+              return (
+                <div key={mod} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-bold text-slate-700">{MODULE_LABELS[mod] || mod}</p>
+                    <span className="text-[9px] text-slate-400">{modSelected}/{actions.length}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {[
+                      { label: 'Visualizar', key: 'view' },
+                      { label: 'Criar', key: 'create' },
+                      { label: 'Editar', key: 'edit' },
+                      { label: 'Excluir', key: 'delete' },
+                      { label: 'Exportar', key: 'export' },
+                    ].map(item => {
+                      const isChecked = permState[permKey(mod, item.key)] ?? false
                       return (
-                        <td key={field} className="px-4 py-2.5 text-center">
-                          {isAdminUser ? (
-                            <span className="inline-flex w-6 h-6 rounded-lg items-center justify-center bg-brand-teal/10 text-brand-teal border border-brand-teal/20">
-                              <Check className="w-3.5 h-3.5" />
-                            </span>
-                          ) : (
-                            <button onClick={() => handleToggle(mod, field)}
-                              disabled={!canEdit}
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                                hasPerm
-                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                  : 'bg-slate-50 text-slate-300 border border-slate-100'
-                              } ${canEdit ? 'cursor-pointer hover:border-slate-300' : 'cursor-default opacity-60'}`}
-                              title={hasOverride ? 'Permissão personalizada' : 'Permissão do perfil'}>
-                              {hasPerm ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                            </button>
-                          )}
-                        </td>
+                        <div key={item.key} className="flex items-center justify-between">
+                          <span className="text-[9px] text-slate-500">{item.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => togglePermission(mod, item.key)}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-brand-teal focus:ring-brand-teal/20"
+                          />
+                        </div>
                       )
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex gap-1">
+                    <button onClick={() => toggleModule(mod, true)}
+                      className="flex-1 px-2 py-1 text-[9px] font-semibold text-brand-teal bg-brand-teal/5 border border-brand-teal/20 rounded-lg hover:bg-brand-teal/10 transition-colors">
+                      Selecionar módulo
+                    </button>
+                    <button onClick={() => toggleModule(mod, false)}
+                      className="flex-1 px-2 py-1 text-[9px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                      Limpar módulo
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
-            <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-600" /> Permitido</span>
-            <span className="flex items-center gap-1"><X className="w-3 h-3 text-slate-300" /> Negado</span>
-            <span className="flex items-center gap-1 text-brand-teal font-semibold">Administradores têm acesso total a todos os módulos.</span>
+
+          {/* Save bar */}
+          <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 -mx-4 sm:-mx-6 lg:-mx-8 mt-4 shadow-lg flex items-center justify-end gap-3">
+            <div className="text-[10px] text-slate-500">
+              {totalSelected} de {totalPerms} permissões selecionadas
+            </div>
+            <button onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-4 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {isSaving ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Salvando...</>
+              ) : (
+                'Salvar alterações'
+              )}
+            </button>
           </div>
-        </div>
+        </>
       )}
     </div>
   )

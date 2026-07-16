@@ -212,7 +212,14 @@ export async function POST(request: Request) {
     }
 
     if (_type === 'permission') {
-      const permId = id || crypto.randomUUID()
+      // Find existing permission by (userId, module) for user-level overrides
+      let existingPerm = null
+      if (data.userId) {
+        existingPerm = await prisma.admin_permissions.findFirst({
+          where: { user_id: data.userId, module: data.module },
+        })
+      }
+      const permId = existingPerm?.id || id || crypto.randomUUID()
       const permission = await prisma.admin_permissions.upsert({
         where: { id: permId },
         create: {

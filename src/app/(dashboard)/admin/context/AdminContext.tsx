@@ -110,6 +110,8 @@ interface AdminContextType {
   addPrivacyRequest: (r: Omit<PrivacyRequest, 'id' | 'createdAt' | 'processedAt'>) => void
   updatePrivacyRequest: (id: string, updates: Partial<PrivacyRequest>) => void
   updateRolePermissions: (roleId: string, name: string, description: string, permissions: any[]) => Promise<{ role: any; permissions: any[] }>
+  saveUserPermissions: (userId: string, perms: { module: ModuleName; canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean; canExport: boolean }[]) => Promise<void>
+  refreshPermissions: () => Promise<void>
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined)
@@ -450,7 +452,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const nonRolePerms = safePrev.filter(p => p.roleId !== roleId)
         const mappedPerms = data.permissions.map((p: any) => ({
           id: p.id,
-          roleId: p.roleId || p.role_id || roleId,
+          roleId: roleId,
           userId: p.userId || p.user_id || undefined,
           module: p.module,
           canView: p.canView ?? p.can_view ?? false,
@@ -466,6 +468,40 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     return data
   }, [currentUserId, users])
 
+  const saveUserPermissions = useCallback(async (userId: string, perms: { module: ModuleName; canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean; canExport: boolean }[]) => {
+    for (const p of perms) {
+      try {
+        await fetch('/api/prisma/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            _type: 'permission',
+            userId,
+            module: p.module,
+            canView: p.canView,
+            canCreate: p.canCreate,
+            canEdit: p.canEdit,
+            canDelete: p.canDelete,
+            canExport: p.canExport,
+          }),
+        })
+      } catch (err) {
+        console.warn('Erro ao salvar permissão de usuário:', err)
+      }
+    }
+    const apiData = await userService.listPermissions()
+    if (apiData.length > 0) setPermissions(apiData)
+  }, [permissions])
+
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const apiData = await userService.listPermissions()
+      if (apiData.length > 0) setPermissions(apiData)
+    } catch (err) {
+      console.warn('[AdminContext] refreshPermissions error:', err)
+    }
+  }, [])
+
   return (
     <AdminContext.Provider value={{
       users, roles, permissions, auditLogs, lgpdConsents, privacyRequests,
@@ -473,6 +509,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       addUser, updateUser, deleteUser, toggleUserActive,
       getPermissionsForRole, getPermissionsForUser, checkPermission, updatePermission, setUserPermission,
       addAuditLog, addLgpdConsent, revokeLgpdConsent, addPrivacyRequest, updatePrivacyRequest, updateRolePermissions,
+      saveUserPermissions, refreshPermissions,
     }}>
       {children}
     </AdminContext.Provider>

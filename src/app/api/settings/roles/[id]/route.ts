@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 
 const ACTIONS = ['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport'] as const
 
+function extractRoleName(roleId: string): string {
+  return roleId.replace(/^role-/, '')
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -13,11 +17,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'ID do perfil é obrigatório' }, { status: 400 })
     }
 
+    const roleName = extractRoleName(roleId)
+
     const body = await request.json()
     const { name, description, permissions } = body
 
-    const existingRole = await prisma.admin_roles.findUnique({
-      where: { id: roleId },
+    const existingRole = await prisma.admin_roles.findFirst({
+      where: { name: roleName },
     })
     if (!existingRole) {
       return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 })
@@ -25,7 +31,7 @@ export async function PATCH(
 
     if (existingRole.name === 'admin') {
       const adminUsers = await prisma.admin_users.count({
-        where: { role_id: roleId, active: true },
+        where: { role_id: existingRole.id, active: true },
       })
       if (adminUsers <= 1 && name && name !== 'admin') {
         return NextResponse.json({ error: 'Não é permitido alterar o perfil do último Super Administrador' }, { status: 403 })
@@ -35,7 +41,7 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       if (name || description !== undefined) {
         await tx.admin_roles.update({
-          where: { id: roleId },
+          where: { id: existingRole.id },
           data: {
             ...(name && { name, label: name }),
             ...(description !== undefined && { description }),
@@ -68,17 +74,17 @@ export async function PATCH(
           user_role: body.auditUserRole || 'admin',
           action: 'update',
           entity: 'role_permissions',
-          entity_id: roleId,
+          entity_id: existingRole.id,
           description: `Atualizou permissões do perfil: ${name || existingRole.name}`,
           ip_address: '127.0.0.1',
         },
       })
 
       const updatedRole = await tx.admin_roles.findUnique({
-        where: { id: roleId },
+        where: { id: existingRole.id },
       })
       const updatedPerms = await tx.admin_permissions.findMany({
-        where: { role_id: roleId },
+        where: { role_id: existingRole.id },
       })
 
       return { role: updatedRole, permissions: updatedPerms }
