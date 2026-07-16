@@ -11,7 +11,14 @@ export async function GET() {
       },
       orderBy: { created_at: 'desc' },
     })
-    return NextResponse.json({ documents })
+    const normalized = documents.map(d => ({
+      ...d,
+      type: d.type && typeof d.type === 'string' ? d.type.trim().toLowerCase() || 'other' : 'other',
+      status: d.status && typeof d.status === 'string' ? d.status.trim().toLowerCase() || 'draft' : 'draft',
+      visibility: d.visibility && typeof d.visibility === 'string' ? d.visibility.trim().toLowerCase() || 'internal' : 'internal',
+      tags: Array.isArray(d.tags) ? d.tags : [],
+    }))
+    return NextResponse.json({ documents: normalized })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

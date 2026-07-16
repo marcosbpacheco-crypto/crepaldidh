@@ -18,7 +18,7 @@ export interface DocFilter {
   search: string; type: DocType | 'all'; companyId: string | 'all'; projectId: string | 'all'; status: DocStatus | 'all'; visibility: DocVisibility | 'all'
 }
 
-const DOC_TYPE_CONFIG: Record<DocType, { label: string; color: string; bg: string }> = {
+const DOC_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   contract: { label: 'Contrato', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
   proposal: { label: 'Proposta', color: 'text-violet-600', bg: 'bg-violet-50 border-violet-100' },
   report: { label: 'Relatório', color: 'text-cyan-600', bg: 'bg-cyan-50 border-cyan-100' },
@@ -31,9 +31,11 @@ const DOC_TYPE_CONFIG: Record<DocType, { label: string; color: string; bg: strin
   evidence: { label: 'Evidência', color: 'text-pink-600', bg: 'bg-pink-50 border-pink-100' },
   meeting_minutes: { label: 'Ata', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
   financial: { label: 'Financeiro', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
+  template: { label: 'Modelo', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-100' },
+  other: { label: 'Outros', color: 'text-slate-500', bg: 'bg-slate-50 border-slate-100' },
 }
 
-const VISIBILITY_CONFIG: Record<DocVisibility, { label: string; color: string }> = {
+const VISIBILITY_CONFIG: Record<string, { label: string; color: string }> = {
   internal: { label: 'Interno', color: 'text-slate-600 bg-slate-100' },
   portal: { label: 'Portal do Cliente', color: 'text-violet-600 bg-violet-100' },
   restricted: { label: 'Restrito', color: 'text-red-600 bg-red-100' },
@@ -41,7 +43,7 @@ const VISIBILITY_CONFIG: Record<DocVisibility, { label: string; color: string }>
   technical: { label: 'Técnico', color: 'text-blue-600 bg-blue-100' },
 }
 
-const STATUS_CONFIG: Record<DocStatus, { label: string; color: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   draft: { label: 'Rascunho', color: 'text-slate-500 bg-slate-100' },
   approved: { label: 'Aprovado', color: 'text-emerald-600 bg-emerald-100' },
   rejected: { label: 'Rejeitado', color: 'text-red-600 bg-red-100' },
@@ -49,9 +51,55 @@ const STATUS_CONFIG: Record<DocStatus, { label: string; color: string }> = {
   expired: { label: 'Expirado', color: 'text-orange-600 bg-orange-100' },
 }
 
+const OLD_TYPE_ALIASES: Record<string, string> = {
+  contrato: 'contract',
+  contratos: 'contract',
+  proposta: 'proposal',
+  propostas: 'proposal',
+  relatorio: 'report',
+  relatório: 'report',
+  relatorios: 'report',
+  relatórios: 'report',
+  certificado: 'certificate',
+  certificados: 'certificate',
+  outros: 'other',
+}
+
+const FALLBACK_DOC_TYPE = { label: 'Outros', color: 'text-slate-500', bg: 'bg-slate-50 border-slate-100' }
+const FALLBACK_VISIBILITY = { label: 'Interno', color: 'text-slate-600 bg-slate-100' }
+const FALLBACK_STATUS = { label: 'Rascunho', color: 'text-slate-500 bg-slate-100' }
+
+function normalizeDocType(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return 'other'
+  const key = value.trim().toLowerCase()
+  return OLD_TYPE_ALIASES[key] ?? key
+}
+
+function getDocTypeConfig(value: unknown): { label: string; color: string; bg: string } {
+  if (typeof value !== 'string' || !value.trim()) return FALLBACK_DOC_TYPE
+  const key = normalizeDocType(value)
+  return DOC_TYPE_CONFIG[key] ?? FALLBACK_DOC_TYPE
+}
+
+function getVisibilityConfig(value: unknown): { label: string; color: string } {
+  if (typeof value !== 'string' || !value.trim()) return FALLBACK_VISIBILITY
+  const key = value.trim().toLowerCase()
+  return VISIBILITY_CONFIG[key] ?? FALLBACK_VISIBILITY
+}
+
+function getStatusConfig(value: unknown): { label: string; color: string } {
+  if (typeof value !== 'string' || !value.trim()) return FALLBACK_STATUS
+  const key = value.trim().toLowerCase()
+  return STATUS_CONFIG[key] ?? FALLBACK_STATUS
+}
+
 interface DocumentContextType {
   documents: Document[]; versions: DocumentVersion[]; accessLogs: AccessLog[]
   docTypeConfig: typeof DOC_TYPE_CONFIG; visibilityConfig: typeof VISIBILITY_CONFIG; statusConfig: typeof STATUS_CONFIG
+  getDocTypeConfig: (value: unknown) => { label: string; color: string; bg: string }
+  getVisibilityConfig: (value: unknown) => { label: string; color: string }
+  getStatusConfig: (value: unknown) => { label: string; color: string }
+  normalizeDocType: (value: unknown) => string
   addDocument: (d: Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'currentVersion'>) => Document
   updateDocument: (id: string, data: Partial<Document>) => void
   deleteDocument: (id: string) => void
@@ -129,6 +177,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <DocumentContext.Provider value={{
       documents, versions, accessLogs,
       docTypeConfig: DOC_TYPE_CONFIG, visibilityConfig: VISIBILITY_CONFIG, statusConfig: STATUS_CONFIG,
+      getDocTypeConfig, getVisibilityConfig, getStatusConfig, normalizeDocType,
       addDocument, updateDocument, deleteDocument, addVersion, getVersions,
       getDocumentsByCompany, getDocumentsByProject, logAccess, getAccessLogs, saveFile,
     }}>

@@ -188,8 +188,9 @@ export default function DocumentsPage() {
   )
 
   const renderDocCard = (d: typeof doc.documents[0]) => {
-    const tc = doc.docTypeConfig[d.type]
-    const sc = doc.statusConfig[d.status]
+    const tc = doc.getDocTypeConfig(d.type)
+    const sc = doc.getStatusConfig(d.status)
+    const vc = doc.getVisibilityConfig(d.visibility)
     return (
       <div key={d.id} onClick={() => setShowDetailModal(d.id)} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md hover:border-violet-200 transition-all cursor-pointer group">
         <div className="flex items-start justify-between mb-3">
@@ -200,7 +201,7 @@ export default function DocumentsPage() {
         <p className="text-[10px] text-slate-400 mb-2 line-clamp-1">{d.companyName || 'Sem cliente'}</p>
         <div className="flex items-center gap-2 mb-2">
           <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${tc.bg}`}>{tc.label}</span>
-          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${doc.visibilityConfig[d.visibility].color}`}>{doc.visibilityConfig[d.visibility].label}</span>
+          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${vc.color}`}>{vc.label}</span>
         </div>
         <div className="flex items-center justify-between text-[9px] text-slate-400 pt-2 border-t border-slate-50">
           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{fmtDate(d.updatedAt)}</span>
@@ -211,8 +212,9 @@ export default function DocumentsPage() {
   }
 
   const renderDocRow = (d: typeof doc.documents[0]) => {
-    const tc = doc.docTypeConfig[d.type]
-    const sc = doc.statusConfig[d.status]
+    const tc = doc.getDocTypeConfig(d.type)
+    const sc = doc.getStatusConfig(d.status)
+    const vc = doc.getVisibilityConfig(d.visibility)
     return (
       <tr key={d.id} onClick={() => setShowDetailModal(d.id)} className="border-b border-slate-50 hover:bg-violet-50/30 cursor-pointer transition-colors">
         <td className="py-3 px-3"><div className="flex items-center gap-3">
@@ -220,7 +222,7 @@ export default function DocumentsPage() {
           <div><p className="text-xs font-bold text-slate-800">{d.name}</p><p className="text-[9px] text-slate-400">{d.companyName || 'Sem cliente'} • {d.projectName || 'Sem projeto'}</p></div>
         </div></td>
         <td className="py-3 px-3"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${tc.bg}`}>{tc.label}</span></td>
-        <td className="py-3 px-3"><span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${doc.visibilityConfig[d.visibility].color}`}>{doc.visibilityConfig[d.visibility].label}</span></td>
+        <td className="py-3 px-3"><span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${vc.color}`}>{vc.label}</span></td>
         <td className="py-3 px-3"><span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${sc.color} border`}>{sc.label}</span></td>
         <td className="py-3 px-3 text-xs text-slate-600 text-center">{d.currentVersion}</td>
         <td className="py-3 px-3 text-[10px] text-slate-400">{fmtDate(d.updatedAt)}</td>
@@ -235,7 +237,9 @@ export default function DocumentsPage() {
   const handleDownload = (d: typeof doc.documents[0]) => {
     if (!isContractAllowed && (d.type === 'contract' || d.type === 'proposal')) return
     doc.logAccess(d.id, 'Admin', 'download')
-    const content = `${d.name}\n\nTipo: ${doc.docTypeConfig[d.type].label}\nCliente: ${d.companyName || '-'}\nProjeto: ${d.projectName || '-'}\nDescrição: ${d.description || '-'}\nVersão: ${d.currentVersion}\nStatus: ${doc.statusConfig[d.status].label}`
+    const tc = doc.getDocTypeConfig(d.type)
+    const sc = doc.getStatusConfig(d.status)
+    const content = `${d.name}\n\nTipo: ${tc.label}\nCliente: ${d.companyName || '-'}\nProjeto: ${d.projectName || '-'}\nDescrição: ${d.description || '-'}\nVersão: ${d.currentVersion}\nStatus: ${sc.label}`
     const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = `${d.name.replace(/\s+/g, '_')}.txt`; a.click()
@@ -424,8 +428,8 @@ export default function DocumentsPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`p-2.5 rounded-xl ${doc.docTypeConfig[selectedDoc.type].bg}`}><FileText className={`w-5 h-5 ${doc.docTypeConfig[selectedDoc.type].color}`} /></div>
-                <div className="min-w-0"><h2 className="text-lg font-bold text-slate-800 truncate">{selectedDoc.name}</h2><p className="text-xs text-slate-500">{doc.docTypeConfig[selectedDoc.type].label} • v{selectedDoc.currentVersion}</p></div>
+                <div className={`p-2.5 rounded-xl ${doc.getDocTypeConfig(selectedDoc.type).bg}`}><FileText className={`w-5 h-5 ${doc.getDocTypeConfig(selectedDoc.type).color}`} /></div>
+                <div className="min-w-0"><h2 className="text-lg font-bold text-slate-800 truncate">{selectedDoc.name}</h2><p className="text-xs text-slate-500">{doc.getDocTypeConfig(selectedDoc.type).label} • v{selectedDoc.currentVersion}</p></div>
               </div>
               <button onClick={() => setShowDetailModal(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100"><X className="w-5 h-5" /></button>
             </div>
@@ -433,9 +437,9 @@ export default function DocumentsPage() {
               {/* Info grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Tipo', value: doc.docTypeConfig[selectedDoc.type].label },
-                  { label: 'Status', value: doc.statusConfig[selectedDoc.status].label },
-                  { label: 'Visibilidade', value: doc.visibilityConfig[selectedDoc.visibility].label },
+                  { label: 'Tipo', value: doc.getDocTypeConfig(selectedDoc.type).label },
+                  { label: 'Status', value: doc.getStatusConfig(selectedDoc.status).label },
+                  { label: 'Visibilidade', value: doc.getVisibilityConfig(selectedDoc.visibility).label },
                   { label: 'Versão Atual', value: String(selectedDoc.currentVersion) },
                   { label: 'Cliente', value: selectedDoc.companyName || '-' },
                   { label: 'Projeto', value: selectedDoc.projectName || '-' },
