@@ -2345,6 +2345,66 @@ model training_reports {
   @@schema("public")
 }
 
+/// Automações — motor de regras QUANDO/SE/ENTÃO
+model automation_rules {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenant_id   String?  @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  event       String   @db.VarChar(100)
+  active      Boolean? @default(true)
+  created_by  String?  @db.VarChar(255)
+  last_run_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  conditions automation_conditions[]
+  actions    automation_actions[]
+  runs       automation_runs[]
+
+  @@schema("public")
+}
+
+model automation_conditions {
+  id       String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  rule_id  String @db.Uuid
+  field    String @db.VarChar(100)
+  operator String @db.VarChar(50)
+  value    String @db.VarChar(255)
+
+  rule automation_rules @relation(fields: [rule_id], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model automation_actions {
+  id           String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  rule_id      String @db.Uuid
+  action_type  String @db.VarChar(100)
+  action_config Json? @default("{}")
+
+  rule automation_rules @relation(fields: [rule_id], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model automation_runs {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  rule_id      String   @db.Uuid
+  status       String   @db.VarChar(50)
+  triggered_by String?  @db.VarChar(100)
+  result       String?  @db.Text
+  error        String?  @db.Text
+  entity_id    String?  @db.VarChar(255)
+  executed_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  rule automation_rules @relation(fields: [rule_id], references: [id], onDelete: Cascade)
+
+  @@index([rule_id], map: "idx_automation_runs_rule")
+  @@index([executed_at], map: "idx_automation_runs_executed")
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2

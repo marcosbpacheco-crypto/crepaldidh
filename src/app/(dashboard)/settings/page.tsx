@@ -8,8 +8,9 @@ import {
   Settings, Users, Key, FileSearch, Scale, Plus, Edit2, Trash2,
   Check, X, Search, Download, Eye, ToggleLeft, ToggleRight,
   Activity, LogIn, LogOut, UserPlus, Clock, Globe, Lock, Unlock,
-  Shield, AlertTriangle, KeyRound, Trash, Database, Loader2
+  Shield, AlertTriangle, KeyRound, Trash, Database, Loader2, Zap
 } from 'lucide-react'
+import AutomationsPage from './automations/page'
 
 // Only admin and director roles can access settings
 const ALLOWED_ROLES = ['Administrador', 'Diretor']
@@ -21,6 +22,7 @@ const ALL_TABS = [
   { key: 'audit', label: 'Auditoria', icon: <FileSearch className="w-4 h-4" />, adminOnly: false },
   { key: 'lgpd', label: 'LGPD', icon: <Scale className="w-4 h-4" />, adminOnly: false },
   { key: 'config', label: 'Configurações', icon: <Settings className="w-4 h-4" />, adminOnly: false },
+  { key: 'automations', label: 'Automações', icon: <Zap className="w-4 h-4" />, adminOnly: false },
 ]
 
 const MODULE_LABELS: Record<ModuleName, string> = {
@@ -992,6 +994,9 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
           </div>
         </div>
       )}
+
+      {/* Automações */}
+      {tab === 'automations' && <AutomationsPage />}
 
       {/* Config */}
       {tab === 'config' && (
