@@ -68,11 +68,11 @@ export default function MentoringPage() {
           <p className="text-slate-500 mt-1">Gerencie o desenvolvimento de líderes e colaboradores</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/mentoring/participants/new"
+          <Link href="/mentoring/participants"
             className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
             <Plus className="w-4 h-4" /> Participante
           </Link>
-          <Link href="/mentoring/sessions/new"
+          <Link href="/mentoring/sessions"
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-full text-sm font-bold hover:opacity-90 shadow-md shadow-violet-200 hover:-translate-y-0.5 transition-all duration-300">
             <Plus className="w-4 h-4" /> Nova Sessão
           </Link>
@@ -184,7 +184,7 @@ export default function MentoringPage() {
                 })}
               </div>
             )}
-            <Link href="/mentoring/sessions/new"
+            <Link href="/mentoring/sessions"
               className="mt-5 flex items-center justify-center w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-full text-sm font-bold transition-all">
               <Plus className="w-4 h-4 mr-1" /> Agendar Sessão
             </Link>
@@ -211,7 +211,7 @@ export default function MentoringPage() {
           ) : (
             <div className="space-y-3">
               {recentSessions.map(s => (
-                <Link key={s.id} href={`/mentoring/sessions/${s.id}`}
+                <Link key={s.id} href="/mentoring/sessions"
                   className="flex items-start gap-3 p-3.5 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer">
                   <div className={`px-2 py-1 rounded-lg text-xs font-semibold ${SESSION_TYPE_COLORS[s.type]} flex-shrink-0`}>
                     {SESSION_TYPE_LABELS[s.type]}

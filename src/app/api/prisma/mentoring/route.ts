@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const [participants, sessions, pdi_plans, competencies, tools, assessments, reports] = await Promise.all([
       prisma.mentoring_participants.findMany({ orderBy: { created_at: 'desc' } }),
-      prisma.mentoring_sessions.findMany({ orderBy: { date: 'desc' } }),
+      prisma.mentoring_sessions.findMany({ include: { session_participants: true }, orderBy: { date: 'desc' } }),
       prisma.pdi_plans.findMany({ include: { pdi_goals: true }, orderBy: { created_at: 'desc' } }),
       prisma.competencies.findMany({ orderBy: { created_at: 'desc' } }),
       prisma.development_tools.findMany({ orderBy: { created_at: 'desc' } }),
@@ -94,6 +94,14 @@ export async function POST(request: Request) {
           status: data.status || 'agendada',
         },
       })
+      const pIds = Array.isArray(data.participantIds) ? data.participantIds : (data.participantIds ? [data.participantIds] : [])
+      if (pIds.length > 0) {
+        await prisma.session_participants.deleteMany({ where: { session_id: sId } })
+        await prisma.session_participants.createMany({
+          data: pIds.map((pid: string) => ({ session_id: sId, participant_id: pid })),
+          skipDuplicates: true,
+        })
+      }
       return NextResponse.json({ session })
     }
 

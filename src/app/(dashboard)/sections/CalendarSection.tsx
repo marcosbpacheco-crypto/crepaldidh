@@ -19,10 +19,8 @@ export function CalendarSection({ events }: { events: any[] }) {
   }, [events])
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-      <div className="lg:col-span-2" />
-      <div className="space-y-6">
-        <div className="bg-gradient-to-br from-brand-blue to-blue-700 rounded-2xl shadow-md p-6 relative overflow-hidden text-white">
+    <div className="space-y-6 h-full">
+      <div className="bg-gradient-to-br from-brand-blue to-blue-700 rounded-2xl shadow-md p-6 relative overflow-hidden text-white h-full flex flex-col">
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-teal/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 blur-2xl rounded-full -translate-x-1/4 translate-y-1/4 pointer-events-none" />
           <div className="relative z-10">
@@ -57,7 +55,7 @@ export function CalendarSection({ events }: { events: any[] }) {
               )}
             </div>
             <button onClick={() => router.push('/calendar')}
-              className="w-full mt-4 py-2.5 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-black/10 hover:-translate-y-0.5">
+              className="w-full mt-auto pt-4 py-2.5 bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-black/10 hover:-translate-y-0.5">
               Agenda Completa
             </button>
           </div>
@@ -86,7 +84,6 @@ export function CalendarSection({ events }: { events: any[] }) {
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

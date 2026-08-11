@@ -77,6 +77,7 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
   }, [company, reset])
 
   const onSubmit = async (data: FormData) => {
+    if (!supabase) { console.error('[CompanyForm] Supabase não configurado'); return }
     const payload = {
       name: data.name,
       trade_name: data.trade_name,

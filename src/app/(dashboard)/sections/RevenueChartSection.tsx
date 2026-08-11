@@ -50,11 +50,11 @@ export function RevenueChartSection({
       </div>
       <div className="flex items-end gap-2 h-40">
         {chartData.map((m, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+          <div key={i} className="flex-1 h-full flex flex-col items-center gap-1 group">
             <span className="text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
               R${Math.round(m.value).toLocaleString()}
             </span>
-            <div className="w-full bg-slate-100 rounded-t-lg relative overflow-hidden" style={{ height: '100%' }}>
+            <div className="flex-1 w-full bg-slate-100 rounded-t-lg relative overflow-hidden">
               <div
                 className="absolute bottom-0 w-full bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-t-lg transition-all duration-1000 ease-out"
                 style={{ height: `${m.pct}%` }}

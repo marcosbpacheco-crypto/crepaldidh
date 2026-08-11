@@ -124,7 +124,12 @@ export const mentoringService = {
 }
 
 function mp(r: any): Participant { return { ...r, mentorId: r.mentor_id, institutionId: r.institution_id, contractId: r.contract_id, crmContactId: r.crm_contact_id, currentCycle: r.current_cycle, startDate: r.start_date } }
-function ms(r: any): MentoringSession { return { ...r, participantId: r.participant_id, mentorId: r.mentor_id, sessionType: r.session_type, method: r.method, mood: r.mood, nextDate: r.next_date, paAction: r.pa_action } }
+function ms(r: any): MentoringSession {
+  const participantIds = Array.isArray(r.session_participants)
+    ? r.session_participants.map((sp: any) => sp.participant_id)
+    : (Array.isArray(r.participantIds) ? r.participantIds : [])
+  return { ...r, participantIds, participantId: r.participant_id, mentorId: r.mentor_id, sessionType: r.session_type, method: r.method, mood: r.mood, nextDate: r.next_date, paAction: r.pa_action }
+}
 function mg(r: any): MentoringGoal { return { ...r, participantId: r.participant_id, deadline: r.deadline, createdAt: r.created_at } }
 function mpp(r: any): PDIPlan { return { ...r, participantId: r.participant_id, createdAt: r.created_at } }
 

@@ -44,25 +44,25 @@ const STATUS_LABELS: Record<string, string> = {
 
 function KpiCard({ label, value, icon: Icon, color, trend }: { label: string; value: string; icon: React.ElementType; color: string; trend: string }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 transition-all hover:shadow-md">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-        <div className={`p-2.5 rounded-xl ${color} text-white shadow-sm`}>
+    <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 p-5 transition-all hover:shadow-md hover:border-slate-200 h-full">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+        <div className={`p-2.5 rounded-xl ${color} text-white shadow-sm group-hover:scale-105 transition-transform`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
-      <p className="text-2xl font-black text-slate-800">{value}</p>
-      <p className="text-[10px] font-medium text-slate-400 mt-1">{trend}</p>
+      <p className="text-2xl font-black text-slate-800 tracking-tight">{value}</p>
+      <p className="text-[11px] font-medium text-slate-400 mt-1.5">{trend}</p>
     </div>
   )
 }
 
 function KpiSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {[1, 2, 3, 4].map(i => (
         <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5">
-          <div className="h-3 bg-slate-100 rounded w-24 mb-3" />
+          <div className="h-3 bg-slate-100 rounded w-24 mb-4" />
           <div className="h-8 bg-slate-100 rounded w-20 mb-2" />
           <div className="h-2 bg-slate-100 rounded w-16" />
         </div>
@@ -391,11 +391,11 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {kpiLoading ? (
           <KpiSkeleton />
         ) : stats?.map((s, i) => (
-          <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: `${i * 80}ms` } as React.CSSProperties}>
+          <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500 h-full" style={{ animationDelay: `${i * 80}ms` } as React.CSSProperties}>
             <KpiCard {...s} />
           </div>
         ))}
@@ -404,18 +404,18 @@ export default function DashboardPage() {
       {/* Below-fold sections (loaded after 500ms) */}
       {showBelowFold && (
         <Suspense fallback={<div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="animate-pulse bg-white rounded-2xl border border-slate-100 p-6 h-64" /><div className="lg:col-span-2 animate-pulse bg-white rounded-2xl border border-slate-100 p-6 h-64" /></div>}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <RevenueChartSection monthlyBilling={kpiData?.monthlyBilling ?? []} kpiRevenue={kpis?.totalRevenue ?? 0} />
-            <div className="lg:col-span-2">
-              <ActivitySection activities={activities} companies={companies} />
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <RevenueChartSection monthlyBilling={kpiData?.monthlyBilling ?? []} kpiRevenue={kpis?.totalRevenue ?? 0} />
+          <div className="lg:col-span-2">
+            <ActivitySection activities={activities} companies={companies} />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <ProjectSection projects={recentProjects} />
-            </div>
-            <CalendarSection events={events} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <ProjectSection projects={recentProjects} />
           </div>
+          <CalendarSection events={events} />
+        </div>
         </Suspense>
       )}
 
