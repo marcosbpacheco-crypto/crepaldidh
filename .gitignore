@@ -44,8 +44,9 @@ headers.txt
 # vercel
 .vercel
 
+# supabase local
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
