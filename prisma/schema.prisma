@@ -2355,7 +2355,7 @@ model training_reports {
 
 /// Catálogo de tipos de treinamento cadastráveis (Treinamento | Palestra | Workshop)
 model training_types {
-  id             String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name           String                   @db.VarChar(255)
   description    String?
   category       String                   @default("Treinamento") @db.VarChar(50)
@@ -2372,7 +2372,7 @@ model training_types {
 
 /// Materiais vinculados a um tipo cadastrado no catálogo
 model training_type_materials {
-  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   training_type_id String          @db.Uuid
   name             String          @db.VarChar(255)
   type             String          @db.VarChar(50)
@@ -2386,7 +2386,7 @@ model training_type_materials {
 
 /// Linha do tempo do evento (etapas fixas por tipo)
 model training_timeline_steps {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   event_id       String          @db.Uuid
   stage          String          @db.VarChar(50)
   title          String          @db.VarChar(255)

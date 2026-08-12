@@ -11,8 +11,6 @@
 --      com etapas fixas para controle de progresso.
 -- =============================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- 1. training_events: company_id opcional + target_type + vínculo ao catálogo
 ALTER TABLE public.training_events
   ALTER COLUMN company_id DROP NOT NULL;
@@ -28,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_training_events_training_type ON public.training_
 
 -- 2. Catálogo de tipos de treinamento
 CREATE TABLE IF NOT EXISTS public.training_types (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name          VARCHAR(255) NOT NULL,
   description   TEXT NULL,
   category      VARCHAR(50)  NOT NULL DEFAULT 'Treinamento', -- tab: Treinamento | Palestra | Workshop
@@ -41,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.training_types (
 
 -- 3. Materiais do catálogo (por tipo cadastrado)
 CREATE TABLE IF NOT EXISTS public.training_type_materials (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   training_type_id UUID NOT NULL REFERENCES public.training_types(id) ON DELETE CASCADE,
   name             VARCHAR(255) NOT NULL,
   type             VARCHAR(50)  NOT NULL,
@@ -53,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_training_type_materials_typeid ON public.training
 
 -- 4. Linha do tempo do evento (etapas fixas)
 CREATE TABLE IF NOT EXISTS public.training_timeline_steps (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id       UUID NOT NULL REFERENCES public.training_events(id) ON DELETE CASCADE,
   stage          VARCHAR(50)  NOT NULL, -- planejamento | materiais | divulgacao | execucao | avaliacao | certificados
   title          VARCHAR(255) NOT NULL,
