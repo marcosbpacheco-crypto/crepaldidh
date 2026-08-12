@@ -42,9 +42,9 @@ const STATUS_LABELS: Record<string, string> = {
   pausado: 'Pausado',
 }
 
-function KpiCard({ label, value, icon: Icon, color, trend }: { label: string; value: string; icon: React.ElementType; color: string; trend: string }) {
+function KpiCard({ label, value, icon: Icon, color, trend, onClick }: { label: string; value: string; icon: React.ElementType; color: string; trend: string; onClick?: () => void }) {
   return (
-    <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 p-5 transition-all hover:shadow-md hover:border-slate-200 h-full">
+    <div onClick={onClick} className="group bg-white rounded-2xl shadow-sm border border-slate-100 p-5 transition-all hover:shadow-md hover:border-slate-200 h-full cursor-pointer">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
         <div className={`p-2.5 rounded-xl ${color} text-white shadow-sm group-hover:scale-105 transition-transform`}>
@@ -325,11 +325,11 @@ export default function DashboardPage() {
   }, [reportCompanyId, companies, projects, todayEvents])
 
   const stats = kpiLoading ? null : [
-    { label: "Empresas (CRM)", value: String(kpis?.activeCompanies ?? 0), icon: Building2, color: "bg-blue-500", trend: `${kpis?.activeCompanies ?? 0} ativas` },
-    { label: "Clientes", value: String(kpis?.activeClients ?? 0), icon: Users, color: "bg-brand-teal", trend: `${kpis?.activeClients ?? 0} ativos` },
-    { label: "Clientes Inativos", value: String((clients ?? []).filter(c => c.status !== 'active').length), icon: UserX, color: "bg-rose-500", trend: `${(clients ?? []).filter(c => c.status !== 'active').length} inativos` },
-    { label: "Treinamentos", value: String(kpis?.completedTrainings ?? 0), icon: GraduationCap, color: "bg-indigo-500", trend: `${kpis?.completedTrainings ?? 0} realizados` },
-    { label: "Receita", value: `R$ ${(kpis?.totalRevenue ?? 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: "bg-emerald-500", trend: `${profitMargin}% margem` },
+    { label: "Empresas (CRM)", value: String(kpis?.activeCompanies ?? 0), icon: Building2, color: "bg-blue-500", trend: `${kpis?.activeCompanies ?? 0} ativas`, path: '/crm/companies' },
+    { label: "Clientes", value: String(kpis?.activeClients ?? 0), icon: Users, color: "bg-brand-teal", trend: `${kpis?.activeClients ?? 0} ativos`, path: '/clients' },
+    { label: "Clientes Inativos", value: String((clients ?? []).filter(c => c.status !== 'active').length), icon: UserX, color: "bg-rose-500", trend: `${(clients ?? []).filter(c => c.status !== 'active').length} inativos`, path: '/clients' },
+    { label: "Treinamentos", value: String(kpis?.completedTrainings ?? 0), icon: GraduationCap, color: "bg-indigo-500", trend: `${kpis?.completedTrainings ?? 0} realizados`, path: '/trainings' },
+    { label: "Receita", value: `R$ ${(kpis?.totalRevenue ?? 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: "bg-emerald-500", trend: `${profitMargin}% margem`, path: '/financial' },
   ]
 
   if (!loaded) {
@@ -399,7 +399,7 @@ export default function DashboardPage() {
           <KpiSkeleton />
         ) : stats?.map((s, i) => (
           <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500 h-full" style={{ animationDelay: `${i * 80}ms` } as React.CSSProperties}>
-            <KpiCard {...s} />
+            <KpiCard {...s} onClick={() => s.path && router.push(s.path)} />
           </div>
         ))}
       </div>

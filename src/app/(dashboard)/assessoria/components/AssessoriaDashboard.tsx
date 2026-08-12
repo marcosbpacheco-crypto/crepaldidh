@@ -12,7 +12,7 @@ const okrProgress = (okr: { keyResults: { meta: number; atual: number }[] }) => 
   return okr.keyResults.length > 0 ? Math.round((total / okr.keyResults.length) * 100) : 0
 }
 
-export const AssessoriaDashboard: React.FC = () => {
+export const AssessoriaDashboard: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const { diagnosticos, okrs, swots, planosAcao, kpis } = useAssessoria()
 
   const stats = useMemo(() => {
@@ -99,12 +99,12 @@ export const AssessoriaDashboard: React.FC = () => {
   [diagnosticos])
 
   const kpiCards = [
-    { label: 'Diagnósticos Realizados', value: diagnosticos.length, hint: `${stats.diagConcluidos} concluído(s)`, icon: ClipboardList, iconCls: 'bg-brand-teal/10 text-brand-teal', hintCls: 'text-brand-teal font-bold' },
-    { label: 'OKRs Ativos', value: stats.okrsAtivosCount, hint: `${stats.okrAvgProgress}% progresso médio`, icon: Target, iconCls: 'bg-brand-blue/10 text-brand-blue', hintCls: 'text-slate-400' },
-    { label: 'Planos de Ação Ativos', value: stats.planosAtivosCount, hint: `${stats.itensConcluidos}/${stats.itensTotal} itens concluídos`, icon: Zap, iconCls: 'bg-amber-500/10 text-amber-500', hintCls: 'text-slate-400' },
-    { label: 'Demandas/Prazos', value: stats.itensPendentes, hint: `${stats.demandasVencidasCount} vencida(s)`, icon: ClipboardList, iconCls: 'bg-red-500/10 text-red-500', hintCls: 'text-red-600 font-bold' },
-    { label: 'Indicadores (KPI)', value: kpis.length, hint: `${stats.kpiAvgProgress}% progresso médio`, icon: BarChart3, iconCls: 'bg-blue-500/10 text-blue-500', hintCls: 'text-slate-400' },
-    { label: 'Empresas Assessoradas', value: stats.empresasCount, hint: 'clientes com atividade', icon: Building2, iconCls: 'bg-emerald-500/10 text-emerald-500', hintCls: 'text-slate-400' },
+    { label: 'Diagnósticos Realizados', value: diagnosticos.length, hint: `${stats.diagConcluidos} concluído(s)`, icon: ClipboardList, iconCls: 'bg-brand-teal/10 text-brand-teal', hintCls: 'text-brand-teal font-bold', tab: 'diagnosticos' },
+    { label: 'OKRs Ativos', value: stats.okrsAtivosCount, hint: `${stats.okrAvgProgress}% progresso médio`, icon: Target, iconCls: 'bg-brand-blue/10 text-brand-blue', hintCls: 'text-slate-400', tab: 'okr' },
+    { label: 'Planos de Ação Ativos', value: stats.planosAtivosCount, hint: `${stats.itensConcluidos}/${stats.itensTotal} itens concluídos`, icon: Zap, iconCls: 'bg-amber-500/10 text-amber-500', hintCls: 'text-slate-400', tab: 'plano_acao' },
+    { label: 'Demandas/Prazos', value: stats.itensPendentes, hint: `${stats.demandasVencidasCount} vencida(s)`, icon: ClipboardList, iconCls: 'bg-red-500/10 text-red-500', hintCls: 'text-red-600 font-bold', tab: 'plano_acao' },
+    { label: 'Indicadores (KPI)', value: kpis.length, hint: `${stats.kpiAvgProgress}% progresso médio`, icon: BarChart3, iconCls: 'bg-blue-500/10 text-blue-500', hintCls: 'text-slate-400', tab: 'kpi' },
+    { label: 'Empresas Assessoradas', value: stats.empresasCount, hint: 'clientes com atividade', icon: Building2, iconCls: 'bg-emerald-500/10 text-emerald-500', hintCls: 'text-slate-400', tab: 'diagnosticos' },
   ]
 
   return (
@@ -112,7 +112,7 @@ export const AssessoriaDashboard: React.FC = () => {
       {/* Upper Grid - KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {kpiCards.map(card => (
-          <div key={card.label} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div key={card.label} onClick={() => onNavigate?.(card.tab)} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-md transition-all">
             <div>
               <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">{card.label}</span>
               <h3 className="text-3xl font-bold text-slate-800 mt-1">{card.value}</h3>

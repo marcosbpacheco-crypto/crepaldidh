@@ -48,10 +48,10 @@ export default function MentoringPage() {
   const overdueGoalsList = allGoals.filter(g => g && g.status !== 'concluido' && new Date(g.deadline) < new Date()).slice(0, 3)
 
   const kpis = [
-    { label: 'Mentorias Ativas', value: activeMentorings, icon: Users, color: 'from-blue-500 to-blue-600', light: 'bg-blue-50 text-blue-600', trend: '+2 esse mês' },
-    { label: 'PDIs Ativos', value: activePDIs, icon: Target, color: 'from-violet-500 to-violet-600', light: 'bg-violet-50 text-violet-600', trend: '+1 esse mês' },
-    { label: 'Sessões este Mês', value: sessionsThisMonth, icon: Calendar, color: 'from-emerald-500 to-emerald-600', light: 'bg-emerald-50 text-emerald-600', trend: '12h de mentoria' },
-    { label: 'Metas Concluídas', value: completedGoals, icon: CheckCircle, color: 'from-amber-500 to-orange-500', light: 'bg-amber-50 text-amber-700', trend: `${overdueGoals} atrasadas` },
+    { label: 'Mentorias Ativas', value: activeMentorings, icon: Users, color: 'from-blue-500 to-blue-600', light: 'bg-blue-50 text-blue-600', trend: '+2 esse mês', href: '/mentoring/sessions' },
+    { label: 'PDIs Ativos', value: activePDIs, icon: Target, color: 'from-violet-500 to-violet-600', light: 'bg-violet-50 text-violet-600', trend: '+1 esse mês', href: '/mentoring/pdi' },
+    { label: 'Sessões este Mês', value: sessionsThisMonth, icon: Calendar, color: 'from-emerald-500 to-emerald-600', light: 'bg-emerald-50 text-emerald-600', trend: '12h de mentoria', href: '/mentoring/sessions' },
+    { label: 'Metas Concluídas', value: completedGoals, icon: CheckCircle, color: 'from-amber-500 to-orange-500', light: 'bg-amber-50 text-amber-700', trend: `${overdueGoals} atrasadas`, href: '/mentoring/pdi' },
   ]
 
   return (
@@ -82,7 +82,7 @@ export default function MentoringPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+          <Link key={i} href={kpi.href} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow hover:border-violet-200">
             <div className={`absolute inset-0 bg-gradient-to-br ${kpi.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
             <div className="flex justify-between items-start mb-4">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${kpi.light}`}>
@@ -92,7 +92,7 @@ export default function MentoringPage() {
             </div>
             <p className="text-3xl font-bold text-slate-800 mb-1">{kpi.value}</p>
             <p className="text-sm text-slate-500 font-medium">{kpi.label}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

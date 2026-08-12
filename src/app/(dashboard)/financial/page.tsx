@@ -330,14 +330,14 @@ export default function FinancialPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Faturamento Mensal', v: fmt(totalPaidMonth), icon: DollarSign, g: 'from-emerald-500 to-teal-600' },
-          { label: 'Receita Recebida', v: fmt(fin.totalReceived), icon: TrendingUp, g: 'from-green-500 to-emerald-600' },
-          { label: 'A Receber', v: fmt(fin.totalPendingReceivable), icon: Clock, g: 'from-blue-500 to-indigo-600' },
-          { label: 'A Pagar', v: fmt(fin.totalPendingPayable), icon: ArrowUpFromLine, g: 'from-amber-500 to-orange-600' },
-          { label: 'Inadimplência', v: fmt(fin.totalOverdue), icon: AlertTriangle, g: 'from-red-500 to-rose-600' },
-          { label: 'Lucro Estimado', v: fmt(fin.dre.netProfit), icon: TrendingUp, g: 'from-violet-500 to-purple-600' },
+          { label: 'Faturamento Mensal', v: fmt(totalPaidMonth), icon: DollarSign, g: 'from-emerald-500 to-teal-600', tab: 'dashboard' as TabId },
+          { label: 'Receita Recebida', v: fmt(fin.totalReceived), icon: TrendingUp, g: 'from-green-500 to-emerald-600', tab: 'receivable' as TabId },
+          { label: 'A Receber', v: fmt(fin.totalPendingReceivable), icon: Clock, g: 'from-blue-500 to-indigo-600', tab: 'receivable' as TabId },
+          { label: 'A Pagar', v: fmt(fin.totalPendingPayable), icon: ArrowUpFromLine, g: 'from-amber-500 to-orange-600', tab: 'payable' as TabId },
+          { label: 'Inadimplência', v: fmt(fin.totalOverdue), icon: AlertTriangle, g: 'from-red-500 to-rose-600', tab: 'collections' as TabId },
+          { label: 'Lucro Estimado', v: fmt(fin.dre.netProfit), icon: TrendingUp, g: 'from-violet-500 to-purple-600', tab: 'dre' as TabId },
         ].map(kpi => (
-          <div key={kpi.label} className={`rounded-2xl bg-gradient-to-br ${kpi.g} p-[1px] shadow-lg`}>
+          <div key={kpi.label} onClick={() => setTab(kpi.tab)} className={`rounded-2xl bg-gradient-to-br ${kpi.g} p-[1px] shadow-lg cursor-pointer hover:opacity-90 transition-opacity`}>
             <div className="bg-white rounded-[calc(1rem-1px)] p-4 h-full">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{kpi.label}</span>
@@ -364,12 +364,12 @@ export default function FinancialPage() {
       {/* Advanced KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'MRR (Mensal)', v: fmt(fin.mrr), icon: TrendingUp, g: 'from-cyan-500 to-blue-600' },
-          { label: 'ARR (Anual)', v: fmt(fin.arr), icon: TrendingUp, g: 'from-blue-500 to-indigo-600' },
-          { label: 'Ticket Médio / Cliente', v: fmt(fin.ticketMedioCliente), icon: DollarSign, g: 'from-purple-500 to-violet-600' },
-          { label: 'Ticket Médio / Serviço', v: fmt(fin.ticketMedioServico), icon: Receipt, g: 'from-pink-500 to-rose-600' },
+          { label: 'MRR (Mensal)', v: fmt(fin.mrr), icon: TrendingUp, g: 'from-cyan-500 to-blue-600', tab: 'recurrence' as TabId },
+          { label: 'ARR (Anual)', v: fmt(fin.arr), icon: TrendingUp, g: 'from-blue-500 to-indigo-600', tab: 'recurrence' as TabId },
+          { label: 'Ticket Médio / Cliente', v: fmt(fin.ticketMedioCliente), icon: DollarSign, g: 'from-purple-500 to-violet-600', tab: 'reports' as TabId },
+          { label: 'Ticket Médio / Serviço', v: fmt(fin.ticketMedioServico), icon: Receipt, g: 'from-pink-500 to-rose-600', tab: 'reports' as TabId },
         ].map(kpi => (
-          <div key={kpi.label} className={`rounded-2xl bg-gradient-to-br ${kpi.g} p-[1px] shadow-lg`}>
+          <div key={kpi.label} onClick={() => setTab(kpi.tab)} className={`rounded-2xl bg-gradient-to-br ${kpi.g} p-[1px] shadow-lg cursor-pointer hover:opacity-90 transition-opacity`}>
             <div className="bg-white rounded-[calc(1rem-1px)] p-4 h-full">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[8px] font-bold text-slate-400 uppercase">{kpi.label}</span>

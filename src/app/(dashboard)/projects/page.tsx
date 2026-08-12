@@ -50,6 +50,7 @@ export default function ProjectsPage() {
   const [selected, setSelected] = useState<Project | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [statusFilter, setStatusFilter] = useState<Project['status'] | 'todos'>('todos')
   const [form, setForm] = useState<{ name: string; companyId: string; description: string; startDate: string; endDate: string; status: Project['status']; budget: number }>({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
 
   const resetForm = () => setForm({ name: '', companyId: '', description: '', startDate: '', endDate: '', status: 'planejado', budget: 0 })
@@ -65,6 +66,8 @@ export default function ProjectsPage() {
     status: p.status as Project['status'],
     budget: 0,
   })), [ctxProjects, companies])
+
+  const filteredProjects = statusFilter === 'todos' ? projects : projects.filter(p => p.status === statusFilter)
 
   const openEdit = (p: Project) => {
     setEditingProject(p)
@@ -138,12 +141,14 @@ export default function ProjectsPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total de Projetos', value: projects.length, icon: Briefcase, color: 'violet' },
-          { label: 'Em Andamento', value: projects.filter(p => p.status === 'em_andamento').length, icon: Clock, color: 'blue' },
-          { label: 'Concluídos', value: projects.filter(p => p.status === 'concluido').length, icon: CheckCircle, color: 'emerald' },
-          { label: 'Receita Total', value: hasFinancialAccess ? fmt(projects.reduce((acc, p) => acc + (p.budget ?? 0), 0)) : <NoAccess />, icon: DollarSign, color: 'amber' },
+          { label: 'Total de Projetos', value: projects.length, icon: Briefcase, color: 'violet', filter: 'todos' as const },
+          { label: 'Em Andamento', value: projects.filter(p => p.status === 'em_andamento').length, icon: Clock, color: 'blue', filter: 'em_andamento' as const },
+          { label: 'Concluídos', value: projects.filter(p => p.status === 'concluido').length, icon: CheckCircle, color: 'emerald', filter: 'concluido' as const },
+          { label: 'Receita Total', value: hasFinancialAccess ? fmt(projects.reduce((acc, p) => acc + (p.budget ?? 0), 0)) : <NoAccess />, icon: DollarSign, color: 'amber', filter: 'todos' as const },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3">
+          <div key={kpi.label}
+            onClick={() => { setStatusFilter(kpi.filter); if (kpi.filter !== 'todos' && selected && selected.status !== kpi.filter) setSelected(null) }}
+            className={`bg-white rounded-2xl p-4 border shadow-sm flex items-center gap-3 cursor-pointer transition-all hover:shadow-md ${statusFilter === kpi.filter ? 'border-violet-400 ring-2 ring-violet-50' : 'border-slate-100 hover:border-violet-200'}`}>
             <div className={`p-2.5 rounded-xl bg-${kpi.color}-50 text-${kpi.color}-600`}>
               <kpi.icon className="w-4 h-4" />
             </div>
@@ -160,8 +165,8 @@ export default function ProjectsPage() {
 
         {/* Left: Project list */}
         <div className="lg:col-span-1 space-y-3">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">Projetos Cadastrados</span>
-          {projects.map(p => (
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">Projetos Cadastrados {statusFilter !== 'todos' && `• ${STATUS_LABELS[statusFilter]}`}</span>
+          {filteredProjects.map(p => (
             <div
               key={p.id}
               onClick={() => setSelected(p)}

@@ -82,7 +82,7 @@ export default function AssessoriaPage() {
       )}
 
       {/* Tab Content */}
-      {tab === 'dashboard' && <AssessoriaDashboard />}
+      {tab === 'dashboard' && <AssessoriaDashboard onNavigate={(tb) => setTab(tb)} />}
       {tab === 'diagnosticos' && <DiagnosticosTab ctx={ctx} search={search} />}
       {tab === 'okr' && <OkrsTab ctx={ctx} search={search} />}
       {tab === 'swot' && <SwotTab ctx={ctx} search={search} />}

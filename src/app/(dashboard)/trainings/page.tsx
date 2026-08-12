@@ -72,7 +72,7 @@ export default function TrainingsDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
         {/* KPI: Agendados / Realizados */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <Link href="/trainings/events" className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow hover:border-violet-200">
           <div className="p-3.5 bg-violet-50 text-violet-600 rounded-xl">
             <Calendar className="w-5 h-5" />
           </div>
@@ -84,10 +84,10 @@ export default function TrainingsDashboardPage() {
             </div>
             <p className="text-[10px] text-emerald-500 font-bold mt-1">✓ {completedEvents} realizados</p>
           </div>
-        </div>
+        </Link>
 
         {/* KPI: Palestras & SIPATs */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <Link href="/trainings/sipat" className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow hover:border-violet-200">
           <div className="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
             <Compass className="w-5 h-5" />
           </div>
@@ -99,10 +99,10 @@ export default function TrainingsDashboardPage() {
             </div>
             <p className="text-[10px] text-amber-500 font-bold mt-1">⚡ {activeSipats} SIPAT em andamento</p>
           </div>
-        </div>
+        </Link>
 
         {/* KPI: Participantes & Presença */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <Link href="/trainings/attendance" className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow hover:border-violet-200">
           <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
             <Users className="w-5 h-5" />
           </div>
@@ -114,10 +114,10 @@ export default function TrainingsDashboardPage() {
             </div>
             <p className="text-[10px] text-emerald-600 font-bold mt-1">📈 {attendanceRate}% presença média</p>
           </div>
-        </div>
+        </Link>
 
         {/* KPI: NPS & Certificados */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <Link href="/trainings/certificates" className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-shadow hover:border-violet-200">
           <div className="p-3.5 bg-purple-50 text-purple-600 rounded-xl">
             <Award className="w-5 h-5" />
           </div>
@@ -129,7 +129,7 @@ export default function TrainingsDashboardPage() {
             </div>
             <p className="text-[10px] text-purple-600 font-bold mt-1">📜 {certificatesIssued} certificados emitidos</p>
           </div>
-        </div>
+        </Link>
 
       </div>
 

@@ -116,7 +116,7 @@ function CrmMainContent() {
 
       {/* Main Panel Content Render */}
       <div className="transition-all duration-300">
-        {activeTab === 'dashboard' && <CrmDashboard />}
+        {activeTab === 'dashboard' && <CrmDashboard onNavigate={(tab) => setActiveTab(tab as any)} />}
         {activeTab === 'pipeline' && <CrmPipeline />}
         {activeTab === 'companies' && <CrmCompanies />}
         {activeTab === 'proposals' && <CrmProposals />}

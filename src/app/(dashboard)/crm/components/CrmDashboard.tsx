@@ -15,7 +15,7 @@ const NoAccess = () => (
   </div>
 )
 
-export const CrmDashboard: React.FC = () => {
+export const CrmDashboard: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const { companies, deals, proposals, contracts, tasks, sellers } = useCrm()
   const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
 
@@ -181,7 +181,7 @@ export const CrmDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Total Leads */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div onClick={() => onNavigate?.('pipeline')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-md transition-all">
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Leads Ativos no Funil</span>
             <h3 className="text-3xl font-bold text-slate-800 mt-1">{stats.totalLeads}</h3>
@@ -196,7 +196,7 @@ export const CrmDashboard: React.FC = () => {
         </div>
 
         {/* Clientes */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div onClick={() => onNavigate?.('companies')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-md transition-all">
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Empresas Cadastradas</span>
             <h3 className="text-3xl font-bold text-slate-800 mt-1">{stats.activeCompanies}</h3>
@@ -210,7 +210,7 @@ export const CrmDashboard: React.FC = () => {
         </div>
 
         {/* Receita Prevista */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div onClick={() => onNavigate?.('proposals')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-md transition-all">
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Receita Prevista (Funil)</span>
             <h3 className="text-2xl font-black text-slate-800 mt-1">
@@ -227,7 +227,7 @@ export const CrmDashboard: React.FC = () => {
         </div>
 
         {/* Receita Fechada */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div onClick={() => onNavigate?.('proposals')} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 hover:shadow-md transition-all">
           <div>
             <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Receita Fechada (Contratos)</span>
             <h3 className="text-2xl font-black text-brand-teal mt-1">

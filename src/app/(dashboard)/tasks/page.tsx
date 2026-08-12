@@ -12,13 +12,14 @@ export default function TasksPage() {
   const activeUsers = safeArray(admin.users).filter(u => u.active)
   const currentUserName = admin.currentUser?.name || ''
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed' | 'overdue'>('all')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ companyId: '', title: '', dueDate: '', priority: 'medium' as 'high' | 'medium' | 'low', assignedTo: '' })
 
   const filtered = tasks.filter(t => {
     if (filterStatus === 'pending' && t.status !== 'pending') return false
     if (filterStatus === 'completed' && t.status !== 'completed') return false
+    if (filterStatus === 'overdue' && !(t.status === 'pending' && new Date(t.dueDate) < new Date())) return false
     if (search) {
       const s = search.toLowerCase()
       const comp = companies.find(c => c.id === t.companyId)
@@ -52,11 +53,12 @@ export default function TasksPage() {
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total de Tarefas', value: tasks.length, color: 'bg-slate-100 text-slate-700' },
-          { label: 'Pendentes', value: pendingCount, color: 'bg-amber-50 text-amber-700' },
-          { label: 'Atrasadas', value: overdueCount, color: 'bg-red-50 text-red-700' },
+          { label: 'Total de Tarefas', value: tasks.length, color: 'bg-slate-100 text-slate-700', filter: 'all' as const },
+          { label: 'Pendentes', value: pendingCount, color: 'bg-amber-50 text-amber-700', filter: 'pending' as const },
+          { label: 'Atrasadas', value: overdueCount, color: 'bg-red-50 text-red-700', filter: 'overdue' as const },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <div key={kpi.label} onClick={() => setFilterStatus(kpi.filter)}
+            className={`bg-white rounded-2xl p-4 border shadow-sm cursor-pointer transition-all hover:shadow-md ${filterStatus === kpi.filter ? 'border-violet-400 ring-2 ring-violet-50' : 'border-slate-100 hover:border-violet-200'}`}>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{kpi.label}</p>
             <p className={`text-2xl font-black mt-1 ${kpi.color.split(' ')[1]}`}>{kpi.value}</p>
           </div>
@@ -70,10 +72,10 @@ export default function TasksPage() {
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs" />
         </div>
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-          {(['all', 'pending', 'completed'] as const).map(f => (
+          {(['all', 'pending', 'completed', 'overdue'] as const).map(f => (
             <button key={f} onClick={() => setFilterStatus(f)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterStatus === f ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
-              {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendentes' : 'Concluídas'}
+              {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendentes' : f === 'completed' ? 'Concluídas' : 'Atrasadas'}
             </button>
           ))}
         </div>
