@@ -3,59 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { assessoriaService } from '@/services/assessoriaService'
+import type { Diagnostico, Okr, Swot, PlanoAcao, PlanoAcaoItem, Kpi, KpiMeta, Relatorio, Checkin, Ferramenta } from '@/types/assessoria'
 
-export interface Diagnostico {
-  id: string
-  titulo: string
-  empresa: string
-  responsavel: string
-  areasAvaliadas: string[]
-  pontuacaoGeral: number
-  status: 'rascunho' | 'concluido'
-  dataCriacao: string
-  observacoes: string
-}
-
-export interface Okr {
-  id: string
-  objetivo: string
-  empresa: string
-  ciclo: string
-  keyResults: { descricao: string; meta: number; atual: number; unidade: string }[]
-  status: 'ativo' | 'concluido' | 'cancelado'
-  dataCriacao: string
-}
-
-export interface Swot {
-  id: string
-  empresa: string
-  forcas: string[]
-  fraquezas: string[]
-  oportunidades: string[]
-  ameacas: string[]
-  dataCriacao: string
-}
-
-export interface PlanoAcao {
-  id: string
-  titulo: string
-  empresa: string
-  responsavel: string
-  itens: { acao: string; prazo: string; responsavel: string; status: 'pendente' | 'andamento' | 'concluido' }[]
-  status: 'ativo' | 'concluido'
-  dataCriacao: string
-}
-
-export interface Kpi {
-  id: string
-  nome: string
-  empresa: string
-  meta: number
-  atual: number
-  unidade: string
-  periodo: string
-  tendencia: 'subindo' | 'descendo' | 'estavel'
-}
+export type { Diagnostico, Okr, Swot, PlanoAcao, PlanoAcaoItem, Kpi, KpiMeta, Relatorio, Checkin, Ferramenta }
 
 interface AssessoriaContextType {
   diagnosticos: Diagnostico[]
@@ -75,6 +25,7 @@ interface AssessoriaContextType {
   deleteSwot: (id: string) => void
   addPlanoAcao: (p: Omit<PlanoAcao, 'id' | 'dataCriacao'>) => void
   updatePlanoAcao: (id: string, updates: Partial<PlanoAcao>) => void
+  updatePlanoItem: (planoId: string, itemId: string, updates: Partial<PlanoAcaoItem>) => void
   deletePlanoAcao: (id: string) => void
   addKpi: (k: Omit<Kpi, 'id'>) => void
   updateKpi: (id: string, updates: Partial<Kpi>) => void
@@ -107,7 +58,23 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
       if (diag.length > 0) setDiagnosticos(diag)
       if (okrList.length > 0) setOkrs(okrList)
       if (swotList.length > 0) setSwots(swotList)
-      if (planos.length > 0) setPlanosAcao(planos)
+      if (planos.length > 0) setPlanosAcao(planos.map(p => ({
+        ...p,
+        categoria: p.categoria || 'demanda',
+        prioridade: p.prioridade || 'media',
+        prazo: p.prazo || '',
+        itens: (Array.isArray(p.itens) ? p.itens : []).map((it: any) => ({
+          acao: it.acao || '',
+          descricao: it.descricao || '',
+          prazo: it.prazo || '',
+          responsavel: it.responsavel || '',
+          prioridade: it.prioridade || 'media',
+          categoria: it.categoria || 'demanda',
+          status: it.status || 'pendente',
+          linkedTaskId: it.linkedTaskId,
+          id: it.id || gid(),
+        })),
+      })))
       if (kpiList.length > 0) setKpis(kpiList)
     }).catch((err) => console.error('[AssessoriaContext] load error:', err))
   }, [])
@@ -127,8 +94,20 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
   const updateSwot = useCallback((id: string, updates: Partial<Swot>) => { setSwots(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s)) }, [])
   const deleteSwot = useCallback((id: string) => { setSwots(prev => prev.filter(s => s.id !== id)) }, [])
 
-  const addPlanoAcao = useCallback((p: Omit<PlanoAcao, 'id' | 'dataCriacao'>) => { setPlanosAcao(prev => [...prev, { ...p, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
+  const addPlanoAcao = useCallback((p: Omit<PlanoAcao, 'id' | 'dataCriacao'>) => {
+    const planoId = gid()
+    const withIds: PlanoAcao = {
+      ...p,
+      id: planoId,
+      dataCriacao: new Date().toISOString(),
+      itens: (p.itens || []).map(item => ({ ...item, id: item.id || gid() })),
+    }
+    setPlanosAcao(prev => [...prev, withIds])
+  }, [])
   const updatePlanoAcao = useCallback((id: string, updates: Partial<PlanoAcao>) => { setPlanosAcao(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)) }, [])
+  const updatePlanoItem = useCallback((planoId: string, itemId: string, updates: Partial<PlanoAcaoItem>) => {
+    setPlanosAcao(prev => prev.map(p => p.id === planoId ? { ...p, itens: p.itens.map(it => it.id === itemId ? { ...it, ...updates } : it) } : p))
+  }, [])
   const deletePlanoAcao = useCallback((id: string) => { setPlanosAcao(prev => prev.filter(p => p.id !== id)) }, [])
 
   const addKpi = useCallback((k: Omit<Kpi, 'id'>) => { setKpis(prev => [...prev, { ...k, id: gid() }]) }, [])
@@ -141,7 +120,7 @@ export function AssessoriaProvider({ children }: { children: React.ReactNode }) 
       addDiagnostico, updateDiagnostico, deleteDiagnostico,
       addOkr, updateOkr, deleteOkr, updateKr,
       addSwot, updateSwot, deleteSwot,
-      addPlanoAcao, updatePlanoAcao, deletePlanoAcao,
+      addPlanoAcao, updatePlanoAcao, updatePlanoItem, deletePlanoAcao,
       addKpi, updateKpi, deleteKpi,
     }}>
       {children}

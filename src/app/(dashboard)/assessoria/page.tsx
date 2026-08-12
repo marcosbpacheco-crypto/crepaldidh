@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { useAssessoria } from './context/AssessoriaContext'
+import { useAssessoria, PlanoAcao, PlanoAcaoItem } from './context/AssessoriaContext'
+import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
+import { useToast } from '@/components/ui/Toast'
 import { AssessoriaDashboard } from './components/AssessoriaDashboard'
 import {
   Search, Plus, X, Check, Trash2, AlertTriangle,
   Target, Layers, BarChart3, ClipboardList, Zap, Building2,
-  TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown, LayoutDashboard,
+  TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown, LayoutDashboard, Link,
 } from 'lucide-react'
 
 const TABS = [
@@ -208,35 +211,143 @@ function SwotTab({ ctx, search }: { ctx: ReturnType<typeof useAssessoria>; searc
   )
 }
 
+const priorityColor = (p: 'alta' | 'media' | 'baixa') =>
+  p === 'alta' ? 'bg-red-50 text-red-700' : p === 'baixa' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'
+
+const categoriaLabel = (c: 'demanda' | 'iniciativa' | 'tarefa' | 'projeto') =>
+  c === 'demanda' ? 'Demanda' : c === 'iniciativa' ? 'Iniciativa' : c === 'tarefa' ? 'Tarefa' : 'Projeto'
+
+const statusColor = (s: 'pendente' | 'andamento' | 'concluido') =>
+  s === 'concluido' ? 'bg-emerald-100 text-emerald-700' : s === 'andamento' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'
+
+const statusIcon = (s: 'pendente' | 'andamento' | 'concluido') =>
+  s === 'concluido' ? <Check className="w-2.5 h-2.5" /> : s === 'andamento' ? <AlertTriangle className="w-2.5 h-2.5" /> : <Minus className="w-2.5 h-2.5" />
+
 function PlanosAcaoTab({ ctx, search }: { ctx: ReturnType<typeof useAssessoria>; search: string }) {
+  const { companies, addTask } = useCrm()
+  const { currentUser } = useAdmin()
+  const toast = useToast()
+  const currentUserName = currentUser?.name || 'Sistema'
+
+  const matchCompany = (empresa: string) =>
+    companies.find(
+      c =>
+        (c.name || '').toLowerCase() === empresa.toLowerCase() ||
+        (c.tradeName || '').toLowerCase() === empresa.toLowerCase()
+    )
+
+  const syncToTasks = (plano: PlanoAcao) => {
+    const company = matchCompany(plano.empresa)
+    if (!company) {
+      toast.addToast('error', 'Empresa não localizada', `A empresa "${plano.empresa}" não foi encontrada no CRM. Corrija o nome antes de sincronizar.`)
+      return
+    }
+    let created = 0
+    for (const item of plano.itens) {
+      if (item.status === 'concluido' || item.linkedTaskId) continue
+      const task = addTask({
+        companyId: company.id,
+        title: `[Plano: ${plano.titulo}] ${item.acao}`,
+        dueDate: item.prazo || new Date().toISOString().split('T')[0],
+        priority: item.prioridade === 'alta' ? 'high' : item.prioridade === 'baixa' ? 'low' : 'medium',
+        assignedTo: item.responsavel || undefined,
+        createdBy: `Assessoria → ${currentUserName}`,
+      })
+      ctx.updatePlanoItem(plano.id, item.id, { linkedTaskId: task.id })
+      created++
+    }
+    toast.addToast('success', 'Tarefas sincronizadas', `${created} tarefa(s) do plano enviada(s) para o módulo Tarefas.`)
+  }
+
   const filtered = ctx.planosAcao.filter(p => !search || p.titulo.toLowerCase().includes(search.toLowerCase()) || p.empresa.toLowerCase().includes(search.toLowerCase()))
+
   return (
     <div className="space-y-3">
       {filtered.map(p => (
         <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <div className="flex items-start justify-between mb-3">
-            <div>
-              <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${p.status === 'ativo' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-600'}`}>{p.status === 'ativo' ? 'Ativo' : 'Concluído'}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${p.status === 'ativo' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-600'}`}>{p.status === 'ativo' ? 'Ativo' : 'Concluído'}</span>
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-100">{categoriaLabel(p.categoria)}</span>
+                <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${priorityColor(p.prioridade)}`}>{p.prioridade}</span>
+                <span className={`px-2 py-0.5 rounded text-[9px] border ${p.prazo ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>Prazo: {p.prazo || '—'}</span>
+              </div>
               <h3 className="text-[13px] font-bold text-slate-800 mt-1">{p.titulo}</h3>
-              <p className="text-[10px] text-slate-500">{p.empresa} • Responsável: {p.responsavel}</p>
+              <p className="text-[10px] text-slate-500">{p.empresa} · Responsável: {p.responsavel}</p>
             </div>
-            <button onClick={() => ctx.deletePlanoAcao(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => syncToTasks(p)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-violet-600"
+                title="Sincronizar itens para Tarefas"
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => ctx.deletePlanoAcao(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
           </div>
           <div className="space-y-1.5">
-            {p.itens.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 text-[10px]">
-                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${item.status === 'concluido' ? 'bg-emerald-100 text-emerald-700' : item.status === 'andamento' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
-                  {item.status === 'concluido' ? <Check className="w-2.5 h-2.5" /> : item.status === 'andamento' ? <AlertTriangle className="w-2.5 h-2.5" /> : <Minus className="w-2.5 h-2.5" />}
-                </span>
-                <span className="flex-1 text-slate-700">{item.acao}</span>
-                <span className="text-slate-400">{item.responsavel}</span>
-                <span className="text-slate-400">Prazo: {item.prazo}</span>
-              </div>
+            {p.itens.map((item) => (
+              <PlanoItemRow key={item.id} item={item} planoId={p.id} ctx={ctx} />
             ))}
           </div>
         </div>
       ))}
       {filtered.length === 0 && <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-100 shadow-sm">Nenhum plano de ação registrado.</div>}
+    </div>
+  )
+}
+
+function PlanoItemRow({ item, planoId, ctx }: {
+  item: PlanoAcaoItem; planoId: string; ctx: ReturnType<typeof useAssessoria>
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[10px] bg-slate-25 rounded-xl px-2.5 py-1.5">
+      <select
+        value={item.status}
+        onChange={e => ctx.updatePlanoItem(planoId, item.id, { status: e.target.value as PlanoAcaoItem['status'] })}
+        className="text-[10px] border border-slate-100 rounded-lg bg-white px-1.5 py-0.5"
+      >
+        <option value="pendente">Pendente</option>
+        <option value="andamento">Em andamento</option>
+        <option value="concluido">Concluído</option>
+      </select>
+      <select
+        value={item.categoria}
+        onChange={e => ctx.updatePlanoItem(planoId, item.id, { categoria: e.target.value as PlanoAcaoItem['categoria'] })}
+        className="text-[9px] border border-slate-100 rounded-lg bg-white px-1.5 py-0.5"
+      >
+        <option value="demanda">Demanda</option>
+        <option value="iniciativa">Iniciativa</option>
+        <option value="tarefa">Tarefa</option>
+        <option value="projeto">Projeto</option>
+      </select>
+      <select
+        value={item.prioridade}
+        onChange={e => ctx.updatePlanoItem(planoId, item.id, { prioridade: e.target.value as PlanoAcaoItem['prioridade'] })}
+        className="text-[9px] border border-slate-100 rounded-lg bg-white px-1.5 py-0.5"
+      >
+        <option value="baixa">Baixa</option>
+        <option value="media">Média</option>
+        <option value="alta">Alta</option>
+      </select>
+      <input
+        value={item.acao}
+        onChange={e => ctx.updatePlanoItem(planoId, item.id, { acao: e.target.value })}
+        placeholder="Ação / demanda"
+        className="flex-1 text-[10px] border border-slate-100 rounded-lg bg-white px-1.5 py-0.5"
+      />
+      <input
+        type="date"
+        value={item.prazo}
+        onChange={e => ctx.updatePlanoItem(planoId, item.id, { prazo: e.target.value })}
+        className="text-[9px] border border-slate-100 rounded-lg bg-white px-1 py-0.5 w-28"
+      />
+      <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${statusColor(item.status)}`}>
+        {statusIcon(item.status)}
+      </span>
+      {item.linkedTaskId && <Link className="w-3 h-3 text-slate-400" />}
     </div>
   )
 }
@@ -277,9 +388,12 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
   const [titulo, setTitulo] = useState('')
   const [objetivo, setObjetivo] = useState('')
   const [ciclo, setCiclo] = useState('')
-  const [responsavel, setResponsavel] = useState('')
+   const [responsavel, setResponsavel] = useState('')
   const [pontuacao, setPontuacao] = useState(50)
   const [status, setStatus] = useState<string>('rascunho')
+  const [categoria, setCategoria] = useState<string>('demanda')
+  const [prioridade, setPrioridade] = useState<string>('media')
+  const [planoPrazo, setPlanoPrazo] = useState(new Date().toISOString().split('T')[0])
 
   const handleSubmit = () => {
     if (!empresa) return
@@ -293,8 +407,27 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
       case 'swot':
         ctx.addSwot({ empresa, forcas: ['Força padrão'], fraquezas: ['Fraqueza padrão'], oportunidades: ['Oportunidade padrão'], ameacas: ['Ameaça padrão'] })
         break
-      case 'plano_acao':
-        ctx.addPlanoAcao({ titulo: titulo || 'Novo Plano', empresa, responsavel: responsavel || 'Sistema', itens: [{ acao: 'Ação padrão', prazo: new Date().toISOString().split('T')[0], responsavel: responsavel || 'Sistema', status: 'pendente' as const }], status: 'ativo' })
+       case 'plano_acao':
+        ctx.addPlanoAcao({
+          titulo: titulo || 'Novo Plano',
+          empresa,
+          responsavel: responsavel || 'Sistema',
+          categoria: categoria as PlanoAcao['categoria'],
+          prioridade: prioridade as PlanoAcao['prioridade'],
+          prazo: planoPrazo,
+          itens: [{
+            id: crypto.randomUUID(),
+            acao: 'Nova ação / demanda',
+            descricao: '',
+            prazo: planoPrazo,
+            responsavel: responsavel || 'Sistema',
+            prioridade: prioridade as PlanoAcaoItem['prioridade'],
+            categoria: categoria as PlanoAcaoItem['categoria'],
+            status: 'pendente' as const,
+            linkedTaskId: undefined,
+          }],
+          status: 'ativo',
+        })
         break
       case 'kpi':
         ctx.addKpi({ nome: titulo || 'Novo KPI', empresa, meta: 100, atual: 0, unidade: '%', periodo: new Date().toISOString().slice(0, 7), tendencia: 'estavel' })
@@ -329,6 +462,19 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
             <>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Título</label><input value={titulo} onChange={e => setTitulo(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Responsável</label><input value={responsavel} onChange={e => setResponsavel(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Demanda / Iniciativa</label>
+                <select value={categoria} onChange={e => setCategoria(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                  <option value="demanda">Demanda</option><option value="iniciativa">Iniciativa</option><option value="tarefa">Tarefa</option><option value="projeto">Projeto</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Prioridade</label>
+                <select value={prioridade} onChange={e => setPrioridade(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                  <option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option>
+                </select>
+              </div>
+              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Prazo</label><input type="date" value={planoPrazo} onChange={e => setPlanoPrazo(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
             </>
           )}
           {tab === 'kpi' && (

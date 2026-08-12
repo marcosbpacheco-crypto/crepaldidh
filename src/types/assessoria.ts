@@ -10,9 +10,23 @@ export interface Okr {
 export interface Swot {
   id: string; empresa: string; forcas: string[]; fraquezas: string[]; oportunidades: string[]; ameacas: string[]; dataCriacao: string
 }
+export interface PlanoAcaoItem {
+  id: string
+  acao: string
+  descricao: string
+  prazo: string
+  responsavel: string
+  prioridade: 'alta' | 'media' | 'baixa'
+  categoria: 'demanda' | 'iniciativa' | 'tarefa' | 'projeto'
+  status: 'pendente' | 'andamento' | 'concluido'
+  linkedTaskId?: string
+}
 export interface PlanoAcao {
   id: string; titulo: string; empresa: string; responsavel: string
-  itens: { acao: string; prazo: string; responsavel: string; status: 'pendente' | 'andamento' | 'concluido' }[]
+  categoria: 'demanda' | 'iniciativa' | 'tarefa' | 'projeto'
+  prioridade: 'alta' | 'media' | 'baixa'
+  prazo: string
+  itens: PlanoAcaoItem[]
   status: 'ativo' | 'concluido'; dataCriacao: string
 }
 export interface Kpi {

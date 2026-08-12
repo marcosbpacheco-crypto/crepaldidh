@@ -22,8 +22,10 @@ export const AssessoriaDashboard: React.FC = () => {
       ? Math.round(okrsAtivos.reduce((acc, o) => acc + okrProgress(o), 0) / okrsAtivos.length)
       : 0
     const planosAtivos = planosAcao.filter(p => p.status === 'ativo')
-    const itensConcluidos = planosAcao.reduce((acc, p) => acc + p.itens.filter(i => i.status === 'concluido').length, 0)
-    const itensTotal = planosAcao.reduce((acc, p) => acc + p.itens.length, 0)
+    const itensConcluidos = planosAcao.reduce((acc, p) => acc + (Array.isArray(p.itens) ? p.itens.filter(i => i.status === 'concluido').length : 0), 0)
+    const itensTotal = planosAcao.reduce((acc, p) => acc + (Array.isArray(p.itens) ? p.itens.length : 0), 0)
+    const itensPendentes = planosAcao.reduce((acc, p) => acc + (Array.isArray(p.itens) ? p.itens.filter(i => i.status === 'pendente' || i.status === 'andamento').length : 0), 0)
+    const demandasVencidasCount = planosAcao.reduce((acc, p) => acc + (Array.isArray(p.itens) ? p.itens.filter(i => (i.status === 'pendente' || i.status === 'andamento') && i.prazo && new Date(i.prazo) < new Date()).length : 0), 0)
     const kpiAvgProgress = kpis.length > 0
       ? Math.round(kpis.reduce((acc, k) => acc + (k.meta > 0 ? Math.min(100, (k.atual / k.meta) * 100) : 0), 0) / kpis.length)
       : 0
@@ -37,7 +39,7 @@ export const AssessoriaDashboard: React.FC = () => {
 
     return {
       diagConcluidos, okrsAtivosCount: okrsAtivos.length, okrAvgProgress,
-      planosAtivosCount: planosAtivos.length, itensConcluidos, itensTotal,
+      planosAtivosCount: planosAtivos.length,       itensConcluidos, itensTotal, itensPendentes, demandasVencidasCount,
       kpiAvgProgress, empresasCount: empresas.size,
     }
   }, [diagnosticos, okrs, swots, planosAcao, kpis])
@@ -76,9 +78,19 @@ export const AssessoriaDashboard: React.FC = () => {
   const planosAndamento = useMemo(() => {
     return planosAcao
       .filter(p => p.status === 'ativo')
-      .flatMap(p => p.itens
+      .flatMap(p => (Array.isArray(p.itens) ? p.itens : [])
         .filter(i => i.status === 'andamento' || i.status === 'pendente')
         .map(i => ({ ...i, plano: p.titulo, empresa: p.empresa })))
+      .slice(0, 6)
+  }, [planosAcao])
+
+  const demandasVencidas = useMemo(() => {
+    return planosAcao
+      .filter(p => p.status === 'ativo')
+      .flatMap(p => (Array.isArray(p.itens) ? p.itens : [])
+        .filter(i => (i.status === 'andamento' || i.status === 'pendente') && i.prazo && new Date(i.prazo) < new Date())
+        .map(i => ({ ...i, plano: p.titulo, empresa: p.empresa })))
+      .sort((a, b) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime())
       .slice(0, 6)
   }, [planosAcao])
 
@@ -90,6 +102,7 @@ export const AssessoriaDashboard: React.FC = () => {
     { label: 'Diagnósticos Realizados', value: diagnosticos.length, hint: `${stats.diagConcluidos} concluído(s)`, icon: ClipboardList, iconCls: 'bg-brand-teal/10 text-brand-teal', hintCls: 'text-brand-teal font-bold' },
     { label: 'OKRs Ativos', value: stats.okrsAtivosCount, hint: `${stats.okrAvgProgress}% progresso médio`, icon: Target, iconCls: 'bg-brand-blue/10 text-brand-blue', hintCls: 'text-slate-400' },
     { label: 'Planos de Ação Ativos', value: stats.planosAtivosCount, hint: `${stats.itensConcluidos}/${stats.itensTotal} itens concluídos`, icon: Zap, iconCls: 'bg-amber-500/10 text-amber-500', hintCls: 'text-slate-400' },
+    { label: 'Demandas/Prazos', value: stats.itensPendentes, hint: `${stats.demandasVencidasCount} vencida(s)`, icon: ClipboardList, iconCls: 'bg-red-500/10 text-red-500', hintCls: 'text-red-600 font-bold' },
     { label: 'Indicadores (KPI)', value: kpis.length, hint: `${stats.kpiAvgProgress}% progresso médio`, icon: BarChart3, iconCls: 'bg-blue-500/10 text-blue-500', hintCls: 'text-slate-400' },
     { label: 'Empresas Assessoradas', value: stats.empresasCount, hint: 'clientes com atividade', icon: Building2, iconCls: 'bg-emerald-500/10 text-emerald-500', hintCls: 'text-slate-400' },
   ]
@@ -169,30 +182,33 @@ export const AssessoriaDashboard: React.FC = () => {
 
       {/* Bottom Grid - Rankings and Attention lists */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Planos de ação em andamento */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-slate-800 font-bold text-base flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" />
-              Ações Pendentes/Em Andamento
-            </h4>
-          </div>
-          <div className="flex-1 space-y-3">
-            {planosAndamento.length === 0 ? (
-              <p className="text-slate-400 text-xs py-8 text-center">Nenhuma ação pendente registrada.</p>
-            ) : planosAndamento.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50/50 border border-slate-100/50 rounded-xl">
-                <div className="min-w-0">
-                  <h5 className="text-slate-700 font-bold text-xs truncate" title={item.acao}>{item.acao}</h5>
-                  <span className="text-[10px] text-slate-400">{item.plano} • {item.empresa}</span>
-                </div>
-                <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                  item.status === 'andamento' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
-                }`}>{item.status === 'andamento' ? 'Em andamento' : 'Pendente'}</span>
-              </div>
-            ))}
-          </div>
+      {/* Planos de ação em andamento */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-slate-800 font-bold text-base flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" />
+            Ações Pendentes/Em Andamento
+          </h4>
+          {demandasVencidas.length > 0 && (
+            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-700 border border-red-100">{demandasVencidas.length} vencida(s)</span>
+          )}
         </div>
+        <div className="flex-1 space-y-3">
+          {planosAndamento.length === 0 ? (
+            <p className="text-slate-400 text-xs py-8 text-center">Nenhuma ação pendente registrada.</p>
+          ) : planosAndamento.map((item, idx) => (
+            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50/50 border border-slate-100/50 rounded-xl">
+              <div className="min-w-0">
+                <h5 className="text-slate-700 font-bold text-xs truncate" title={item.acao}>{item.acao}</h5>
+                <span className="text-[10px] text-slate-400">{item.plano} • {item.empresa} · vence {item.prazo || 'sem prazo'}</span>
+              </div>
+              <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                item.status === 'andamento' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'
+              }`}>{item.status === 'andamento' ? 'Em andamento' : 'Pendente'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
         {/* KPIs em risco */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
@@ -239,6 +255,29 @@ export const AssessoriaDashboard: React.FC = () => {
                 <span className={`flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
                   d.pontuacaoGeral >= 70 ? 'bg-emerald-50 text-emerald-700' : d.pontuacaoGeral >= 50 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
                 }`}>{d.pontuacaoGeral}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Ações vencidas */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-slate-800 font-bold text-base flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Demandas Vencidas
+            </h4>
+          </div>
+          <div className="flex-1 space-y-3">
+            {demandasVencidas.length === 0 ? (
+              <p className="text-slate-400 text-xs py-8 text-center">Nenhuma demanda vencida.</p>
+            ) : demandasVencidas.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-red-50/50 border border-red-100/50 rounded-xl">
+                <div className="min-w-0">
+                  <h5 className="text-slate-700 font-bold text-xs truncate" title={item.acao}>{item.acao}</h5>
+                  <span className="text-[10px] text-slate-600">{item.plano} • {item.empresa} · vence {new Date(item.prazo).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-red-100 text-red-700">Vencida</span>
               </div>
             ))}
           </div>
