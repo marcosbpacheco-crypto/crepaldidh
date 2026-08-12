@@ -13,7 +13,7 @@ import { ProjectSection } from './sections/ProjectSection'
 import {
   Users, Briefcase, GraduationCap, TrendingUp, Calendar, ChevronRight,
   Plus, X, FileDown, Building2, Clock, MapPin, Download, Loader2,
-  Activity, Phone, Mail, MessageSquare, BarChart3, Target
+  Activity, Phone, Mail, MessageSquare, BarChart3, Target, UserX
 } from "lucide-react"
 
 interface Project {
@@ -59,8 +59,8 @@ function KpiCard({ label, value, icon: Icon, color, trend }: { label: string; va
 
 function KpiSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {[1, 2, 3, 4].map(i => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+      {[1, 2, 3, 4, 5].map(i => (
         <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5">
           <div className="h-3 bg-slate-100 rounded w-24 mb-4" />
           <div className="h-8 bg-slate-100 rounded w-20 mb-2" />
@@ -170,6 +170,8 @@ export default function DashboardPage() {
           <tr>
             <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Clientes</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.activeClients ?? 0}</p></td>
             <td style="width:8px"></td>
+            <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Clientes Inativos</p><p style="font-size:24px;font-weight:800;color:#f43f5e;margin:6px 0 0">${(clients ?? []).filter(c => c.status !== 'active').length}</p></td>
+            <td style="width:8px"></td>
             <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Projetos Ativos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.activeProjects ?? 0}</p></td>
             <td style="width:8px"></td>
             <td style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;width:25%"><p style="font-size:9px;color:#94a3b8;margin:0;text-transform:uppercase">Treinamentos</p><p style="font-size:24px;font-weight:800;color:#1e293b;margin:6px 0 0">${kpis?.completedTrainings ?? 0}</p></td>
@@ -223,7 +225,7 @@ export default function DashboardPage() {
       document.body.removeChild(tempDiv)
     } catch { alert('Erro ao gerar PDF. Tente novamente.') }
     finally { setPdfLoading(false) }
-  }, [companies, kpis, projects])
+  }, [companies, kpis, projects, clients])
 
   const handleExportCompanyPDF = useCallback(async () => {
     if (!reportCompanyId) return
@@ -325,6 +327,7 @@ export default function DashboardPage() {
   const stats = kpiLoading ? null : [
     { label: "Empresas (CRM)", value: String(kpis?.activeCompanies ?? 0), icon: Building2, color: "bg-blue-500", trend: `${kpis?.activeCompanies ?? 0} ativas` },
     { label: "Clientes", value: String(kpis?.activeClients ?? 0), icon: Users, color: "bg-brand-teal", trend: `${kpis?.activeClients ?? 0} ativos` },
+    { label: "Clientes Inativos", value: String((clients ?? []).filter(c => c.status !== 'active').length), icon: UserX, color: "bg-rose-500", trend: `${(clients ?? []).filter(c => c.status !== 'active').length} inativos` },
     { label: "Treinamentos", value: String(kpis?.completedTrainings ?? 0), icon: GraduationCap, color: "bg-indigo-500", trend: `${kpis?.completedTrainings ?? 0} realizados` },
     { label: "Receita", value: `R$ ${(kpis?.totalRevenue ?? 0).toLocaleString('pt-BR')}`, icon: TrendingUp, color: "bg-emerald-500", trend: `${profitMargin}% margem` },
   ]
@@ -342,8 +345,8 @@ export default function DashboardPage() {
             <div className="h-10 w-40 bg-slate-100 rounded-full animate-pulse" />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100">
               <div className="h-12 w-12 bg-slate-100 rounded-xl animate-pulse mb-4" />
               <div className="h-3 w-20 bg-slate-50 rounded animate-pulse mb-2" />
@@ -391,7 +394,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {kpiLoading ? (
           <KpiSkeleton />
         ) : stats?.map((s, i) => (
