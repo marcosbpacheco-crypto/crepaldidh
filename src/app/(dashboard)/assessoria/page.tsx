@@ -384,11 +384,15 @@ function KpiTab({ ctx, search }: { ctx: ReturnType<typeof useAssessoria>; search
 }
 
 function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof useAssessoria>; onClose: () => void }) {
-  const [empresa, setEmpresa] = useState('')
+  const { companies, addTask } = useCrm()
+  const { users } = useAdmin()
+  const activeUsers = users.filter(u => u.active)
+  
+  const [empresaId, setEmpresaId] = useState('')
   const [titulo, setTitulo] = useState('')
   const [objetivo, setObjetivo] = useState('')
   const [ciclo, setCiclo] = useState('')
-   const [responsavel, setResponsavel] = useState('')
+  const [responsavelName, setResponsavelName] = useState('')
   const [pontuacao, setPontuacao] = useState(50)
   const [status, setStatus] = useState<string>('rascunho')
   const [categoria, setCategoria] = useState<string>('demanda')
@@ -396,10 +400,12 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
   const [planoPrazo, setPlanoPrazo] = useState(new Date().toISOString().split('T')[0])
 
   const handleSubmit = () => {
-    if (!empresa) return
+    if (!empresaId) return
+    const empresa = companies.find(c => c.id === empresaId)?.name || 'Empresa'
+    
     switch (tab) {
       case 'diagnosticos':
-        ctx.addDiagnostico({ titulo: titulo || 'Novo Diagnóstico', empresa, responsavel: responsavel || 'Sistema', areasAvaliadas: ['Geral'], pontuacaoGeral: pontuacao, status: status as 'rascunho' | 'concluido', observacoes: '' })
+        ctx.addDiagnostico({ titulo: titulo || 'Novo Diagnóstico', empresa, responsavel: responsavelName || 'Sistema', areasAvaliadas: ['Geral'], pontuacaoGeral: pontuacao, status: status as 'rascunho' | 'concluido', observacoes: '' })
         break
       case 'okr':
         ctx.addOkr({ objetivo: objetivo || 'Novo Objetivo', empresa, ciclo: ciclo || new Date().getFullYear().toString(), keyResults: [{ descricao: 'KR padrão', meta: 100, atual: 0, unidade: '%' }], status: 'ativo' })
@@ -407,11 +413,11 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
       case 'swot':
         ctx.addSwot({ empresa, forcas: ['Força padrão'], fraquezas: ['Fraqueza padrão'], oportunidades: ['Oportunidade padrão'], ameacas: ['Ameaça padrão'] })
         break
-       case 'plano_acao':
-        ctx.addPlanoAcao({
+      case 'plano_acao':
+        const plano = {
           titulo: titulo || 'Novo Plano',
           empresa,
-          responsavel: responsavel || 'Sistema',
+          responsavel: responsavelName || 'Sistema',
           categoria: categoria as PlanoAcao['categoria'],
           prioridade: prioridade as PlanoAcao['prioridade'],
           prazo: planoPrazo,
@@ -420,13 +426,25 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
             acao: 'Nova ação / demanda',
             descricao: '',
             prazo: planoPrazo,
-            responsavel: responsavel || 'Sistema',
+            responsavel: responsavelName || 'Sistema',
             prioridade: prioridade as PlanoAcaoItem['prioridade'],
             categoria: categoria as PlanoAcaoItem['categoria'],
             status: 'pendente' as const,
             linkedTaskId: undefined,
           }],
-          status: 'ativo',
+          status: 'ativo' as const,
+        }
+        ctx.addPlanoAcao(plano)
+        // Autocreation of tasks
+        plano.itens.forEach(item => {
+          addTask({
+            companyId: empresaId,
+            title: `[Plano: ${plano.titulo}] ${item.acao}`,
+            dueDate: item.prazo,
+            priority: item.prioridade === 'alta' ? 'high' : item.prioridade === 'baixa' ? 'low' : 'medium',
+            assignedTo: item.responsavel || undefined,
+            createdBy: 'Assessoria Automática',
+          })
         })
         break
       case 'kpi':
@@ -441,7 +459,13 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-black text-slate-800 mb-4">Novo Registro</h3>
         <div className="space-y-3">
-          <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Empresa</label><input value={empresa} onChange={e => setEmpresa(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+          <div>
+            <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Empresa</label>
+            <select value={empresaId} onChange={e => setEmpresaId(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+              <option value="">Selecione...</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>)}
+            </select>
+          </div>
           {tab === 'diagnosticos' && (
             <>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Título</label><input value={titulo} onChange={e => setTitulo(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
@@ -461,7 +485,13 @@ function FormModal({ tab, ctx, onClose }: { tab: string; ctx: ReturnType<typeof 
           {tab === 'plano_acao' && (
             <>
               <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Título</label><input value={titulo} onChange={e => setTitulo(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
-              <div><label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Responsável</label><input value={responsavel} onChange={e => setResponsavel(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20" /></div>
+              <div>
+                <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Responsável</label>
+                <select value={responsavelName} onChange={e => setResponsavelName(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
+                    <option value="">Selecione...</option>
+                    {activeUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Demanda / Iniciativa</label>
                 <select value={categoria} onChange={e => setCategoria(e.target.value)} className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-teal/20">
