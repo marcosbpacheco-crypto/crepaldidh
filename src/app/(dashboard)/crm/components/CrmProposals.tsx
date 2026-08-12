@@ -529,6 +529,11 @@ export const CrmProposals: React.FC = () => {
                         }`}>
                           {contr.status === 'active' ? 'Ativo' : contr.status === 'expired' ? 'Expirado' : 'Encerrado'}
                         </span>
+                        {contr.status === 'active' && (
+                          <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-brand-teal bg-brand-teal/10 border border-brand-teal/20 rounded-full">
+                            Empresa cliente ativa
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))

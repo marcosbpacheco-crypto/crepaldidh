@@ -214,6 +214,7 @@ const PIPELINE_STAGES = [
   'Implantação',
   'Cliente ativo',
   'Renovação',
+  'Interesse Futuro',
   'Cliente perdido'
 ]
 

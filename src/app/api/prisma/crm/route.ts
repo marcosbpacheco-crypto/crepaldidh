@@ -1,6 +1,56 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Quando um contrato CRM é aprovado/ativo, a empresa deve entrar automaticamente
+// como cliente ativo no módulo Clientes (tabela client_list).
+async function syncClientFromContract(companyId: string | null | undefined, status: string, startDate?: string, endDate?: string, value?: number) {
+  if (!companyId) return
+  const isActive = status === 'active'
+
+  const company = await prisma.crm_companies.findUnique({
+    where: { id: companyId },
+    select: { name: true, trade_name: true, cnpj: true, segment: true, city: true, state: true },
+  })
+
+  const existing = await prisma.client_list.findFirst({
+    where: { company_id: companyId },
+    orderBy: { created_at: 'desc' },
+  })
+
+  if (existing) {
+    await prisma.client_list.update({
+      where: { id: existing.id },
+      data: {
+        status: isActive ? 'active' : existing.status,
+        deleted_at: isActive ? null : existing.deleted_at,
+        ...(isActive && startDate ? { start_date: new Date(startDate) } : {}),
+        ...(isActive && endDate ? { end_date: new Date(endDate) } : {}),
+        ...(isActive && value !== undefined ? { total_value: value, monthly_value: value } : {}),
+        company_name: company?.name || existing.company_name,
+        company_trade_name: company?.trade_name || existing.company_trade_name,
+      },
+    })
+  } else if (isActive) {
+    await prisma.client_list.create({
+      data: {
+        company_id: companyId,
+        company_name: company?.name || 'Empresa',
+        company_trade_name: company?.trade_name || null,
+        cnpj: company?.cnpj || null,
+        segment: company?.segment || null,
+        city: company?.city || null,
+        state: company?.state || null,
+        status: 'active',
+        start_date: startDate ? new Date(startDate) : null,
+        end_date: endDate ? new Date(endDate) : null,
+        total_value: value ?? 0,
+        monthly_value: value ?? 0,
+        services: [],
+      },
+    })
+  }
+}
+
 export async function GET() {
   try {
     const companies = await prisma.crm_companies.findMany({
@@ -196,6 +246,15 @@ export async function POST(request: Request) {
           attachments: data.attachments ?? [],
         },
       })
+      if (contract.status === 'active') {
+        await syncClientFromContract(
+          data.companyId || data.company_id,
+          contract.status,
+          data.startDate ? new Date(data.startDate).toISOString() : undefined,
+          data.endDate ? new Date(data.endDate).toISOString() : undefined,
+          data.value ?? 0,
+        ).catch(err => console.error('[CRM] syncClientFromContract error:', err))
+      }
       return NextResponse.json({ contract })
     }
 
@@ -338,6 +397,15 @@ export async function PATCH(request: Request) {
           ...(data.attachments !== undefined && { attachments: data.attachments }),
         },
       })
+      if (contract.status === 'active') {
+        await syncClientFromContract(
+          contract.company_id,
+          contract.status,
+          contract.start_date ? new Date(contract.start_date).toISOString() : undefined,
+          contract.end_date ? new Date(contract.end_date).toISOString() : undefined,
+          Number(contract.value ?? 0),
+        ).catch(err => console.error('[CRM] syncClientFromContract error:', err))
+      }
       return NextResponse.json({ contract })
     }
 
