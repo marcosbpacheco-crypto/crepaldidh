@@ -200,15 +200,6 @@ const SERVICES = [
   'Consultoria Estratégica'
 ]
 
-// Services
-  const [services, setServices] = useState<string[]>(SERVICES)
-
-  const addService = (service: string) => {
-    if (!services.includes(service)) {
-      setServices([...services, service])
-    }
-  }
-
 const PIPELINE_STAGES = [
   'Lead novo',
   'Primeiro contato',
@@ -254,6 +245,15 @@ const INITIAL_CONTRACTS: Contract[] = []
 const CrmContext = createContext<CrmContextType | undefined>(undefined)
 
 export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Services
+  const [services, setServices] = useState<string[]>(SERVICES)
+
+  const addService = (service: string) => {
+    if (!services.includes(service)) {
+      setServices([...services, service])
+    }
+  }
+
   // States
   const [companies, setCompanies] = useState<Company[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])

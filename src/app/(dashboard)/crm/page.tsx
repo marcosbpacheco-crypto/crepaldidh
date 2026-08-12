@@ -12,7 +12,7 @@ import { CrmAIHelper } from './components/CrmAIHelper'
 import { CrmConversion } from './components/CrmConversion'
 import { 
   BarChart3, Kanban, Building2, FileText, Calendar, 
-  Brain, ShieldAlert, Users2, ShieldCheck, ShieldAlert as AlertIcon
+  Brain, ShieldAlert, Users2, ShieldCheck, ShieldAlert as AlertIcon, TrendingUp
 } from 'lucide-react'
 
 function CrmMainContent() {
