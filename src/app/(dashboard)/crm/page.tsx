@@ -9,6 +9,7 @@ import { CrmCompanies } from './components/CrmCompanies'
 import { CrmProposals } from './components/CrmProposals'
 import { CrmTimeline } from './components/CrmTimeline'
 import { CrmAIHelper } from './components/CrmAIHelper'
+import { CrmConversion } from './components/CrmConversion'
 import { 
   BarChart3, Kanban, Building2, FileText, Calendar, 
   Brain, ShieldAlert, Users2, ShieldCheck, ShieldAlert as AlertIcon
@@ -17,7 +18,7 @@ import {
 function CrmMainContent() {
   useCrmRealtime()
   const { currentRole, setCurrentRole } = useCrm()
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'pipeline' | 'companies' | 'proposals' | 'timeline' | 'ai'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pipeline' | 'companies' | 'proposals' | 'timeline' | 'ai' | 'conversion'>('dashboard')
 
   // Permission Alerts helper
   const renderPermissionNotice = () => {
@@ -89,7 +90,8 @@ function CrmMainContent() {
           { id: 'companies', label: 'Clientes & Contatos', icon: <Building2 className="w-4 h-4" /> },
           { id: 'proposals', label: 'Propostas & Contratos', icon: <FileText className="w-4 h-4" /> },
           { id: 'timeline', label: 'Linha do Tempo', icon: <Calendar className="w-4 h-4" /> },
-          { id: 'ai', label: 'Copiloto IA', icon: <Brain className="w-4 h-4" /> }
+          { id: 'ai', label: 'Copiloto IA', icon: <Brain className="w-4 h-4" /> },
+          { id: 'conversion', label: 'Conversão IA', icon: <TrendingUp className="w-4 h-4" /> }
         ].map(tab => {
           const isActive = activeTab === tab.id
           return (
@@ -120,6 +122,7 @@ function CrmMainContent() {
         {activeTab === 'proposals' && <CrmProposals />}
         {activeTab === 'timeline' && <CrmTimeline />}
         {activeTab === 'ai' && <CrmAIHelper />}
+        {activeTab === 'conversion' && <CrmConversion />}
       </div>
 
     </div>

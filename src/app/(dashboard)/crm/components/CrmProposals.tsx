@@ -162,7 +162,7 @@ function dateExtenso(): string {
 
 export const CrmProposals: React.FC = () => {
   const { 
-    proposals, contracts, companies, services,
+    proposals, contracts, companies, services, addService,
     addProposal, updateProposalStatus, addContract
   } = useCrm()
   const admin = useAdmin()
@@ -185,6 +185,15 @@ export const CrmProposals: React.FC = () => {
     status: 'draft' as Proposal['status'],
     notes: ''
   })
+  const [newService, setNewService] = useState('')
+
+  // 3. Handlers
+  const handleAddNewService = () => {
+    if (newService.trim()) {
+      addService(newService.trim())
+      setNewService('')
+    }
+  }
 
   // Attachment upload fake state
   const [selectedContractForAttach, setSelectedContractForAttach] = useState<string | null>(null)
@@ -508,15 +517,21 @@ export const CrmProposals: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Serviço da Crepaldi</label>
-                  <select
-                    value={proposalForm.service}
-                    onChange={e => setProposalForm({ ...proposalForm, service: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  >
-                    {services.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={proposalForm.service}
+                      onChange={e => setProposalForm({ ...proposalForm, service: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                    >
+                      {services.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-1 shrink-0">
+                      <input type="text" placeholder="Novo..." className="w-24 px-2 py-1 text-[10px] border border-slate-200 rounded-lg" value={newService} onChange={e => setNewService(e.target.value)} />
+                      <button type="button" onClick={handleAddNewService} className="bg-brand-teal text-white px-3 rounded-lg text-xs font-bold">+</button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Vigência do Contrato</label>

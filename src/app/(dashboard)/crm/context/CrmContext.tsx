@@ -140,7 +140,8 @@ interface CrmContextType {
   contracts: Contract[];
   clients: Client[];
   sellers: Seller[];
-  services: string[];
+  services: string[]; // <-- Removido 'readonly' ou fixado, agora dinâmico
+  addService: (service: string) => void;
   pipelineStages: string[];
   currentRole: UserRole;
   diagnostics: Diagnostic[];
@@ -186,10 +187,6 @@ interface CrmContextType {
   deleteDiagnostic: (id: string) => void;
 }
 
-// ==========================================
-// 2. CONSTANTS
-// ==========================================
-
 const SERVICES = [
   'Diagnóstico Psicossocial',
   'NR01',
@@ -202,6 +199,15 @@ const SERVICES = [
   'PDI',
   'Consultoria Estratégica'
 ]
+
+// Services
+  const [services, setServices] = useState<string[]>(SERVICES)
+
+  const addService = (service: string) => {
+    if (!services.includes(service)) {
+      setServices([...services, service])
+    }
+  }
 
 const PIPELINE_STAGES = [
   'Lead novo',
@@ -902,7 +908,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         interviews,
         // Static data
         sellers: SELLERS,
-        services: SERVICES,
+        services,
+        addService,
         pipelineStages: PIPELINE_STAGES,
         // Role management
         currentRole,

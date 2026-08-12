@@ -62,6 +62,16 @@ export const CrmCompanies: React.FC = () => {
     status: 'active' as 'active' | 'inactive'
   })
 
+  const [createCompanyForm, setCreateCompanyForm] = useState({
+    name: '',
+    segment: 'Indústria',
+    city: '',
+    state: '',
+    phone: '',
+    email: '',
+    notes: '',
+  })
+
   const [contactForm, setContactForm] = useState({
     name: '',
     role: '',
@@ -103,33 +113,41 @@ export const CrmCompanies: React.FC = () => {
   // 3. Actions
   const handleCreateCompanySubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!companyForm.name || !companyForm.tradeName) {
-      alert('Razão Social e Nome Fantasia são obrigatórios.')
+    if (!createCompanyForm.name) {
+      alert('Nome da empresa é obrigatório.')
       return
     }
 
-    const created = addCompany(companyForm)
+    const created = addCompany({
+        name: createCompanyForm.name,
+        tradeName: createCompanyForm.name,
+        cnpj: '',
+        employees: 0,
+        website: '',
+        instagram: '',
+        respPrincipal: '',
+        respRH: '',
+        respFinanceiro: '',
+        status: 'active',
+        segment: createCompanyForm.segment,
+        city: createCompanyForm.city,
+        state: createCompanyForm.state,
+        phone: createCompanyForm.phone,
+        email: createCompanyForm.email,
+        notes: createCompanyForm.notes
+    })
     setSelectedCompanyId(created.id)
     setIsCompanyModalOpen(false)
     
     // Reset Form
-    setCompanyForm({
-      name: '',
-      tradeName: '',
-      cnpj: '',
-      segment: 'Indústria',
-      employees: 10,
-      city: '',
-      state: '',
-      website: '',
-      instagram: '',
-      respPrincipal: '',
-      respRH: '',
-      respFinanceiro: '',
-      phone: '',
-      email: '',
-      notes: '',
-      status: 'active'
+    setCreateCompanyForm({
+        name: '',
+        segment: 'Indústria',
+        city: '',
+        state: '',
+        phone: '',
+        email: '',
+        notes: '',
     })
   }
 
@@ -575,169 +593,82 @@ export const CrmCompanies: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateCompanySubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+<form onSubmit={handleCreateCompanySubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Razão Social *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Petrobras Distribuidora S.A."
-                    value={companyForm.name}
-                    onChange={e => setCompanyForm({ ...companyForm, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Fantasia *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: BR Distribuidora"
-                    value={companyForm.tradeName}
-                    onChange={e => setCompanyForm({ ...companyForm, tradeName: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Empresa (Fantasia/Informal) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Nome da Empresa"
+                  value={createCompanyForm.name}
+                  onChange={e => setCreateCompanyForm({ ...createCompanyForm, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CNPJ</label>
-                  <input
-                    type="text"
-                    placeholder="00.000.000/0000-00"
-                    value={companyForm.cnpj}
-                    onChange={e => setCompanyForm({ ...companyForm, cnpj: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Segmento</label>
                   <input
                     type="text"
                     placeholder="Ex: Mineração, Energia"
-                    value={companyForm.segment}
-                    onChange={e => setCompanyForm({ ...companyForm, segment: e.target.value })}
+                    value={createCompanyForm.segment}
+                    onChange={e => setCreateCompanyForm({ ...createCompanyForm, segment: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Colaboradores</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={companyForm.employees}
-                    onChange={e => setCompanyForm({ ...companyForm, employees: Number(e.target.value) })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
-                  <input
-                    type="text"
-                    placeholder="Cidade"
-                    value={companyForm.city}
-                    onChange={e => setCompanyForm({ ...companyForm, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado</label>
-                  <input
-                    type="text"
-                    maxLength={2}
-                    placeholder="UF"
-                    value={companyForm.state}
-                    onChange={e => setCompanyForm({ ...companyForm, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      placeholder="Cidade"
+                      value={createCompanyForm.city}
+                      onChange={e => setCreateCompanyForm({ ...createCompanyForm, city: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">UF</label>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      placeholder="UF"
+                      value={createCompanyForm.state}
+                      onChange={e => setCreateCompanyForm({ ...createCompanyForm, state: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Site</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone</label>
                   <input
                     type="text"
-                    placeholder="www.site.com.br"
-                    value={companyForm.website}
-                    onChange={e => setCompanyForm({ ...companyForm, website: e.target.value })}
+                    value={createCompanyForm.phone}
+                    onChange={e => setCreateCompanyForm({ ...createCompanyForm, phone: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Instagram</label>
-                  <input
-                    type="text"
-                    placeholder="@perfil"
-                    value={companyForm.instagram}
-                    onChange={e => setCompanyForm({ ...companyForm, instagram: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Resp. Principal</label>
-                  <input
-                    type="text"
-                    value={companyForm.respPrincipal}
-                    onChange={e => setCompanyForm({ ...companyForm, respPrincipal: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Resp. RH/DHO</label>
-                  <input
-                    type="text"
-                    value={companyForm.respRH}
-                    onChange={e => setCompanyForm({ ...companyForm, respRH: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Resp. Financeiro</label>
-                  <input
-                    type="text"
-                    value={companyForm.respFinanceiro}
-                    onChange={e => setCompanyForm({ ...companyForm, respFinanceiro: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone Principal</label>
-                  <input
-                    type="text"
-                    value={companyForm.phone}
-                    onChange={e => setCompanyForm({ ...companyForm, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail Principal</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail</label>
                   <input
                     type="email"
-                    value={companyForm.email}
-                    onChange={e => setCompanyForm({ ...companyForm, email: e.target.value })}
+                    value={createCompanyForm.email}
+                    onChange={e => setCreateCompanyForm({ ...createCompanyForm, email: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observações / Histórico de Perfil</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observações de Primeiro Contato</label>
                 <textarea
-                  value={companyForm.notes}
-                  onChange={e => setCompanyForm({ ...companyForm, notes: e.target.value })}
+                  value={createCompanyForm.notes}
+                  onChange={e => setCreateCompanyForm({ ...createCompanyForm, notes: e.target.value })}
                   rows={3}
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                 />
@@ -755,7 +686,7 @@ export const CrmCompanies: React.FC = () => {
                   type="submit"
                   className="px-6 py-2.5 rounded-full bg-brand-teal hover:bg-brand-teal/95 text-white font-bold text-xs transition-all shadow-md"
                 >
-                  Criar Empresa
+                  Cadastrar Contato Inicial
                 </button>
               </div>
             </form>
