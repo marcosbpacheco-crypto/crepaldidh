@@ -264,77 +264,102 @@ export const MentoringProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Participants
   const addParticipant = (p: Omit<Participant, 'id' | 'createdAt'>): Participant => {
-    const np: Participant = { ...p, id: `part-${Date.now()}`, createdAt: new Date().toISOString() }
+    const np: Participant = { ...p, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
     setParticipants([np, ...participants])
+    mentoringService.createParticipant(np).catch(err => console.error('[Mentoring] createParticipant error:', err))
     return np
   }
-  const updateParticipant = (id: string, updates: Partial<Participant>) =>
+  const updateParticipant = (id: string, updates: Partial<Participant>) => {
     setParticipants(participants.map(p => p.id === id ? { ...p, ...updates } : p))
-  const deleteParticipant = (id: string) =>
+    mentoringService.updateParticipant(id, updates).catch(err => console.error('[Mentoring] updateParticipant error:', err))
+  }
+  const deleteParticipant = (id: string) => {
     setParticipants(participants.filter(p => p.id !== id))
+    mentoringService.removeParticipant(id).catch(err => console.error('[Mentoring] deleteParticipant error:', err))
+  }
 
   // Sessions
   const addSession = (s: Omit<MentoringSession, 'id' | 'createdAt'>): MentoringSession => {
-    const ns: MentoringSession = { ...s, id: `sess-${Date.now()}`, createdAt: new Date().toISOString() }
+    const ns: MentoringSession = { ...s, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
     setSessions([ns, ...sessions])
+    mentoringService.createSession(ns).catch(err => console.error('[Mentoring] createSession error:', err))
     return ns
   }
-  const updateSession = (id: string, updates: Partial<MentoringSession>) =>
+  const updateSession = (id: string, updates: Partial<MentoringSession>) => {
     setSessions(sessions.map(s => s.id === id ? { ...s, ...updates } : s))
-  const deleteSession = (id: string) =>
+    mentoringService.updateSession(id, updates).catch(err => console.error('[Mentoring] updateSession error:', err))
+  }
+  const deleteSession = (id: string) => {
     setSessions(sessions.filter(s => s.id !== id))
+    mentoringService.removeSession(id).catch(err => console.error('[Mentoring] deleteSession error:', err))
+  }
 
   // PDI Plans
   const addPDIPlan = (plan: Omit<PDIPlan, 'id' | 'createdAt' | 'updatedAt'>): PDIPlan => {
-    const np: PDIPlan = { ...plan, id: `pdi-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    const np: PDIPlan = { ...plan, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     setPDIPlans([np, ...pdiPlans])
+    mentoringService.createPdiPlan(np).catch(err => console.error('[Mentoring] createPdiPlan error:', err))
     return np
   }
-  const updatePDIPlan = (id: string, updates: Partial<PDIPlan>) =>
+  const updatePDIPlan = (id: string, updates: Partial<PDIPlan>) => {
     setPDIPlans(pdiPlans.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p))
-  const deletePDIPlan = (id: string) =>
+    mentoringService.updatePdiPlan(id, updates).catch(err => console.error('[Mentoring] updatePdiPlan error:', err))
+  }
+  const deletePDIPlan = (id: string) => {
     setPDIPlans(pdiPlans.filter(p => p.id !== id))
+    mentoringService.removePdiPlan(id).catch(err => console.error('[Mentoring] deletePdiPlan error:', err))
+  }
 
   const addPDIGoal = (pdiId: string, goal: Omit<PDIGoal, 'id' | 'pdiId'>): PDIGoal => {
-    const ng: PDIGoal = { ...goal, id: `goal-${Date.now()}`, pdiId }
+    const ng: PDIGoal = { ...goal, id: crypto.randomUUID(), pdiId }
     setPDIPlans(pdiPlans.map(p => p.id === pdiId ? { ...p, goals: [...p.goals, ng], updatedAt: new Date().toISOString() } : p))
+    mentoringService.createPdiGoal(ng).catch(err => console.error('[Mentoring] createPdiGoal error:', err))
     return ng
   }
-  const updatePDIGoal = (pdiId: string, goalId: string, updates: Partial<PDIGoal>) =>
+  const updatePDIGoal = (pdiId: string, goalId: string, updates: Partial<PDIGoal>) => {
     setPDIPlans(pdiPlans.map(p => p.id === pdiId
       ? { ...p, goals: p.goals.map(g => g.id === goalId ? { ...g, ...updates } : g), updatedAt: new Date().toISOString() }
       : p))
-  const deletePDIGoal = (pdiId: string, goalId: string) =>
+    mentoringService.updatePdiGoal(goalId, updates).catch(err => console.error('[Mentoring] updatePdiGoal error:', err))
+  }
+  const deletePDIGoal = (pdiId: string, goalId: string) => {
     setPDIPlans(pdiPlans.map(p => p.id === pdiId
       ? { ...p, goals: p.goals.filter(g => g.id !== goalId), updatedAt: new Date().toISOString() }
       : p))
+    mentoringService.removePdiGoal(goalId).catch(err => console.error('[Mentoring] deletePdiGoal error:', err))
+  }
 
   // Competencies
   const addCompetency = (c: Omit<Competency, 'id'>): Competency => {
-    const nc: Competency = { ...c, id: `comp-${Date.now()}` }
+    const nc: Competency = { ...c, id: crypto.randomUUID() }
     setCompetencies([...competencies, nc])
+    mentoringService.createCompetency(nc).catch(err => console.error('[Mentoring] createCompetency error:', err))
     return nc
   }
-  const deleteCompetency = (id: string) =>
+  const deleteCompetency = (id: string) => {
     setCompetencies(competencies.filter(c => c.id !== id))
+    mentoringService.removeCompetency(id).catch(err => console.error('[Mentoring] deleteCompetency error:', err))
+  }
 
   // Tools
   const addToolUsage = (toolId: string, usage: Omit<ToolUsage, 'id'>) => {
-    const nu: ToolUsage = { ...usage, id: `usage-${Date.now()}` }
+    const nu: ToolUsage = { ...usage, id: crypto.randomUUID() }
     setTools(tools.map(t => t.id === toolId ? { ...t, usageHistory: [...t.usageHistory, nu] } : t))
   }
 
   // Assessments
   const addAssessment = (a: Omit<Assessment, 'id'>): Assessment => {
-    const na: Assessment = { ...a, id: `assess-${Date.now()}` }
+    const na: Assessment = { ...a, id: crypto.randomUUID() }
     setAssessments([...assessments, na])
+    mentoringService.createAssessment(na).catch(err => console.error('[Mentoring] createAssessment error:', err))
     return na
   }
 
   // Reports
   const addMentoringReport = (r: Omit<MentoringReport, 'id' | 'generatedAt'>): MentoringReport => {
-    const nr: MentoringReport = { ...r, id: `mreport-${Date.now()}`, generatedAt: new Date().toISOString() }
+    const nr: MentoringReport = { ...r, id: crypto.randomUUID(), generatedAt: new Date().toISOString() }
     setMentoringReports([nr, ...mentoringReports])
+    mentoringService.createReport(nr).catch(err => console.error('[Mentoring] createReport error:', err))
     return nr
   }
 

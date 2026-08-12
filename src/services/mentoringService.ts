@@ -99,6 +99,53 @@ export const mentoringService = {
       body: JSON.stringify({ _type: 'pdiPlan', id }),
     })
   },
+  async createPdiGoal(input: Partial<any>): Promise<any> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiGoal', ...input }),
+    })
+    return data.pdiGoal
+  },
+  async updatePdiGoal(id: string, input: Partial<any>): Promise<any> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiGoal', id, ...input }),
+    })
+    return data.pdiGoal
+  },
+  async removePdiGoal(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'pdiGoal', id }),
+    })
+  },
+  async createCompetency(input: Partial<Competency>): Promise<Competency> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'competency', ...input }),
+    })
+    return data.competency
+  },
+  async removeCompetency(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'competency', id }),
+    })
+  },
+  async createAssessment(input: Partial<any>): Promise<any> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'assessment', ...input }),
+    })
+    return data.assessment
+  },
+  async createReport(input: Partial<any>): Promise<any> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'report', ...input }),
+    })
+    return data.report
+  },
   async listPdiActions(_planId?: string): Promise<PdiAction[]> {
     return []
   },

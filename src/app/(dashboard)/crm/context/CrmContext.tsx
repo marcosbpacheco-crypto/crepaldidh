@@ -508,7 +508,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addCompany = (c: Omit<Company, 'id' | 'createdAt'>) => {
     const newCompany: Company = {
       ...c,
-      id: `comp-${Date.now()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     }
     const updated = [newCompany, ...companies]
@@ -523,12 +523,15 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: getRoleUserName(currentRole)
     })
 
+    crmService.createCompany(newCompany).catch(err => console.error('[CRM] createCompany error:', err))
+
     return newCompany
   }
 
   const updateCompany = (id: string, updates: Partial<Company>) => {
     const updated = companies.map(c => c.id === id ? { ...c, ...updates } : c)
     updateCompaniesState(updated)
+    crmService.updateCompany(id, updates).catch(err => console.error('[CRM] updateCompany error:', err))
   }
 
   const deleteCompany = async (id: string) => {
@@ -570,7 +573,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addContact = (c: Omit<Contact, 'id'>) => {
     const newContact: Contact = {
       ...c,
-      id: `cont-${Date.now()}`
+      id: crypto.randomUUID()
     }
     const updated = [...contacts, newContact]
     updateContactsState(updated)
@@ -584,23 +587,27 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: getRoleUserName(currentRole)
     })
 
+    crmService.createContact(newContact).catch(err => console.error('[CRM] createContact error:', err))
+
     return newContact
   }
 
   const updateContact = (id: string, updates: Partial<Contact>) => {
     const updated = contacts.map(c => c.id === id ? { ...c, ...updates } : c)
     updateContactsState(updated)
+    crmService.updateContact(id, updates).catch(err => console.error('[CRM] updateContact error:', err))
   }
 
   const deleteContact = (id: string) => {
     updateContactsState(contacts.filter(c => c.id !== id))
+    crmService.removeContact(id).catch(err => console.error('[CRM] deleteContact error:', err))
   }
 
   // Deals CRUD
   const addDeal = (d: Omit<Deal, 'id' | 'createdAt'>) => {
     const newDeal: Deal = {
       ...d,
-      id: `deal-${Date.now()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     }
     const updated = [newDeal, ...deals]
@@ -616,12 +623,15 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: getRoleUserName(currentRole)
     })
 
+    crmService.createDeal(newDeal).catch(err => console.error('[CRM] createDeal error:', err))
+
     return newDeal
   }
 
   const updateDeal = (id: string, updates: Partial<Deal>) => {
     const updated = deals.map(d => d.id === id ? { ...d, ...updates } : d)
     updateDealsState(updated)
+    crmService.updateDeal(id, updates).catch(err => console.error('[CRM] updateDeal error:', err))
   }
 
   const moveDeal = (dealId: string, targetStage: string) => {
@@ -633,6 +643,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = deals.map(d => d.id === dealId ? { ...d, stage: targetStage } : d)
     updateDealsState(updated)
+    crmService.updateDeal(dealId, { stage: targetStage }).catch(err => console.error('[CRM] moveDeal error:', err))
 
     // Log Activity for drag
     addActivity({
@@ -656,6 +667,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteDeal = (id: string) => {
     updateDealsState(deals.filter(d => d.id !== id))
+    crmService.removeDeal(id).catch(err => console.error('[CRM] deleteDeal error:', err))
   }
 
   // Activities Log
@@ -674,7 +686,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTask = (t: Omit<Task, 'id' | 'status'>) => {
     const newTask: Task = {
       ...t,
-      id: `task-${Date.now()}`,
+      id: crypto.randomUUID(),
       status: 'pending'
     }
     const updated = [newTask, ...tasks]
@@ -689,6 +701,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Tarefa "${newTask.title}" agendada para vencimento em ${newTask.dueDate}.`,
       author: getRoleUserName(currentRole)
     })
+
+    crmService.createTask(newTask).catch(err => console.error('[CRM] createTask error:', err))
 
     return newTask
   }
@@ -711,17 +725,21 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return t
     })
     updateTasksState(updated)
+    const task = updated.find(t => t.id === id)
+    if (task) crmService.updateTask(id, { status: task.status }).catch(err => console.error('[CRM] toggleTaskStatus error:', err))
   }
 
   const deleteTask = (id: string) => {
     updateTasksState(tasks.filter(t => t.id !== id))
+    const task = tasks.find(t => t.id === id)
+    if (task) crmService.removeTask(id).catch(err => console.error('[CRM] deleteTask error:', err))
   }
 
   // Proposals CRUD
   const addProposal = (p: Omit<Proposal, 'id' | 'createdAt'>) => {
     const newProposal: Proposal = {
       ...p,
-      id: `prop-${Date.now()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     }
     const updated = [newProposal, ...proposals]
@@ -736,6 +754,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: getRoleUserName(currentRole)
     })
 
+    crmService.createProposal(newProposal).catch(err => console.error('[CRM] createProposal error:', err))
+
     return newProposal
   }
 
@@ -745,6 +765,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = proposals.map(p => p.id === id ? { ...p, status } : p)
     updateProposalsState(updated)
+    crmService.updateProposal(id, { status }).catch(err => console.error('[CRM] updateProposalStatus error:', err))
 
     // Log Activity
     addActivity({
@@ -776,7 +797,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addContract = (c: Omit<Contract, 'id' | 'createdAt'>) => {
     const newContract: Contract = {
       ...c,
-      id: `contr-${Date.now()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     }
     const updated = [newContract, ...contracts]
@@ -791,6 +812,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       author: getRoleUserName(currentRole)
     })
 
+    crmService.createContract(newContract).catch(err => console.error('[CRM] addContract error:', err))
+
     return newContract
   }
 
@@ -799,12 +822,13 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!contr) return
     const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
     updateContractsState(updated)
+    crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
   }
 
   const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
     const newClient: Client = {
       ...c,
-      id: `cli-${Date.now()}`,
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     }
     const updated = [newClient, ...clients]
@@ -818,7 +842,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   const deleteClient = (id: string) => {
-    updateClientsState(clients.map(c => c.id === id ? { ...c, status: 'churned' } : c))
+    const updated = clients.map(c => c.id === id ? { ...c, status: 'churned' as const } : c)
+    updateClientsState(updated)
   }
 
   const hardDeleteClient = (id: string) => {
