@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { useCrm, Proposal, Contract } from '../context/CrmContext'
 import { useAdmin } from '../../admin/context/AdminContext'
+import { documentService } from '@/services/documentService'
 import { 
   FileText, Award, DollarSign, Calendar, Plus, Printer, 
   Trash2, X, Eye, CheckCircle2, AlertTriangle, RefreshCw, Paperclip,
@@ -187,7 +188,48 @@ export const CrmProposals: React.FC = () => {
   })
   const [newService, setNewService] = useState('')
 
-  // 3. Handlers
+  // Manual Contract Modal States
+  const [isManualContractModalOpen, setIsManualContractModalOpen] = useState(false)
+  const [manualContractForm, setManualContractForm] = useState({
+    companyId: '',
+    title: '',
+    value: 0,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
+    autoRenew: true,
+    status: 'active' as Contract['status'],
+    attachmentName: ''
+  })
+
+  const handleManualContractSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualContractForm.companyId || !manualContractForm.title) {
+      alert('Selecione a empresa e informe o título do contrato.')
+      return
+    }
+    addContract({
+      companyId: manualContractForm.companyId,
+      title: manualContractForm.title,
+      value: manualContractForm.value,
+      startDate: manualContractForm.startDate,
+      endDate: manualContractForm.endDate,
+      autoRenew: manualContractForm.autoRenew,
+      status: manualContractForm.status,
+      attachments: manualContractForm.attachmentName ? [manualContractForm.attachmentName] : []
+    })
+    setIsManualContractModalOpen(false)
+    setManualContractForm({
+      companyId: '',
+      title: '',
+      value: 0,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
+      autoRenew: true,
+      status: 'active',
+      attachmentName: ''
+    })
+  }
+
   const handleAddNewService = () => {
     if (newService.trim()) {
       addService(newService.trim())
@@ -309,13 +351,22 @@ export const CrmProposals: React.FC = () => {
             </button>
           </div>
         ) : hasFinancialAccess && isContractAllowed ? (
-          <button
-            onClick={() => { setShowAiGenerator(true); setAiGeneratedContract(''); setAiProposalId(''); setAiService(''); setAiValue(0); setAiDuration('12 meses') }}
-            className="w-full sm:w-auto bg-gradient-to-r from-brand-teal to-brand-blue hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
-          >
-            <Brain className="w-4 h-4" />
-            Gerar Contrato com IA
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => { setShowAiGenerator(true); setAiGeneratedContract(''); setAiProposalId(''); setAiService(''); setAiValue(0); setAiDuration('12 meses') }}
+              className="flex-1 sm:flex-none bg-gradient-to-r from-brand-teal to-brand-blue hover:opacity-90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-teal/10 hover:shadow-lg"
+            >
+              <Brain className="w-4 h-4" />
+              Gerar Contrato com IA
+            </button>
+            <button
+              onClick={() => setIsManualContractModalOpen(true)}
+              className="flex-1 sm:flex-none bg-brand-blue hover:bg-brand-blue/90 text-white font-bold text-xs py-2.5 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-blue/10 hover:shadow-lg"
+            >
+              <Plus className="w-4 h-4" />
+              Cadastrar Contrato Manualmente
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -443,6 +494,15 @@ export const CrmProposals: React.FC = () => {
                                 onClick={() => {
                                   if (fakeAttachName) {
                                     contr.attachments.push(fakeAttachName)
+                                    documentService.create({
+                                      name: fakeAttachName,
+                                      type: 'contract',
+                                      companyId: contr.companyId,
+                                      status: 'approved',
+                                      visibility: 'restricted',
+                                      fileUrl: fakeAttachName,
+                                      module: 'crm'
+                                    }).catch(err => console.error(err))
                                     setFakeAttachName('')
                                     setSelectedContractForAttach(null)
                                   }
@@ -1095,6 +1155,134 @@ export const CrmProposals: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: CADASTRAR CONTRATO MANUALMENTE
+          ========================================== */}
+      {isManualContractModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-slate-800 font-black text-lg">Cadastrar Contrato Manualmente</h3>
+              <button
+                onClick={() => setIsManualContractModalOpen(false)}
+                className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleManualContractSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Empresa *</label>
+                <select
+                  required
+                  value={manualContractForm.companyId}
+                  onChange={e => setManualContractForm({ ...manualContractForm, companyId: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                >
+                  <option value="">Selecione uma empresa...</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título do Contrato *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Prestação de Serviços de DHO - 2026"
+                  value={manualContractForm.title}
+                  onChange={e => setManualContractForm({ ...manualContractForm, title: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Valor Total (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={manualContractForm.value || ''}
+                    onChange={e => setManualContractForm({ ...manualContractForm, value: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                  <select
+                    value={manualContractForm.status}
+                    onChange={e => setManualContractForm({ ...manualContractForm, status: e.target.value as Contract['status'] })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  >
+                    <option value="active">Ativo</option>
+                    <option value="draft">Rascunho</option>
+                    <option value="expired">Expirado</option>
+                    <option value="terminated">Encerrado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Início *</label>
+                  <input
+                    type="date"
+                    required
+                    value={manualContractForm.startDate}
+                    onChange={e => setManualContractForm({ ...manualContractForm, startDate: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Término *</label>
+                  <input
+                    type="date"
+                    required
+                    value={manualContractForm.endDate}
+                    onChange={e => setManualContractForm({ ...manualContractForm, endDate: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Arquivo / Anexo (opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: contrato_assinado.pdf"
+                  value={manualContractForm.attachmentName}
+                  onChange={e => setManualContractForm({ ...manualContractForm, attachmentName: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsManualContractModalOpen(false)}
+                  className="px-5 py-2.5 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-full bg-brand-blue hover:bg-brand-blue/95 text-white font-bold text-xs shadow-md"
+                >
+                  Salvar Contrato
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

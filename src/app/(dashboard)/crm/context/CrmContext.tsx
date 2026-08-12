@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmService } from '@/services/crmService'
+import { documentService } from '@/services/documentService'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -762,6 +763,17 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     crmService.createProposal(newProposal).catch(err => console.error('[CRM] createProposal error:', err))
 
+    // Sync with Documents module
+    documentService.create({
+      name: `Proposta - ${p.service}`,
+      type: 'proposal',
+      companyId: p.companyId,
+      status: p.status === 'approved' ? 'approved' : 'draft',
+      visibility: 'internal',
+      fileUrl: 'proposta.pdf',
+      module: 'crm'
+    }).catch(err => console.error('[CRM] sync proposal to documents error:', err))
+
     return newProposal
   }
 
@@ -819,6 +831,17 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
 
     crmService.createContract(newContract).catch(err => console.error('[CRM] addContract error:', err))
+
+    // Sync with Documents module
+    documentService.create({
+      name: c.title,
+      type: 'contract',
+      companyId: c.companyId,
+      status: c.status === 'active' ? 'approved' : 'draft',
+      visibility: 'restricted',
+      fileUrl: c.attachments?.[0] || 'contrato.pdf',
+      module: 'crm'
+    }).catch(err => console.error('[CRM] sync contract to documents error:', err))
 
     return newContract
   }
