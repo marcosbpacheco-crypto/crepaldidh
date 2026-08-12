@@ -37,7 +37,7 @@ export default function AcessoTemporarioPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Key className="w-5 h-5 text-slate-600" />
-        <h1 className="text-lg font-black text-slate-800">ACESSO TEMPORÁRIO</h1>
+        <h1 className="text-lg font-black text-slate-800">Acesso Temporário</h1>
         <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[9px] font-bold text-slate-500">EMPRESAS & CLIENTES</span>
       </div>
 

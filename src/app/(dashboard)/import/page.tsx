@@ -116,7 +116,7 @@ export default function ImportPage() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Importação por Planilha</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Importação</h1>
         <p className="text-slate-500 text-sm mt-0.5">Importe dados em massa usando arquivos CSV</p>
       </div>
 

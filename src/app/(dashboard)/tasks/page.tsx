@@ -2,14 +2,19 @@
 
 import { useState } from 'react'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
-import { Plus, X, Search, CheckCircle2, Circle, Calendar, Flag, User, Building2, Trash2 } from 'lucide-react'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
+import { safeArray } from '@/lib/safe-array'
+import { Plus, X, Search, CheckCircle2, Circle, Calendar, Flag, User, Building2, Trash2, UserRound, ClipboardList } from 'lucide-react'
 
 export default function TasksPage() {
   const { tasks, companies, addTask, toggleTaskStatus, deleteTask } = useCrm()
+  const admin = useAdmin()
+  const activeUsers = safeArray(admin.users).filter(u => u.active)
+  const currentUserName = admin.currentUser?.name || ''
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ companyId: '', title: '', dueDate: '', priority: 'medium' as 'high' | 'medium' | 'low' })
+  const [form, setForm] = useState({ companyId: '', title: '', dueDate: '', priority: 'medium' as 'high' | 'medium' | 'low', assignedTo: '' })
 
   const filtered = tasks.filter(t => {
     if (filterStatus === 'pending' && t.status !== 'pending') return false
@@ -28,8 +33,8 @@ export default function TasksPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title || !form.companyId || !form.dueDate) return
-    addTask({ companyId: form.companyId, title: form.title, dueDate: form.dueDate, priority: form.priority })
-    setForm({ companyId: '', title: '', dueDate: '', priority: 'medium' })
+    addTask({ companyId: form.companyId, title: form.title, dueDate: form.dueDate, priority: form.priority, assignedTo: form.assignedTo || undefined, createdBy: currentUserName || undefined })
+    setForm({ companyId: '', title: '', dueDate: '', priority: 'medium', assignedTo: '' })
     setShowForm(false)
   }
 
@@ -100,10 +105,16 @@ export default function TasksPage() {
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-400">
                   {comp && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {comp.name}</span>}
+                  {t.createdBy && <span className="flex items-center gap-1"><ClipboardList className="w-3 h-3" /> Registrada por {t.createdBy}</span>}
                   <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-500 font-semibold' : ''}`}>
                     <Calendar className="w-3 h-3" /> {new Date(t.dueDate).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
+                {t.assignedTo && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-violet-50 border border-violet-100 text-[10px] font-semibold text-violet-700">
+                    <UserRound className="w-3 h-3" /> {t.assignedTo}
+                  </div>
+                )}
               </div>
               <button onClick={() => deleteTask(t.id)} className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
                 <Trash2 className="w-4 h-4" />
@@ -133,6 +144,14 @@ export default function TasksPage() {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Título da Tarefa *</label>
                 <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
                   placeholder="Ex: Enviar proposta comercial" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Destinatário da Tarefa *</label>
+                <select required value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white">
+                  <option value="">Selecione...</option>
+                  {activeUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

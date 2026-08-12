@@ -3,10 +3,11 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
+import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 
 export interface OperationalAlert {
   id: string
-  type: 'project_delayed' | 'task_overdue' | 'client_no_interaction' | 'contract_expiring' | 'document_pending' | 'training_upcoming'
+  type: 'project_delayed' | 'task_overdue' | 'task_assigned' | 'client_no_interaction' | 'contract_expiring' | 'document_pending' | 'training_upcoming'
   title: string
   description: string
   severity: 'low' | 'medium' | 'high' | 'critical'
@@ -28,6 +29,7 @@ const AlertsContext = createContext<AlertsContextType | undefined>(undefined)
 export function AlertsProvider({ children }: { children: React.ReactNode }) {
   const { companies, tasks, contracts, activities } = useCrm()
   const { events } = useCalendar()
+  const { currentUser } = useAdmin()
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
 
@@ -35,6 +37,23 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
   const alerts = useMemo<OperationalAlert[]>(() => {
     const result: OperationalAlert[] = []
     const now = new Date()
+
+    // 0. Tarefas atribuídas ao usuário atual
+    if (currentUser?.name) {
+      tasks.filter(t => t.status === 'pending' && t.assignedTo === currentUser.name).forEach(t => {
+        const company = companies.find(c => c.id === t.companyId)
+        result.push({
+          id: `alert-task-assigned-${t.id}`,
+          type: 'task_assigned',
+          title: 'Nova tarefa atribuída a você',
+          description: `"${t.title}"${t.createdBy ? ` - registrada por ${t.createdBy}` : ''}${company ? ` (${company.name})` : ''}. Vence em ${new Date(t.dueDate).toLocaleDateString('pt-BR')}.`,
+          severity: 'medium',
+          entityId: t.id, entityType: 'task',
+          createdAt: now.toISOString(),
+          isRead: readIds.has(`alert-task-assigned-${t.id}`),
+        })
+      })
+    }
 
     // 1. Tarefas atrasadas
     tasks.filter(t => t.status === 'pending').forEach(t => {
@@ -126,7 +145,7 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
-  }, [tasks, companies, contracts, events, activities, readIds])
+  }, [tasks, companies, contracts, events, activities, readIds, currentUser])
 
   const unreadCount = alerts.filter(a => !a.isRead).length
 

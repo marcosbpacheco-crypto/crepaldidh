@@ -252,7 +252,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Central de Documentos</h1>
+          <h1 className="text-2xl font-black text-slate-800">Documentos</h1>
           <p className="text-sm text-slate-500 mt-0.5">{visibleDocuments.length} documentos cadastrados</p>
         </div>
         <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all"><Upload className="w-4 h-4" /> Novo Documento</button>

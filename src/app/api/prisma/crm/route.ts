@@ -238,6 +238,8 @@ export async function POST(request: Request) {
           due_date: data.dueDate ? new Date(data.dueDate) : null,
           status: data.status || 'pending',
           priority: data.priority || 'medium',
+          created_by: data.createdBy || data.created_by || null,
+          assigned_to: data.assignedTo || data.assigned_to || null,
         },
         update: {
           company_id: data.companyId || data.company_id,
@@ -246,6 +248,8 @@ export async function POST(request: Request) {
           due_date: data.dueDate ? new Date(data.dueDate) : null,
           status: data.status || 'pending',
           priority: data.priority || 'medium',
+          created_by: data.createdBy || data.created_by || null,
+          assigned_to: data.assignedTo || data.assigned_to || null,
         },
       })
       return NextResponse.json({ task })
@@ -359,6 +363,8 @@ export async function PATCH(request: Request) {
           ...(data.dueDate && { due_date: new Date(data.dueDate) }),
           ...(data.status && { status: data.status }),
           ...(data.priority && { priority: data.priority }),
+          ...(data.createdBy !== undefined && { created_by: data.createdBy }),
+          ...(data.assignedTo !== undefined && { assigned_to: data.assignedTo }),
         },
       })
       return NextResponse.json({ task })

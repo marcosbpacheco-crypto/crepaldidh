@@ -17,6 +17,7 @@ export interface Activity {
 }
 export interface Task {
   id: string; companyId: string; dealId?: string; title: string; dueDate: string; status: 'pending' | 'completed'; priority: 'high' | 'medium' | 'low'
+  createdBy?: string; assignedTo?: string
 }
 export interface Proposal {
   id: string; companyId: string; service: string; value: number; duration: string; status: 'draft' | 'sent' | 'negotiation' | 'approved' | 'rejected'; createdAt: string; notes?: string

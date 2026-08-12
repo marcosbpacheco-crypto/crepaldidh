@@ -255,7 +255,7 @@ function mc(r: any): Company { return { ...r, tradeName: r.trade_name, respPrinc
 function mapContact(r: any): Contact { return { ...r, companyId: r.company_id, influence: r.influence || 'medium', birthday: r.birthday || '' } }
 function md(r: any): Deal { return { ...r, companyId: r.company_id, sellerId: r.seller_id, dueDate: r.due_date, createdAt: r.created_at, lostReason: r.lost_reason } }
 function ma(r: any): Activity { return { ...r, companyId: r.company_id, dealId: r.deal_id } }
-function mt(r: any): Task { return { ...r, companyId: r.company_id, dealId: r.deal_id, dueDate: r.due_date } }
+function mt(r: any): Task { return { ...r, companyId: r.company_id, dealId: r.deal_id, dueDate: r.due_date, createdBy: r.created_by || undefined, assignedTo: r.assigned_to || undefined } }
 function mpr(r: any): Proposal { return { ...r, companyId: r.company_id, createdAt: r.created_at } }
 function mct(r: any): Contract { return { ...r, companyId: r.company_id, proposalId: r.proposal_id, startDate: r.start_date, endDate: r.end_date, autoRenew: r.auto_renew, createdAt: r.created_at } }
 
@@ -276,8 +276,8 @@ function maRow(r: any) {
   return { ...rest, company_id: r.companyId, deal_id: r.dealId }
 }
 function mtRow(r: any) {
-  const { companyId, dealId, dueDate, ...rest } = r
-  return { ...rest, company_id: r.companyId, deal_id: r.dealId, due_date: r.dueDate }
+  const { companyId, dealId, dueDate, createdBy, assignedTo, ...rest } = r
+  return { ...rest, company_id: r.companyId, deal_id: r.dealId, due_date: r.dueDate, created_by: r.createdBy, assigned_to: r.assignedTo }
 }
 function mprRow(r: any) {
   const { companyId, createdAt, ...rest } = r

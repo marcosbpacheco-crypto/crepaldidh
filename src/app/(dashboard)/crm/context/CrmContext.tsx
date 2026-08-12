@@ -76,6 +76,8 @@ export interface Task {
   dueDate: string
   status: 'pending' | 'completed'
   priority: 'high' | 'medium' | 'low'
+  createdBy?: string
+  assignedTo?: string
 }
 
 export interface Proposal {
@@ -705,8 +707,8 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dealId: t.dealId,
       type: 'comment',
       title: 'Tarefa agendada',
-      description: `Tarefa "${newTask.title}" agendada para vencimento em ${newTask.dueDate}.`,
-      author: getRoleUserName(currentRole)
+      description: `Tarefa "${newTask.title}"${newTask.assignedTo ? ` atribuída a ${newTask.assignedTo}` : ''} para vencimento em ${newTask.dueDate}.`,
+      author: newTask.createdBy || getRoleUserName(currentRole)
     })
 
     crmService.createTask(newTask).catch(err => console.error('[CRM] createTask error:', err))

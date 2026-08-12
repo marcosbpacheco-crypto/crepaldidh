@@ -1,11 +1,12 @@
 'use client'
 
 import { useAlerts } from './context/AlertsContext'
-import { Bell, AlertTriangle, CheckCheck, Calendar, FileText, Building2, Briefcase, CheckCircle2 } from 'lucide-react'
+import { Bell, AlertTriangle, CheckCheck, Calendar, FileText, Building2, Briefcase, CheckCircle2, UserRound } from 'lucide-react'
 
 const ALERT_ICONS: Record<string, any> = {
   project_delayed: Briefcase,
   task_overdue: AlertTriangle,
+  task_assigned: UserRound,
   client_no_interaction: Building2,
   contract_expiring: FileText,
   document_pending: FileText,
@@ -37,7 +38,7 @@ export default function AlertsPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Alertas Operacionais</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Alertas</h1>
           <p className="text-slate-500 text-sm mt-0.5">{alerts.length} alerta(s) · {unreadCount} não lido(s)</p>
         </div>
         {unreadCount > 0 && (

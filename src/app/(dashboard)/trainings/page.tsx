@@ -54,7 +54,7 @@ export default function TrainingsDashboardPage() {
           <div className="flex items-center gap-2 text-violet-600 font-bold text-xs uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" /> Módulo Corporativo
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 mt-1">Treinamentos, Palestras & SIPAT</h1>
+          <h1 className="text-2xl font-bold text-slate-800 mt-1">Treinamentos, Palestras e Workshop</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gerencie capacitações, presença digital, emissão de certificados e NPS</p>
         </div>
         

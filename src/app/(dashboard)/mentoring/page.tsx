@@ -64,7 +64,7 @@ export default function MentoringPage() {
             <Brain className="w-6 h-6 text-violet-600" />
             <span className="text-sm font-semibold text-violet-600 uppercase tracking-wider">Desenvolvimento Humano</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Mentorias & PDI</h1>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Mentorias</h1>
           <p className="text-slate-500 mt-1">Gerencie o desenvolvimento de líderes e colaboradores</p>
         </div>
         <div className="flex gap-3">

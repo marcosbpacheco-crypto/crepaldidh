@@ -56,7 +56,7 @@ function CrmMainContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-            Gestão Comercial (CRM)
+            Gestão Comercial
           </h1>
           <p className="text-slate-400 text-xs mt-1">Acompanhe funil de prospecção, emita propostas oficiais e veja histórico de relacionamento da CrepaldiDH.</p>
         </div>

@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useAssessoria, type Diagnostico, type Okr, type Swot, type PlanoAcao, type Kpi } from './context/AssessoriaContext'
+import { useState } from 'react'
+import { useAssessoria } from './context/AssessoriaContext'
+import { AssessoriaDashboard } from './components/AssessoriaDashboard'
 import {
-  Search, Plus, X, Check, Trash2, Edit2, AlertTriangle,
+  Search, Plus, X, Check, Trash2, AlertTriangle,
   Target, Layers, BarChart3, ClipboardList, Zap, Building2,
-  TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown,
+  TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown, LayoutDashboard,
 } from 'lucide-react'
 
 const TABS = [
+  { key: 'dashboard', label: 'Indicadores', icon: <LayoutDashboard className="w-4 h-4" /> },
   { key: 'diagnosticos', label: 'Diagnóstico', icon: <ClipboardList className="w-4 h-4" /> },
   { key: 'okr', label: 'OKR', icon: <Target className="w-4 h-4" /> },
   { key: 'swot', label: 'Matriz SWOT', icon: <Layers className="w-4 h-4" /> },
@@ -18,64 +20,66 @@ const TABS = [
 
 export default function AssessoriaPage() {
   const ctx = useAssessoria()
-  const [tab, setTab] = useState('diagnosticos')
+  const [tab, setTab] = useState('dashboard')
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
 
-  const showAddButton = ['diagnosticos', 'okr', 'swot', 'plano_acao', 'kpi'].includes(tab)
+  const showAddButton = tab !== 'dashboard'
+  const showSearch = tab !== 'dashboard'
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Building2 className="w-5 h-5 text-slate-600" />
-        <h1 className="text-lg font-black text-slate-800">ASSESSORIA EMPRESARIAL</h1>
-        <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[9px] font-bold text-slate-500">FERRAMENTAS</span>
-      </div>
-
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
-          <p className="text-[9px] font-semibold text-slate-400 uppercase">Diagnósticos</p>
-          <p className="text-lg font-black text-slate-800">{ctx.diagnosticos.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
-          <p className="text-[9px] font-semibold text-slate-400 uppercase">OKRs Ativos</p>
-          <p className="text-lg font-black text-brand-teal">{ctx.okrs.filter(o => o.status === 'ativo').length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
-          <p className="text-[9px] font-semibold text-slate-400 uppercase">Planos de Ação</p>
-          <p className="text-lg font-black text-amber-600">{ctx.planosAcao.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
-          <p className="text-[9px] font-semibold text-slate-400 uppercase">Indicadores (KPI)</p>
-          <p className="text-lg font-black text-blue-600">{ctx.kpis.length}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-3.5 py-2 text-[11px] font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
-              tab === t.key ? 'bg-brand-teal/10 border-brand-teal/30 text-brand-teal shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'
-            }`}>
-            {t.icon}{t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Search + Add */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Building2 className="w-6 h-6 text-brand-teal" />
+            <span className="text-sm font-semibold text-brand-teal uppercase tracking-wider">Consultoria & Estratégia</span>
+          </div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Assessoria Organizacional</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Diagnósticos, OKRs, matriz SWOT, planos de ação e indicadores</p>
         </div>
         {showAddButton && (
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-teal text-white text-[10px] font-bold rounded-xl hover:bg-brand-teal/90 transition-all"><Plus className="w-3.5 h-3.5" /> Novo</button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-brand-teal text-white rounded-xl font-bold text-xs hover:bg-brand-teal/90 transition-all shadow-lg shadow-brand-teal/20">
+            <Plus className="w-4 h-4" />
+            Novo Registro
+          </button>
         )}
       </div>
 
+      {/* Navigation Tab Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-slate-100">
+        {TABS.map(t => {
+          const isActive = tab === t.key
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-5 py-3 rounded-t-xl font-bold text-xs flex items-center gap-2 transition-all flex-shrink-0 border-b-2 -mb-[1px] ${
+                isActive
+                  ? 'border-brand-teal text-brand-teal bg-brand-teal/5'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Search */}
+      {showSearch && (
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="w-full pl-8 pr-3 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+          </div>
+        </div>
+      )}
+
       {/* Tab Content */}
+      {tab === 'dashboard' && <AssessoriaDashboard />}
       {tab === 'diagnosticos' && <DiagnosticosTab ctx={ctx} search={search} />}
       {tab === 'okr' && <OkrsTab ctx={ctx} search={search} />}
       {tab === 'swot' && <SwotTab ctx={ctx} search={search} />}
