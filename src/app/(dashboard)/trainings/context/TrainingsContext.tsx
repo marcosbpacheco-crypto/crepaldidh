@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingService } from '@/services/trainingService'
+import { calendarService } from '@/services/calendarService'
+import type { TrainingTypeItem, TrainingTypeMaterial, TrainingTimelineStep, TrainingTargetType } from '@/types/trainings'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -40,11 +42,13 @@ export interface SipatDay {
 
 export interface TrainingEvent {
   id: string
-  companyId: string
-  companyName: string
+  companyId?: string
+  companyName?: string
   projectId?: string
   projectName?: string
   sipatProgramId?: string
+  trainingTypeId?: string
+  targetType?: TrainingTargetType
   type: TrainingType
   name: string
   theme: string
@@ -137,6 +141,9 @@ interface TrainingsContextType {
   feedbacks: TrainingFeedback[]
   materials: TrainingMaterial[]
   reports: TrainingReport[]
+  trainingTypes: TrainingTypeItem[]
+  typeMaterials: TrainingTypeMaterial[]
+  timelineSteps: TrainingTimelineStep[]
 
   // Computed KPIs
   scheduledEvents: number
@@ -181,6 +188,18 @@ interface TrainingsContextType {
   updateSipatStatus: (id: string, status: SipatStatus) => void
   deleteSipatProgram: (id: string) => void
 
+  // Mutators - Training Types (catálogo)
+  addTrainingType: (t: Omit<TrainingTypeItem, 'id' | 'createdAt'>) => void
+  updateTrainingType: (id: string, updates: Partial<TrainingTypeItem>) => void
+  deleteTrainingType: (id: string) => void
+  addTypeMaterial: (m: Omit<TrainingTypeMaterial, 'id' | 'createdAt'>) => void
+  deleteTypeMaterial: (id: string) => void
+
+  // Mutators - Timeline
+  addTimelineStep: (s: Omit<TrainingTimelineStep, 'id' | 'createdAt'>) => void
+  updateTimelineStep: (id: string, updates: Partial<TrainingTimelineStep>) => void
+  deleteTimelineStep: (id: string) => void
+
   // AI Helpers
   generateAILecturesThemes: (clientIndustry: string) => Promise<string[]>
   generateAILectureScript: (theme: string) => Promise<string>
@@ -219,6 +238,9 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { data: materials = [] } = useQuery({ queryKey: ['trainings', 'materials'], queryFn: () => trainingService.listMaterials('') })
   const { data: reports = [] } = useQuery({ queryKey: ['trainings', 'reports'], queryFn: () => trainingService.listReports() })
   const { data: sipatPrograms = [] } = useQuery({ queryKey: ['trainings', 'sipats'], queryFn: () => trainingService.listSipats() })
+  const { data: trainingTypes = [] } = useQuery({ queryKey: ['trainings', 'types'], queryFn: () => trainingService.listTrainingTypes() })
+  const { data: typeMaterials = [] } = useQuery({ queryKey: ['trainings', 'type-materials'], queryFn: () => trainingService.listTypeMaterials() })
+  const { data: timelineSteps = [] } = useQuery({ queryKey: ['trainings', 'timeline'], queryFn: () => trainingService.listTimelineSteps() })
 
   // Computed KPIs
   const scheduledEvents = events.filter(e => e.status === 'agendado' || e.status === 'planejado').length
@@ -266,6 +288,15 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addMatMut = useMutation({ mutationFn: (i: any) => trainingService.createMaterial(i), onSuccess: invalidate })
   const addSipatMut = useMutation({ mutationFn: (i: any) => trainingService.createSipat(i), onSuccess: invalidate })
 
+  const addTypeMut = useMutation({ mutationFn: (i: any) => trainingService.createTrainingType(i), onSuccess: invalidate })
+  const updateTypeMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => trainingService.updateTrainingType(id, i), onSuccess: invalidate })
+  const deleteTypeMut = useMutation({ mutationFn: (id: string) => trainingService.removeTrainingType(id), onSuccess: invalidate })
+  const addTypeMatMut = useMutation({ mutationFn: (i: any) => trainingService.createTypeMaterial(i), onSuccess: invalidate })
+  const deleteTypeMatMut = useMutation({ mutationFn: (id: string) => trainingService.removeTypeMaterial(id), onSuccess: invalidate })
+  const addTimelineMut = useMutation({ mutationFn: (i: any) => trainingService.createTimelineStep(i), onSuccess: invalidate })
+  const updateTimelineMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => trainingService.updateTimelineStep(id, i), onSuccess: invalidate })
+  const deleteTimelineMut = useMutation({ mutationFn: (id: string) => trainingService.removeTimelineStep(id), onSuccess: invalidate })
+
   const updateCache = (key: string[], updater: (old: any[]) => any[]) => {
     qc.setQueryData(key, (old: any) => Array.isArray(old) ? updater(old) : old)
   }
@@ -275,12 +306,15 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const ne: TrainingEvent = { ...e, id: `tr-event-${Date.now()}`, createdAt: new Date().toISOString() }
     updateCache(['trainings', 'events'], old => [ne, ...old])
     addEventMut.mutate(ne as any)
+    syncEventToCalendar(ne)
     return ne
   }
 
   const updateEvent = (id: string, updates: Partial<TrainingEvent>) => {
     updateCache(['trainings', 'events'], old => old.map((e: any) => e.id === id ? { ...e, ...updates } : e))
     updateEventMut.mutate({ id, ...updates } as any)
+    const cur = events.find(e => e.id === id)
+    if (cur) syncEventToCalendar({ ...cur, ...updates })
   }
 
   const deleteEvent = (id: string) => {
@@ -336,7 +370,7 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (exist) return exist
     const nc: TrainingCertificate = {
       id: `tcert-${Date.now()}`, participantId, participantName: part.name, eventId, eventName: ev.name,
-      clientName: ev.companyName, hours: ev.hoursDuration, facilitator: ev.facilitator, date: ev.eventDate,
+      clientName: ev.companyName || ev.targetAudience || '—', hours: ev.hoursDuration, facilitator: ev.facilitator, date: ev.eventDate,
       validationCode: `VAL-CDH-${Date.now().toString().slice(-8)}`, issuedAt: new Date().toISOString()
     }
     updateCache(['trainings', 'certificates'], old => [nc, ...old])
@@ -352,7 +386,7 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .filter(p => !certificates.some(c => c.participantId === p.id && c.eventId === eventId))
       .map((p, index) => ({
         id: `tcert-${Date.now()}-${index}`, participantId: p.id, participantName: p.name, eventId,
-        eventName: ev.name, clientName: ev.companyName, hours: ev.hoursDuration, facilitator: ev.facilitator,
+        eventName: ev.name, clientName: ev.companyName || ev.targetAudience || '—', hours: ev.hoursDuration, facilitator: ev.facilitator,
         date: ev.eventDate, validationCode: `VAL-CDH-${(Date.now() + index).toString().slice(-8)}`, issuedAt: new Date().toISOString()
       }))
     updateCache(['trainings', 'certificates'], old => [...newCerts, ...old])
@@ -402,6 +436,99 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteSipatProgram = (id: string) => {
     updateCache(['trainings', 'sipats'], old => old.filter((s: any) => s.id !== id))
+  }
+
+  // ==========================================
+  // CALENDAR SYNC (via API direta — TrainingsProvider está acima do CalendarProvider)
+  // ==========================================
+  const syncEventToCalendar = useCallback((ev: TrainingEvent) => {
+    const typeMap: Record<string, string> = {
+      'Palestra': 'lecture',
+      'Treinamento': 'training',
+      'Workshop': 'training',
+      'SIPAT': 'sipat',
+      'Capacitação': 'training',
+      'Imersão': 'training',
+      'Mentoria coletiva': 'mentoring',
+    }
+    const statusMap: Record<string, string> = {
+      'planejado': 'scheduled',
+      'agendado': 'scheduled',
+      'em_divulgacao': 'scheduled',
+      'realizado': 'completed',
+      'concluido': 'completed',
+      'cancelado': 'canceled',
+      'reagendado': 'rescheduled',
+    }
+    const colors = ['#f97316', '#6366f1', '#22c55e', '#eab308', '#ef4444']
+    calendarService.create({
+      title: `${ev.name} — ${ev.type}`,
+      type: (typeMap[ev.type] || 'training') as any,
+      description: ev.objective || ev.theme || undefined,
+      companyId: ev.companyId as any,
+      companyName: ev.companyName,
+      projectId: ev.projectId as any,
+      projectName: ev.projectName,
+      responsible: ev.facilitator,
+      location: ev.location,
+      eventDate: ev.eventDate,
+      startTime: ev.startTime,
+      endTime: ev.endTime,
+      allDay: false,
+      status: statusMap[ev.status] as any,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      reminderMinutes: 15,
+    }).catch(() => {})
+  }, [])
+
+  // ==========================================
+  // TRAINING TYPES (catálogo)
+  // ==========================================
+  const addTrainingType = (t: Omit<TrainingTypeItem, 'id' | 'createdAt'>) => {
+    const nt: TrainingTypeItem = { ...t, id: `ttype-${Date.now()}`, active: t.active ?? true, createdAt: new Date().toISOString() }
+    updateCache(['trainings', 'types'], old => [nt, ...old])
+    addTypeMut.mutate(nt as any)
+  }
+
+  const updateTrainingType = (id: string, updates: Partial<TrainingTypeItem>) => {
+    updateCache(['trainings', 'types'], old => old.map((t: any) => t.id === id ? { ...t, ...updates } : t))
+    updateTypeMut.mutate({ id, ...updates } as any)
+  }
+
+  const deleteTrainingType = (id: string) => {
+    updateCache(['trainings', 'types'], old => old.filter((t: any) => t.id !== id))
+    updateCache(['trainings', 'type-materials'], old => old.filter((m: any) => m.trainingTypeId !== id))
+    deleteTypeMut.mutate(id)
+  }
+
+  const addTypeMaterial = (m: Omit<TrainingTypeMaterial, 'id' | 'createdAt'>) => {
+    const nm: TrainingTypeMaterial = { ...m, id: `tmat-${Date.now()}`, createdAt: new Date().toISOString() }
+    updateCache(['trainings', 'type-materials'], old => [nm, ...old])
+    addTypeMatMut.mutate(nm as any)
+  }
+
+  const deleteTypeMaterial = (id: string) => {
+    updateCache(['trainings', 'type-materials'], old => old.filter((m: any) => m.id !== id))
+    deleteTypeMatMut.mutate(id)
+  }
+
+  // ==========================================
+  // TIMELINE por evento
+  // ==========================================
+  const addTimelineStep = (s: Omit<TrainingTimelineStep, 'id' | 'createdAt'>) => {
+    const ns: TrainingTimelineStep = { ...s, id: `tl-${Date.now()}`, sortOrder: s.sortOrder ?? 0, createdAt: new Date().toISOString() }
+    updateCache(['trainings', 'timeline'], old => [ns, ...old])
+    addTimelineMut.mutate(ns as any)
+  }
+
+  const updateTimelineStep = (id: string, updates: Partial<TrainingTimelineStep>) => {
+    updateCache(['trainings', 'timeline'], old => old.map((s: any) => s.id === id ? { ...s, ...updates } : s))
+    updateTimelineMut.mutate({ id, ...updates } as any)
+  }
+
+  const deleteTimelineStep = (id: string) => {
+    updateCache(['trainings', 'timeline'], old => old.filter((s: any) => s.id !== id))
+    deleteTimelineMut.mutate(id)
   }
 
   // AI helper functions
@@ -489,6 +616,9 @@ Total de participantes: ${totalP} | Presença física: ${presenceP} (${totalP > 
         feedbacks,
         materials,
         reports,
+        trainingTypes,
+        typeMaterials,
+        timelineSteps,
         scheduledEvents,
         completedEvents,
         completedLectures,
@@ -516,6 +646,14 @@ Total de participantes: ${totalP} | Presença física: ${presenceP} (${totalP > 
         addSipatProgram,
         updateSipatStatus,
         deleteSipatProgram,
+        addTrainingType,
+        updateTrainingType,
+        deleteTrainingType,
+        addTypeMaterial,
+        deleteTypeMaterial,
+        addTimelineStep,
+        updateTimelineStep,
+        deleteTimelineStep,
         generateAILecturesThemes,
         generateAILectureScript,
         generateAIEmailInvite,

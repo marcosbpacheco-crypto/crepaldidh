@@ -1,4 +1,4 @@
-import type { SipatProgram, TrainingEvent, TrainingParticipant, TrainingCertificate, TrainingFeedback, TrainingMaterial, TrainingReport } from '@/types/trainings'
+import type { SipatProgram, TrainingEvent, TrainingParticipant, TrainingCertificate, TrainingFeedback, TrainingMaterial, TrainingReport, TrainingTypeItem, TrainingTypeMaterial, TrainingTimelineStep } from '@/types/trainings'
 import type { SipatDay } from '@/types/trainings'
 
 const BASE = '/api/prisma/trainings'
@@ -120,6 +120,12 @@ export const trainingService = {
     })
     return data.material
   },
+  async removeMaterial(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'material', id }),
+    })
+  },
 
   async listReports(): Promise<TrainingReport[]> {
     const data = await api(BASE)
@@ -150,21 +156,83 @@ export const trainingService = {
     })
     return data.sipat
   },
+
+  // ---- Catálogo de tipos ----
+  async listTrainingTypes(): Promise<TrainingTypeItem[]> {
+    const data = await api(BASE)
+    return (data.trainingTypes || []).map(mtt)
+  },
+  async createTrainingType(input: Partial<TrainingTypeItem>): Promise<TrainingTypeItem> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'training_type', ...input }),
+    })
+    return mtt(data.trainingType)
+  },
+  async updateTrainingType(id: string, input: Partial<TrainingTypeItem>): Promise<TrainingTypeItem> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'training_type', id, ...input }),
+    })
+    return mtt(data.trainingType)
+  },
+  async removeTrainingType(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'training_type', id }),
+    })
+  },
+
+  // ---- Materiais do catálogo ----
+  async listTypeMaterials(): Promise<TrainingTypeMaterial[]> {
+    const data = await api(BASE)
+    return (data.typeMaterials || []).map(mtm)
+  },
+  async createTypeMaterial(input: Partial<TrainingTypeMaterial>): Promise<TrainingTypeMaterial> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'type_material', ...input }),
+    })
+    return mtm(data.typeMaterial)
+  },
+  async removeTypeMaterial(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'type_material', id }),
+    })
+  },
+
+  // ---- Linha do tempo ----
+  async listTimelineSteps(eventId?: string): Promise<TrainingTimelineStep[]> {
+    const data = await api(BASE)
+    const all: TrainingTimelineStep[] = (data.timelineSteps || []).map(mtl)
+    return eventId ? all.filter(t => t.eventId === eventId) : all
+  },
+  async createTimelineStep(input: Partial<TrainingTimelineStep>): Promise<TrainingTimelineStep> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'timeline', ...input }),
+    })
+    return mtl(data.timeline)
+  },
+  async updateTimelineStep(id: string, input: Partial<TrainingTimelineStep>): Promise<TrainingTimelineStep> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'timeline', id, ...input }),
+    })
+    return mtl(data.timeline)
+  },
+  async removeTimelineStep(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'timeline', id }),
+    })
+  },
 }
 
-function me(r: any): TrainingEvent { return { ...r, companyName: r.company_name, projectName: r.project_name, sipatProgramId: r.sipat_program_id, targetAudience: r.target_audience, eventDate: r.event_date, startTime: r.start_time, endTime: r.end_time, hoursDuration: r.hours_duration, expectedParticipants: r.expected_participants, createdAt: r.created_at } }
+function me(r: any): TrainingEvent { return { ...r, companyName: r.company_name, projectName: r.project_name, sipatProgramId: r.sipat_program_id, trainingTypeId: r.training_type_id, targetType: r.target_type, targetAudience: r.target_audience, eventDate: r.event_date, startTime: r.start_time, endTime: r.end_time, hoursDuration: r.hours_duration, expectedParticipants: r.expected_participants, createdAt: r.created_at } }
 function mp(r: any): TrainingParticipant { return { ...r, eventId: r.event_id, crmContactId: r.crm_contact_id, companyName: r.company_name, attendanceStatus: r.attendance_status, entryTime: r.entry_time, signatureSimple: r.signature_simple } }
 function mc(r: any): TrainingCertificate { return { ...r, participantId: r.participant_id, participantName: r.participant_name, eventId: r.event_id, eventName: r.event_name, clientName: r.client_name, validationCode: r.validation_code, pdfUrl: r.pdf_url, issuedAt: r.issued_at } }
-
-function meRow(r: any) {
-  const { companyName, projectName, sipatProgramId, targetAudience, eventDate, startTime, endTime, hoursDuration, expectedParticipants, createdAt, ...rest } = r
-  return { ...rest, company_name: r.companyName, project_name: r.projectName, sipat_program_id: r.sipatProgramId, target_audience: r.targetAudience, event_date: r.eventDate, start_time: r.startTime, end_time: r.endTime, hours_duration: r.hoursDuration, expected_participants: r.expectedParticipants, created_at: r.createdAt }
-}
-function mpRow(r: any) {
-  const { eventId, crmContactId, companyName, attendanceStatus, entryTime, signatureSimple, ...rest } = r
-  return { ...rest, event_id: r.eventId, crm_contact_id: r.crmContactId, company_name: r.companyName, attendance_status: r.attendanceStatus, entry_time: r.entryTime, signature_simple: r.signatureSimple }
-}
-function mcRow(r: any) {
-  const { participantId, participantName, eventId, eventName, clientName, validationCode, pdfUrl, issuedAt, ...rest } = r
-  return { ...rest, participant_id: r.participantId, participant_name: r.participantName, event_id: r.eventId, event_name: r.eventName, client_name: r.clientName, validation_code: r.validationCode, pdf_url: r.pdfUrl, issued_at: r.issuedAt }
-}
+function mtt(r: any): TrainingTypeItem { return { ...r, targetType: r.target_type, hoursDuration: r.hours_duration, materials: (r.training_type_materials || []).map(mtm) } }
+function mtm(r: any): TrainingTypeMaterial { return { ...r, trainingTypeId: r.training_type_id, fileUrl: r.file_url } }
+function mtl(r: any): TrainingTimelineStep { return { ...r, eventId: r.event_id, plannedDate: r.planned_date, completedDate: r.completed_date, sortOrder: r.sort_order } }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const [events, sipatPrograms] = await Promise.all([
+    const [events, sipatPrograms, trainingTypes, typeMaterials, timelineSteps] = await Promise.all([
       prisma.training_events.findMany({
         where: { deleted_at: null },
         include: {
@@ -12,12 +12,16 @@ export async function GET() {
           training_certificates: true,
           training_materials: true,
           training_reports: true,
+          training_timeline_steps: { orderBy: { sort_order: 'asc' } },
         },
         orderBy: { created_at: 'desc' },
       }),
       prisma.sipat_programs.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.training_types.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.training_type_materials.findMany({ orderBy: { created_at: 'desc' } }),
+      prisma.training_timeline_steps.findMany({ orderBy: { sort_order: 'asc' } }),
     ])
-    return NextResponse.json({ events, sipatPrograms })
+    return NextResponse.json({ events, sipatPrograms, trainingTypes, typeMaterials, timelineSteps })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
@@ -30,13 +34,16 @@ export async function POST(request: Request) {
 
     if (_type === 'event' || !_type) {
       const eventId = id || crypto.randomUUID()
+      const company_id = data.companyId || data.company_id || null
       const event = await prisma.training_events.upsert({
         where: { id: eventId },
         create: {
           id: eventId,
-          company_id: data.companyId || data.company_id,
+          company_id,
           project_id: data.projectId || data.project_id || null,
           sipat_program_id: data.sipatProgramId || data.sipat_program_id || null,
+          training_type_id: data.trainingTypeId || data.training_type_id || null,
+          target_type: data.targetType || data.target_type || 'empresa',
           type: data.type,
           name: data.name,
           theme: data.theme,
@@ -56,9 +63,11 @@ export async function POST(request: Request) {
           tenant_id: data.tenantId || data.tenant_id || null,
         },
         update: {
-          company_id: data.companyId || data.company_id,
+          company_id,
           project_id: data.projectId || data.project_id || null,
           sipat_program_id: data.sipatProgramId || data.sipat_program_id || null,
+          training_type_id: data.trainingTypeId || data.training_type_id || null,
+          target_type: data.targetType || data.target_type || 'empresa',
           type: data.type,
           name: data.name,
           theme: data.theme,
@@ -79,6 +88,81 @@ export async function POST(request: Request) {
         },
       })
       return NextResponse.json({ event })
+    }
+
+    if (_type === 'training_type') {
+      const ttId = id || crypto.randomUUID()
+      const trainingType = await prisma.training_types.upsert({
+        where: { id: ttId },
+        create: {
+          id: ttId,
+          name: data.name,
+          description: data.description || null,
+          category: data.category || 'Treinamento',
+          target_type: data.targetType || data.target_type || 'empresa',
+          hours_duration: data.hoursDuration ?? data.hours_duration ?? 0,
+          active: data.active ?? true,
+        },
+        update: {
+          name: data.name,
+          description: data.description || null,
+          category: data.category || 'Treinamento',
+          target_type: data.targetType || data.target_type || 'empresa',
+          hours_duration: data.hoursDuration ?? data.hours_duration ?? 0,
+          active: data.active ?? true,
+        },
+      })
+      return NextResponse.json({ trainingType })
+    }
+
+    if (_type === 'type_material') {
+      const tmId = id || crypto.randomUUID()
+      const typeMaterial = await prisma.training_type_materials.upsert({
+        where: { id: tmId },
+        create: {
+          id: tmId,
+          training_type_id: data.trainingTypeId || data.training_type_id,
+          name: data.name,
+          type: data.type,
+          file_url: data.fileUrl || data.file_url || null,
+        },
+        update: {
+          training_type_id: data.trainingTypeId || data.training_type_id,
+          name: data.name,
+          type: data.type,
+          file_url: data.fileUrl || data.file_url || null,
+        },
+      })
+      return NextResponse.json({ typeMaterial })
+    }
+
+    if (_type === 'timeline') {
+      const tlId = id || crypto.randomUUID()
+      const timeline = await prisma.training_timeline_steps.upsert({
+        where: { id: tlId },
+        create: {
+          id: tlId,
+          event_id: data.eventId || data.event_id,
+          stage: data.stage,
+          title: data.title,
+          status: data.status || 'pendente',
+          planned_date: data.plannedDate || data.planned_date || null,
+          completed_date: data.completedDate || data.completed_date || null,
+          notes: data.notes || null,
+          sort_order: data.sortOrder ?? data.sort_order ?? 0,
+        },
+        update: {
+          event_id: data.eventId || data.event_id,
+          stage: data.stage,
+          title: data.title,
+          status: data.status || 'pendente',
+          planned_date: data.plannedDate || data.planned_date || null,
+          completed_date: data.completedDate || data.completed_date || null,
+          notes: data.notes || null,
+          sort_order: data.sortOrder ?? data.sort_order ?? 0,
+        },
+      })
+      return NextResponse.json({ timeline })
     }
 
     if (_type === 'participant') {
@@ -262,6 +346,37 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ participant })
     }
 
+    if (_type === 'timeline') {
+      const timeline = await prisma.training_timeline_steps.update({
+        where: { id },
+        data: {
+          ...(data.stage !== undefined && { stage: data.stage }),
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.status !== undefined && { status: data.status }),
+          ...(data.plannedDate !== undefined && { planned_date: data.plannedDate ? new Date(data.plannedDate) : null }),
+          ...(data.completedDate !== undefined && { completed_date: data.completedDate ? new Date(data.completedDate) : null }),
+          ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.sortOrder !== undefined && { sort_order: data.sortOrder }),
+        },
+      })
+      return NextResponse.json({ timeline })
+    }
+
+    if (_type === 'training_type') {
+      const trainingType = await prisma.training_types.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.category !== undefined && { category: data.category }),
+          ...(data.targetType !== undefined && { target_type: data.targetType }),
+          ...(data.hoursDuration !== undefined && { hours_duration: data.hoursDuration }),
+          ...(data.active !== undefined && { active: data.active }),
+        },
+      })
+      return NextResponse.json({ trainingType })
+    }
+
     const event = await prisma.training_events.update({
       where: { id },
       data: {
@@ -281,6 +396,9 @@ export async function PATCH(request: Request) {
         ...(data.cost !== undefined && { cost: data.cost }),
         ...(data.status && { status: data.status }),
         ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.targetType !== undefined && { target_type: data.targetType }),
+        ...(data.trainingTypeId !== undefined && { training_type_id: data.trainingTypeId || null }),
+        ...(data.companyId !== undefined && { company_id: data.companyId || null }),
       },
     })
     return NextResponse.json({ event })
@@ -326,6 +444,21 @@ export async function DELETE(request: Request) {
 
     if (_type === 'report') {
       await prisma.training_reports.delete({ where: { id } })
+      return NextResponse.json({ success: true })
+    }
+
+    if (_type === 'timeline') {
+      await prisma.training_timeline_steps.delete({ where: { id } })
+      return NextResponse.json({ success: true })
+    }
+
+    if (_type === 'training_type') {
+      await prisma.training_types.delete({ where: { id } })
+      return NextResponse.json({ success: true })
+    }
+
+    if (_type === 'type_material') {
+      await prisma.training_type_materials.delete({ where: { id } })
       return NextResponse.json({ success: true })
     }
 

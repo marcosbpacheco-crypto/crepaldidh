@@ -151,7 +151,7 @@ export default function EventsPage() {
           email: parts[1]?.trim() || '',
           role: parts[2]?.trim() || '',
           sector: parts[3]?.trim() || '',
-          companyName: selectedEvent.companyName,
+          companyName: selectedEvent.companyName || selectedEvent.targetAudience || '—',
           attendanceStatus: 'ausente'
         })
       }
@@ -165,7 +165,7 @@ export default function EventsPage() {
   const openEditEvent = (ev: TrainingEvent) => {
     setEditingEvent(ev)
     setEventForm({
-      companyId: ev.companyId,
+      companyId: ev.companyId || '',
       projectId: ev.projectId || '',
       projectName: ev.projectName || '',
       type: ev.type,

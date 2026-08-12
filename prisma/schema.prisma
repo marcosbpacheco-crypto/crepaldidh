@@ -2232,9 +2232,11 @@ model training_certificates {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model training_events {
   id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  company_id            String                  @db.Uuid
+  company_id            String?                 @db.Uuid
   project_id            String?                 @db.Uuid
   sipat_program_id      String?                 @db.Uuid
+  training_type_id      String?                 @db.Uuid
+  target_type           String?                 @default("empresa") @db.VarChar(20)
   type                  String                  @db.VarChar(50)
   name                  String                  @db.VarChar(255)
   theme                 String                  @db.VarChar(255)
@@ -2258,14 +2260,16 @@ model training_events {
   sipat_schedule        sipat_schedule[]
   training_attendance   training_attendance[]
   training_certificates training_certificates[]
-  crm_companies         crm_companies           @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  crm_companies         crm_companies?          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   nr01_projects         nr01_projects?          @relation(fields: [project_id], references: [id], onUpdate: NoAction)
   sipat_programs        sipat_programs?         @relation(fields: [sipat_program_id], references: [id], onUpdate: NoAction)
+  training_types        training_types?         @relation(fields: [training_type_id], references: [id], onUpdate: NoAction)
   profiles              profiles?               @relation(fields: [tenant_id], references: [id], onUpdate: NoAction)
   training_feedbacks    training_feedbacks[]
   training_materials    training_materials[]
   training_participants training_participants[]
   training_reports      training_reports[]
+  training_timeline_steps training_timeline_steps[]
 
   @@index([company_id], map: "idx_training_events_company")
   @@index([company_id], map: "idx_training_events_company_id")
@@ -2274,6 +2278,8 @@ model training_events {
   @@index([project_id], map: "idx_training_events_project_id")
   @@index([status], map: "idx_training_events_status")
   @@index([tenant_id], map: "idx_training_events_tenant_id")
+  @@index([training_type_id], map: "idx_training_events_training_type")
+  @@index([target_type], map: "idx_training_events_target_type")
   @@schema("public")
 }
 
@@ -2344,6 +2350,56 @@ model training_reports {
   generated_at      DateTime?       @default(now()) @db.Timestamptz(6)
   training_events   training_events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// Catálogo de tipos de treinamento cadastráveis (Treinamento | Palestra | Workshop)
+model training_types {
+  id             String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String                   @db.VarChar(255)
+  description    String?
+  category       String                   @default("Treinamento") @db.VarChar(50)
+  target_type    String                   @default("empresa") @db.VarChar(20)
+  hours_duration Decimal?                 @default(0) @db.Decimal(5, 2)
+  active         Boolean?                 @default(true)
+  created_at     DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?                @default(now()) @db.Timestamptz(6)
+  training_events training_events[]
+  training_type_materials training_type_materials[]
+
+  @@schema("public")
+}
+
+/// Materiais vinculados a um tipo cadastrado no catálogo
+model training_type_materials {
+  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  training_type_id String          @db.Uuid
+  name             String          @db.VarChar(255)
+  type             String          @db.VarChar(50)
+  file_url         String?         @db.VarChar(255)
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  training_types   training_types  @relation(fields: [training_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([training_type_id], map: "idx_training_type_materials_typeid")
+  @@schema("public")
+}
+
+/// Linha do tempo do evento (etapas fixas por tipo)
+model training_timeline_steps {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id       String          @db.Uuid
+  stage          String          @db.VarChar(50)
+  title          String          @db.VarChar(255)
+  status         String          @default("pendente") @db.VarChar(20)
+  planned_date   DateTime?       @db.Date
+  completed_date DateTime?       @db.Date
+  notes          String?
+  sort_order     Int             @default(0)
+  created_at     DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?       @default(now()) @db.Timestamptz(6)
+  training_events training_events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([event_id], map: "idx_training_timeline_event")
   @@schema("public")
 }
 
