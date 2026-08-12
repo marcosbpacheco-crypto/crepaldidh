@@ -38,8 +38,8 @@ export default function LoginPage() {
               Evolução Constante
             </span>
             <h1 className="text-5xl font-bold text-white leading-tight mb-6">
-              Potencializando pessoas,<br/> 
-              <span className="text-brand-teal">alavancando negócios.</span>
+              Quem investe em pessoas<br/> 
+              <span className="text-brand-teal">vai mais longe!</span>
             </h1>
             <p className="text-slate-300 text-lg max-w-lg leading-relaxed">
               Gestão estratégica de capital humano para empresas que buscam alta performance e cultura de engajamento.
