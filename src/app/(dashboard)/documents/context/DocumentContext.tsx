@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { documentService } from '@/services/documentService'
-import type { Document as DocT, DocumentVersion as DocVersionT, DocumentAccessLog, DocType, DocVisibility, DocStatus, DocApproval, DocAction } from '@/types/documents'
+import type { Document as DocT, DocumentVersion as DocVersionT, DocumentAccessLog, DocType, DocVisibility, DocStatus, DocApproval, DocAction, KnowledgeTool, KnowledgeDynamic, KnowledgeUsage, KnowledgeLink, KnowledgeFavorite } from '@/types/documents'
 
 // Re-export types (backward compat with pages)
 export type { DocType, DocVisibility, DocStatus, DocApproval, DocAction }
@@ -69,6 +69,23 @@ const FALLBACK_DOC_TYPE = { label: 'Outros', color: 'text-slate-500', bg: 'bg-sl
 const FALLBACK_VISIBILITY = { label: 'Interno', color: 'text-slate-600 bg-slate-100' }
 const FALLBACK_STATUS = { label: 'Rascunho', color: 'text-slate-500 bg-slate-100' }
 
+export const TOOL_CATEGORIES = [
+  'Diagnóstico', 'Mentoria', 'Assessoria Empresarial', 'RH', 'Liderança',
+  'Desenvolvimento', 'Treinamento', 'Cultura', 'Clima', 'Comunicação',
+  'Gestão', 'Personalizada',
+] as const
+
+export const TOOL_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  rascunho: { label: 'Rascunho', color: 'text-slate-500 bg-slate-100' },
+  ativa: { label: 'Ativa', color: 'text-emerald-600 bg-emerald-100' },
+  arquivada: { label: 'Arquivada', color: 'text-slate-400 bg-slate-100' },
+}
+
+export const TOOL_TYPE_SUGGESTIONS = [
+  'Diagnóstico', 'Mapeamento', 'Aplicação prática', 'Guia/Checklist',
+  'Questionário', 'Ferramenta de análise', 'Modelo', 'Jogo/Dinâmica',
+]
+
 function normalizeDocType(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) return 'other'
   const key = value.trim().toLowerCase()
@@ -95,6 +112,8 @@ function getStatusConfig(value: unknown): { label: string; color: string } {
 
 interface DocumentContextType {
   documents: Document[]; versions: DocumentVersion[]; accessLogs: AccessLog[]
+  tools: KnowledgeTool[]; dynamics: KnowledgeDynamic[]
+  usage: KnowledgeUsage[]; links: KnowledgeLink[]; favorites: KnowledgeFavorite[]
   docTypeConfig: typeof DOC_TYPE_CONFIG; visibilityConfig: typeof VISIBILITY_CONFIG; statusConfig: typeof STATUS_CONFIG
   getDocTypeConfig: (value: unknown) => { label: string; color: string; bg: string }
   getVisibilityConfig: (value: unknown) => { label: string; color: string }
@@ -110,6 +129,18 @@ interface DocumentContextType {
   logAccess: (docId: string, userName: string | undefined, action: DocAction) => void
   getAccessLogs: (docId: string) => AccessLog[]
   saveFile: (file: File) => Promise<string>
+  addTool: (t: Omit<KnowledgeTool, 'id' | 'createdAt' | 'updatedAt'>) => void
+  updateTool: (id: string, data: Partial<KnowledgeTool>) => void
+  deleteTool: (id: string) => void
+  addDynamic: (d: Omit<KnowledgeDynamic, 'id' | 'createdAt' | 'updatedAt'>) => void
+  updateDynamic: (id: string, data: Partial<KnowledgeDynamic>) => void
+  deleteDynamic: (id: string) => void
+  addUsage: (u: Omit<KnowledgeUsage, 'id' | 'createdAt'>) => void
+  removeUsage: (id: string) => void
+  addLink: (l: Omit<KnowledgeLink, 'id' | 'createdAt'>) => void
+  removeLink: (id: string) => void
+  addFavorite: (f: Omit<KnowledgeFavorite, 'id' | 'createdAt'>) => void
+  removeFavorite: (id: string) => void
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined)
@@ -121,12 +152,29 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => documentService.list() })
   const { data: versions = [] } = useQuery({ queryKey: ['documents', 'versions'], queryFn: () => documentService.listVersions() })
   const { data: accessLogs = [] } = useQuery({ queryKey: ['documents', 'accessLogs'], queryFn: () => documentService.listAccessLogs() })
+    const { data: tools = [] } = useQuery({ queryKey: ['documents', 'tools'], queryFn: () => documentService.listTools() })
+  const { data: dynamics = [] } = useQuery({ queryKey: ['documents', 'dynamics'], queryFn: () => documentService.listDynamics() })
+  const { data: usage = [] } = useQuery({ queryKey: ['documents', 'usage'], queryFn: () => documentService.listUsage() })
+  const { data: links = [] } = useQuery({ queryKey: ['documents', 'links'], queryFn: () => documentService.listLinks() })
+  const { data: favorites = [] } = useQuery({ queryKey: ['documents', 'favorites'], queryFn: () => documentService.listFavorites() })
 
   const addDocMut = useMutation({ mutationFn: (input: any) => documentService.create(input), onSuccess: invalidate })
   const updateDocMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => documentService.update(id, i), onSuccess: invalidate })
   const deleteDocMut = useMutation({ mutationFn: (id: string) => documentService.remove(id), onSuccess: invalidate })
   const addVerMut = useMutation({ mutationFn: (input: any) => documentService.createVersion(input), onSuccess: invalidate })
   const logAccessMut = useMutation({ mutationFn: (input: any) => documentService.logAccess(input), onSuccess: invalidate })
+  const addToolMut = useMutation({ mutationFn: (input: any) => documentService.createTool(input), onSuccess: invalidate })
+  const updateToolMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => documentService.updateTool(id, i), onSuccess: invalidate })
+  const deleteToolMut = useMutation({ mutationFn: (id: string) => documentService.removeTool(id), onSuccess: invalidate })
+  const addDynMut = useMutation({ mutationFn: (input: any) => documentService.createDynamic(input), onSuccess: invalidate })
+  const updateDynMut = useMutation({ mutationFn: ({ id, ...i }: { id: string } & any) => documentService.updateDynamic(id, i), onSuccess: invalidate })
+  const deleteDynMut = useMutation({ mutationFn: (id: string) => documentService.removeDynamic(id), onSuccess: invalidate })
+  const addUsageMut = useMutation({ mutationFn: (input: any) => documentService.createUsage(input), onSuccess: invalidate })
+  const removeUsageMut = useMutation({ mutationFn: (id: string) => documentService.removeUsage(id), onSuccess: invalidate })
+  const addLinkMut = useMutation({ mutationFn: (input: any) => documentService.createLink(input), onSuccess: invalidate })
+  const removeLinkMut = useMutation({ mutationFn: (id: string) => documentService.removeLink(id), onSuccess: invalidate })
+  const addFavMut = useMutation({ mutationFn: (input: any) => documentService.createFavorite(input), onSuccess: invalidate })
+  const removeFavMut = useMutation({ mutationFn: (id: string) => documentService.removeFavorite(id), onSuccess: invalidate })
 
   const addDocument = useCallback((d: Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'currentVersion'>): Document => {
     const now = new Date().toISOString()
@@ -143,6 +191,54 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteDocument = useCallback((id: string) => {
     deleteDocMut.mutate(id)
   }, [deleteDocMut])
+
+  const addTool = useCallback((t: Omit<KnowledgeTool, 'id' | 'createdAt' | 'updatedAt'>) => {
+    addToolMut.mutate(t)
+  }, [addToolMut])
+
+  const updateTool = useCallback((id: string, data: Partial<KnowledgeTool>) => {
+    updateToolMut.mutate({ id, ...data })
+  }, [updateToolMut])
+
+  const deleteTool = useCallback((id: string) => {
+    deleteToolMut.mutate(id)
+  }, [deleteToolMut])
+
+  const addDynamic = useCallback((d: Omit<KnowledgeDynamic, 'id' | 'createdAt' | 'updatedAt'>) => {
+    addDynMut.mutate(d)
+  }, [addDynMut])
+
+  const updateDynamic = useCallback((id: string, data: Partial<KnowledgeDynamic>) => {
+    updateDynMut.mutate({ id, ...data })
+  }, [updateDynMut])
+
+  const deleteDynamic = useCallback((id: string) => {
+    deleteDynMut.mutate(id)
+  }, [deleteDynMut])
+
+  const addUsage = useCallback((u: Omit<KnowledgeUsage, 'id' | 'createdAt'>) => {
+    addUsageMut.mutate(u)
+  }, [addUsageMut])
+
+  const removeUsage = useCallback((id: string) => {
+    removeUsageMut.mutate(id)
+  }, [removeUsageMut])
+
+  const addLink = useCallback((l: Omit<KnowledgeLink, 'id' | 'createdAt'>) => {
+    addLinkMut.mutate(l)
+  }, [addLinkMut])
+
+  const removeLink = useCallback((id: string) => {
+    removeLinkMut.mutate(id)
+  }, [removeLinkMut])
+
+  const addFavorite = useCallback((f: Omit<KnowledgeFavorite, 'id' | 'createdAt'>) => {
+    addFavMut.mutate(f)
+  }, [addFavMut])
+
+  const removeFavorite = useCallback((id: string) => {
+    removeFavMut.mutate(id)
+  }, [removeFavMut])
 
   const addVersion = useCallback((docId: string, v: Omit<DocumentVersion, 'id' | 'uploadedAt' | 'versionNumber'>): DocumentVersion => {
     const doc = documents.find(d => d.id === docId)
@@ -175,11 +271,16 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <DocumentContext.Provider value={{
-      documents, versions, accessLogs,
+      documents, versions, accessLogs, tools, dynamics, usage, links, favorites,
       docTypeConfig: DOC_TYPE_CONFIG, visibilityConfig: VISIBILITY_CONFIG, statusConfig: STATUS_CONFIG,
       getDocTypeConfig, getVisibilityConfig, getStatusConfig, normalizeDocType,
       addDocument, updateDocument, deleteDocument, addVersion, getVersions,
       getDocumentsByCompany, getDocumentsByProject, logAccess, getAccessLogs, saveFile,
+      addTool, updateTool, deleteTool,
+      addDynamic, updateDynamic, deleteDynamic,
+      addUsage, removeUsage,
+      addLink, removeLink,
+      addFavorite, removeFavorite,
     }}>
       {children}
     </DocumentContext.Provider>

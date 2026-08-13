@@ -1135,6 +1135,136 @@ model documents {
   @@schema("public")
 }
 
+/// Central de Conhecimento — Ferramentas, dinâmicas e materiais de aplicação nos serviços
+model knowledge_tools {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id                 String?   @db.Uuid
+  name                      String    @db.VarChar(255)
+  description               String?   @db.Text
+  finalidade                String?   @db.Text
+  categoria                 String    @default("Personalizada") @db.VarChar(60)
+  tipo                      String?   @db.VarChar(80)
+  servico_relacionado       String?   @db.VarChar(120)
+  publico_alvo              String?   @db.Text
+  duracao_estimada          String?   @db.VarChar(60)
+  objetivo                  String?   @db.Text
+  preparacao                String?   @db.Text
+  passo_a_passo             String?   @db.Text
+  orientacoes               String?   @db.Text
+  cuidados                  String?   @db.Text
+  resultado_esperado        String?   @db.Text
+  materiais                 String?   @db.Text
+  equipamentos              String?   @db.Text
+  documentos_complementares String?   @db.Text
+  status                    String    @default("rascunho") @db.VarChar(20)
+  tags                      String[]
+  services                  Json?     @default("[]")
+  arquivo_principal_url     String?
+  arquivos                  Json?     @default("[]")
+  historico                 Json?     @default("[]")
+  is_client_visible         Boolean   @default(false)
+  versao                    Int       @default(1)
+  origem_id                 String?   @db.Uuid
+  criado_por                String?   @db.VarChar(255)
+  atualizado_por            String?   @db.VarChar(255)
+  created_at                DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([categoria], map: "idx_knowledge_tools_categoria")
+  @@index([status], map: "idx_knowledge_tools_status")
+  @@index([tenant_id], map: "idx_knowledge_tools_tenant")
+  @@schema("public")
+}
+
+/// Central de Conhecimento — Dinâmicas de grupo e interação
+model knowledge_dynamics {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id               String?  @db.Uuid
+  name                    String   @db.VarChar(255)
+  objetivo                String?  @db.Text
+  publico                 String?  @db.Text
+  num_participantes       String?  @db.VarChar(60)
+  duracao                 String?  @db.VarChar(60)
+  dificuldade             String?  @db.VarChar(40)
+  contexto                String?  @db.VarChar(120)
+  materiais               String?  @db.Text
+  preparacao              String?  @db.Text
+  passo_a_passo           String?  @db.Text
+  perguntas_discussao     String?  @db.Text
+  resultado_esperado      String?  @db.Text
+  observacoes_facilitador String?  @db.Text
+  categoria               String   @default("Outro") @db.VarChar(60)
+  tags                    String[]
+  status                  String   @default("rascunho") @db.VarChar(20)
+  is_client_visible       Boolean  @default(false)
+  arquivos                Json?    @default("[]")
+  historico               Json?    @default("[]")
+  versao                  Int      @default(1)
+  origem_id               String?  @db.Uuid
+  criado_por              String?  @db.VarChar(255)
+  atualizado_por          String?  @db.VarChar(255)
+  created_at              DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([categoria], map: "idx_knowledge_dynamics_categoria")
+  @@index([status], map: "idx_knowledge_dynamics_status")
+  @@index([tenant_id], map: "idx_knowledge_dynamics_tenant")
+  @@schema("public")
+}
+
+/// Utilização de recursos (ferramentas/dinâmicas/documentos) em serviços e histórico
+model knowledge_usage {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id     String?   @db.Uuid
+  resource_type String    @db.VarChar(20)
+  resource_id   String    @db.Uuid
+  target_type   String    @db.VarChar(30)
+  target_id     String?   @db.Uuid
+  target_name   String    @db.VarChar(255)
+  client_id     String?   @db.Uuid
+  company_id    String?   @db.Uuid
+  responsavel   String?   @db.VarChar(255)
+  data          DateTime  @default(now()) @db.Date
+  observacao    String?   @db.Text
+  resultado     String?   @db.Text
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([resource_type], map: "idx_knowledge_usage_resourcetype")
+  @@index([resource_id], map: "idx_knowledge_usage_resourceid")
+  @@index([target_type], map: "idx_knowledge_usage_targettype")
+  @@schema("public")
+}
+
+/// Vínculos N:N entre recursos da central (documento ↔ ferramenta/dinâmica/treinamento/...)
+model knowledge_links {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id     String?   @db.Uuid
+  resource_type String    @db.VarChar(20)
+  resource_id   String    @db.Uuid
+  target_type   String    @db.VarChar(30)
+  target_id     String?   @db.Uuid
+  target_name   String    @db.VarChar(255)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([resource_type], map: "idx_knowledge_links_resourcetype")
+  @@index([resource_id], map: "idx_knowledge_links_resourceid")
+  @@index([target_type], map: "idx_knowledge_links_targettype")
+  @@schema("public")
+}
+
+/// Favoritos por usuário
+model knowledge_favorites {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.VarChar(255)
+  resource_type String    @db.VarChar(20)
+  resource_id   String    @db.Uuid
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, resource_type, resource_id])
+  @@index([resource_type], map: "idx_knowledge_favorites_type")
+  @@schema("public")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model financial_accounts_payable {
@@ -1168,6 +1298,7 @@ model financial_accounts_receivable {
   payment_date              DateTime?                  @db.Date
   status                    String?                    @default("pending")
   payment_method_id         String?                    @db.Uuid
+  attachment_url            String?
   notes                     String?
   created_at                DateTime?                  @default(now()) @db.Timestamptz(6)
   crm_companies             crm_companies?             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)

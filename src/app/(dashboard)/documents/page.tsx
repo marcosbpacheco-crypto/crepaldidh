@@ -1,15 +1,33 @@
 ﻿'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { useDocuments, DocType, DocVisibility, DocStatus, DocViewMode, DocType as DocTypeT } from './context/DocumentContext'
+import { useDocuments, DocType, DocVisibility, DocStatus, DocViewMode } from './context/DocumentContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import {
   FileText, Search, Upload, Grid3X3, List, Filter, X, Download,
   Plus, Building2, FolderKanban, Eye, History, Shield, FileUp,
   ChevronDown, Clock, User, Tag, AlertCircle, CheckCircle2,
-  Trash2, ExternalLink, Archive, RotateCcw, Menu, Lock
+  Trash2, ExternalLink, Archive, RotateCcw, Menu, Lock, Hammer, Compass
 } from 'lucide-react'
+import ToolLibrary from './components/ToolLibrary'
+import DynamicLibrary from './components/DynamicLibrary'
+import KnowledgeDashboard from './components/KnowledgeDashboard'
+import CategoryLibrary from './components/CategoryLibrary'
+
+const MAIN_TABS = [
+  { id: 'documentos', label: 'Documentos', icon: FileText },
+  { id: 'ferramentas', label: 'Ferramentas', icon: Hammer },
+  { id: 'dinamicas', label: 'Dinâmicas', icon: Compass },
+  { id: 'modelos', label: 'Modelos', icon: FileText },
+  { id: 'materiais', label: 'Materiais', icon: Tag },
+  { id: 'formularios', label: 'Formulários', icon: FileText },
+  { id: 'avaliacoes', label: 'Avaliações', icon: CheckCircle2 },
+  { id: 'relatorios', label: 'Relatórios', icon: FileText },
+  { id: 'outros', label: 'Outros', icon: Tag },
+] as const
+
+type MainTab = typeof MAIN_TABS[number]['id']
 
 type DocsTab = 'library' | 'byClient' | 'byProject'
 
@@ -37,6 +55,7 @@ export default function DocumentsPage() {
   const { currentUser } = useAdmin()
   const isContractAllowed = currentUser?.roleName === 'Administrador' || currentUser?.roleName === 'Diretor'
   const visibleDocuments = useMemo(() => isContractAllowed ? doc.documents : doc.documents.filter(d => d.type !== 'contract' && d.type !== 'proposal'), [doc.documents, isContractAllowed])
+  const [mainTab, setMainTab] = useState<MainTab>('documentos')
   const [tab, setTab] = useState<DocsTab>('library')
   const [viewMode, setViewMode] = useState<DocViewMode>('cards')
   const [search, setSearch] = useState('')
@@ -252,23 +271,44 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Documentos</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{visibleDocuments.length} documentos cadastrados</p>
+          <h1 className="text-2xl font-black text-slate-800">Central de Conhecimento</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gerencie documentos, ferramentas e dinâmicas</p>
         </div>
         <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all"><Upload className="w-4 h-4" /> Novo Documento</button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-100 pb-1">
-        {([{ id: 'library' as const, label: 'Biblioteca', icon: FileText },
-          { id: 'byClient' as const, label: 'Por Cliente', icon: Building2 },
-          { id: 'byProject' as const, label: 'Por Projeto', icon: FolderKanban },
-        ]).map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all ${tab === t.id ? 'bg-white text-violet-700 border border-b-white border-slate-100 -mb-[1px] shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>
+      {/* Dashboard stats */}
+      <KnowledgeDashboard />
+
+      {/* Main Tabs */}
+      <div className="flex gap-1 border-b border-slate-100 pb-1 overflow-x-auto">
+        {MAIN_TABS.map(t => (
+          <button key={t.id} onClick={() => setMainTab(t.id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-bold whitespace-nowrap transition-all ${mainTab === t.id ? 'bg-white text-violet-700 border border-b-white border-slate-100 -mb-[1px] shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>
             <t.icon className="w-4 h-4" />{t.label}
           </button>
         ))}
       </div>
+
+      {/* Documents sub-tabs */}
+      {mainTab === 'documentos' && (
+        <div className="flex gap-1 border-b border-slate-100 pb-1 mb-4">
+          {([{ id: 'library' as const, label: 'Biblioteca', icon: FileText },
+            { id: 'byClient' as const, label: 'Por Cliente', icon: Building2 },
+            { id: 'byProject' as const, label: 'Por Projeto', icon: FolderKanban },
+          ]).map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all ${tab === t.id ? 'bg-white text-violet-700 border border-b-white border-slate-100 -mb-[1px] shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}>
+              <t.icon className="w-4 h-4" />{t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mainTab === 'ferramentas' && <ToolLibrary />}
+      {mainTab === 'dinamicas' && <DynamicLibrary />}
+      {(mainTab === 'modelos' || mainTab === 'materiais' || mainTab === 'formularios' || mainTab === 'avaliacoes' || mainTab === 'relatorios' || mainTab === 'outros') && (
+        <CategoryLibrary category={mainTab} label={MAIN_TABS.find(t => t.id === mainTab)?.label || mainTab} />
+      )}
+
 
       {/* Library Tab */}
       {tab === 'library' && (
