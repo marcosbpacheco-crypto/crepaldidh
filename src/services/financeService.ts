@@ -162,8 +162,8 @@ function mpm(r: any) {
   return { ...rest, created_at: r.created_at }
 }
 function mrRow(r: any) {
-  const { companyName, contractName, projectName, serviceName, dueDate, paymentDate, paymentMethodId, paymentMethodName, invoiceFileUrl, invoiceNumber, invoiceIssuer, createdAt, ...rest } = r
-  return { ...rest, company_name: r.companyName, contract_name: r.contractName, project_name: r.projectName, service_name: r.serviceName, due_date: r.dueDate, payment_date: r.paymentDate, payment_method_id: r.paymentMethodId, payment_method_name: r.paymentMethodName, invoice_file_url: r.invoiceFileUrl, invoice_number: r.invoiceNumber, invoice_issuer: r.invoiceIssuer, created_at: r.createdAt }
+  const { companyName, contractName, projectName, serviceName, dueDate, paymentDate, paymentMethodId, paymentMethodName, invoiceFileUrl, invoiceNumber, invoiceIssuer, attachmentUrl, createdAt, ...rest } = r
+  return { ...rest, company_name: r.companyName, contract_name: r.contractName, project_name: r.projectName, service_name: r.serviceName, due_date: r.dueDate, payment_date: r.paymentDate, payment_method_id: r.paymentMethodId, payment_method_name: r.paymentMethodName, invoice_file_url: r.invoiceFileUrl, invoice_number: r.invoiceNumber, invoice_issuer: r.invoiceIssuer, attachment_url: r.attachmentUrl, created_at: r.createdAt }
 }
 function mpRow(r: any) {
   const { categoryName, dueDate, paymentDate, attachmentUrl, invoiceFileUrl, invoiceNumber, invoiceIssuer, createdAt, ...rest } = r
@@ -186,7 +186,7 @@ function mbtRow(r: any) {
   return { ...rest, created_at: r.createdAt }
 }
 function mr(r: any): AccountReceivable {
-  return { ...r, companyName: r.company_name, contractName: r.contract_name, projectName: r.project_name, serviceName: r.service_name, dueDate: r.due_date, paymentDate: r.payment_date, paymentMethodId: r.payment_method_id, paymentMethodName: r.payment_method_name, invoiceFileUrl: r.invoice_file_url, invoiceNumber: r.invoice_number, invoiceIssuer: r.invoice_issuer, createdAt: r.created_at }
+  return { ...r, companyName: r.company_name, contractName: r.contract_name, projectName: r.project_name, serviceName: r.service_name, dueDate: r.due_date, paymentDate: r.payment_date, paymentMethodId: r.payment_method_id, paymentMethodName: r.payment_method_name, invoiceFileUrl: r.invoice_file_url, invoiceNumber: r.invoice_number, invoiceIssuer: r.invoice_issuer, attachmentUrl: r.attachment_url, createdAt: r.created_at }
 }
 function mp(r: any): AccountPayable {
   return { ...r, categoryName: r.category_name, dueDate: r.due_date, paymentDate: r.payment_date, attachmentUrl: r.attachment_url, invoiceFileUrl: r.invoice_file_url, invoiceNumber: r.invoice_number, invoiceIssuer: r.invoice_issuer, createdAt: r.created_at }

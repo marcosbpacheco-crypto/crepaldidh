@@ -48,6 +48,7 @@ export interface AccountReceivable {
   invoiceFileUrl?: string
   invoiceNumber?: string
   invoiceIssuer?: string
+  attachmentUrl?: string
 }
 
 export interface AccountPayable {

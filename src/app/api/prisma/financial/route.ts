@@ -66,6 +66,7 @@ export async function POST(request: Request) {
           payment_date: data.paymentDate || data.payment_date ? new Date(data.paymentDate || data.payment_date) : null,
           status: data.status || 'pending',
           payment_method_id: data.paymentMethodId || data.payment_method_id || null,
+          attachment_url: data.attachmentUrl || data.attachment_url || null,
           notes: data.notes || null,
         },
         update: {
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
           payment_date: data.paymentDate || data.payment_date ? new Date(data.paymentDate || data.payment_date) : null,
           status: data.status || 'pending',
           payment_method_id: data.paymentMethodId || data.payment_method_id || null,
+          attachment_url: data.attachmentUrl || data.attachment_url || null,
           notes: data.notes || null,
         },
       })
@@ -299,6 +301,7 @@ export async function PATCH(request: Request) {
         ...(data.dueDate && { due_date: new Date(data.dueDate) }),
         ...(data.paymentDate !== undefined && { payment_date: data.paymentDate ? new Date(data.paymentDate) : null }),
         ...(data.status && { status: data.status }),
+        ...(data.attachmentUrl !== undefined && { attachment_url: data.attachmentUrl }),
         ...(data.notes !== undefined && { notes: data.notes }),
       },
     })

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useMentoring } from './context/MentoringContext'
 import Link from 'next/link'
 import {
@@ -52,6 +53,9 @@ export default function MentoringPage() {
   const individualPrograms = programs.filter(p => p.modality === 'individual')
   const rhPrograms = programs.filter(p => p.modality === 'rh')
   const overdueActionsList = actions.filter(a => a.status !== 'concluida' && a.status !== 'cancelada' && a.deadline && new Date(a.deadline) < new Date()).slice(0, 3)
+
+  const [modalityTab, setModalityTab] = useState<'individual' | 'rh'>('individual')
+  const tabPrograms = modalityTab === 'individual' ? individualPrograms : rhPrograms
 
   const kpis = [
     { label: 'Mentorias Ativas', value: activeMentorings, icon: User, color: 'from-violet-500 to-violet-600', light: 'bg-violet-50 text-violet-600', trend: 'individuais', href: '/mentoring/individual' },
@@ -124,39 +128,30 @@ export default function MentoringPage() {
         ))}
       </div>
 
-      {/* Modality cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Link href="/mentoring/individual" className="group bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:border-violet-200 hover:shadow-md transition-all relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity" />
-          <div className="flex items-start justify-between">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center bg-violet-50 text-violet-600`}>
-              <User className="w-5 h-5" />
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-violet-400 group-hover:translate-x-1 transition-all" />
-          </div>
-          <h2 className="text-lg font-bold text-slate-800 mt-4">Mentorias Individuais</h2>
-          <p className="text-sm text-slate-500 mt-1">Programas de mentoria 1:1 com objetivos, ações, sessões e avaliação de evolução.</p>
-          <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
-            <span className="font-bold text-slate-700">{individualPrograms.length} programa(s)</span>
-            <span className="text-slate-300">·</span>
-            <span>{activeMentees} mentorado(s) ativo(s)</span>
-          </div>
-        </Link>
-        <Link href="/mentoring/rh" className="group bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:border-sky-200 hover:shadow-md transition-all relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-500 to-blue-600 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity" />
-          <div className="flex items-start justify-between">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center bg-sky-50 text-sky-600`}>
-              <Building2 className="w-5 h-5" />
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-sky-400 group-hover:translate-x-1 transition-all" />
-          </div>
-          <h2 className="text-lg font-bold text-slate-800 mt-4">Mentoria para RH</h2>
-          <p className="text-sm text-slate-500 mt-1">Programas organizacionais com diagnóstico, indicadores, participantes e ações.</p>
-          <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
-            <span className="font-bold text-slate-700">{rhPrograms.length} programa(s)</span>
-            <span className="text-slate-300">·</span>
-            <span>{activeRHPrograms} ativo(s)</span>
-          </div>
+      {/* Modality tabs */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1.5 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <button
+            onClick={() => setModalityTab('individual')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${modalityTab === 'individual'
+              ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-200'
+              : 'text-slate-600 hover:bg-violet-50 hover:text-violet-600'}`}>
+            <User className="w-4 h-4" /> Mentorias Individuais
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${modalityTab === 'individual' ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700'}`}>{individualPrograms.length}</span>
+          </button>
+          <button
+            onClick={() => setModalityTab('rh')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${modalityTab === 'rh'
+              ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-200'
+              : 'text-slate-600 hover:bg-sky-50 hover:text-sky-600'}`}>
+            <Building2 className="w-4 h-4" /> Mentoria para RH
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${modalityTab === 'rh' ? 'bg-white/20 text-white' : 'bg-sky-100 text-sky-700'}`}>{rhPrograms.length}</span>
+          </button>
+        </div>
+        <Link
+          href={modalityTab === 'rh' ? '/mentoring/rh' : '/mentoring/individual'}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl text-sm font-bold hover:opacity-90 shadow-md shadow-violet-200 transition-all">
+          <Plus className="w-4 h-4" /> Novo Programa
         </Link>
       </div>
 
@@ -169,17 +164,17 @@ export default function MentoringPage() {
             <div className="flex items-center gap-2">
               <Target className="w-5 h-5 text-violet-600" />
               <h2 className="text-lg font-bold text-slate-800">Programas de Mentoria</h2>
-              <span className="text-xs font-semibold px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full">{programs.length}</span>
+              <span className="text-xs font-semibold px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full">{tabPrograms.length}</span>
             </div>
-            <Link href="/mentoring/individual" className="text-sm text-violet-600 font-medium hover:underline flex items-center gap-1">
+            <Link href={modalityTab === 'rh' ? '/mentoring/rh' : '/mentoring/individual'} className="text-sm text-violet-600 font-medium hover:underline flex items-center gap-1">
               Ver todos <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          {programs.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">Nenhum programa de mentoria cadastrado. Crie sua primeira mentoria!</p>
+          {tabPrograms.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">Nenhum programa {modalityTab === 'rh' ? 'de RH' : 'individual'} cadastrado. Crie sua primeira mentoria!</p>
           ) : (
             <div className="space-y-3">
-              {programs.slice(0, 4).map(p => {
+              {tabPrograms.slice(0, 4).map(p => {
                 const pObjectives = Array.isArray(p.objectives) ? p.objectives : []
                 const done = pObjectives.filter(o => o.status === 'concluido').length
                 const pct = pObjectives.length > 0 ? Math.round((done / pObjectives.length) * 100) : (p.progress || 0)

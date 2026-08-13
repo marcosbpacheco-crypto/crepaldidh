@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTrainings } from '../context/TrainingsContext'
 import { useCrm } from '../../crm/context/CrmContext'
+import { useClients } from '../../clients/context/ClientsContext'
 import type { TrainingEvent } from '../context/TrainingsContext'
 import type { TrainingTargetType } from '@/types/trainings'
 import TimelineManager from './TimelineManager'
@@ -27,6 +28,9 @@ const TARGET_LABEL: Record<TrainingTargetType, string> = {
 export default function TypeWorkspace({ category, accent, accentBg, accentText }: Props) {
   const { events, trainingTypes, addEvent, updateEvent, deleteEvent, addParticipant } = useTrainings()
   const { companies } = useCrm()
+  const { clients } = useClients()
+
+  const activeClients = clients.filter(c => c.status === 'active')
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<TrainingEvent | null>(null)
@@ -102,7 +106,9 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    const selectedComp = form.companyId ? companies.find(c => c.id === form.companyId) : null
+    const selectedComp = form.companyId
+      ? activeClients.find(c => c.companyId === form.companyId) || companies.find(c => c.id === form.companyId)
+      : null
     const payload: TrainingEvent = {
       id: editing ? editing.id : `tr-event-${Date.now()}`,
       createdAt: editing?.createdAt || new Date().toISOString(),
@@ -111,7 +117,7 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
       hoursDuration: Number(form.hoursDuration),
       expectedParticipants: form.targetType === 'pessoa' ? (people || 1) : (collaborators || form.expectedParticipants),
       companyId: form.targetType === 'pessoa' ? undefined : form.companyId || undefined,
-      companyName: form.targetType === 'pessoa' ? undefined : (selectedComp ? (selectedComp.tradeName || selectedComp.name) : undefined),
+      companyName: form.targetType === 'pessoa' ? undefined : (selectedComp ? ((selectedComp as any).companyTradeName || (selectedComp as any).tradeName || (selectedComp as any).companyName || (selectedComp as any).name) : undefined),
       trainingTypeId: form.trainingTypeId || undefined,
     }
     if (editing) {
@@ -205,9 +211,7 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-300"
                   >
                     <option value="">Selecionar empresa...</option>
-                    {companies
-                      .filter(c => c.status === 'active')
-                      .map(c => <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>)}
+                    {activeClients.map(c => <option key={c.id} value={c.companyId}>{c.companyTradeName || c.companyName}</option>)}
                   </select>
                 </label>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">

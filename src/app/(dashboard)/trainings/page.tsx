@@ -75,9 +75,6 @@ export default function TrainingsDashboardPage() {
         </div>
 
         <div className="flex flex-wrap gap-2.5">
-          <Link href="/trainings/sipat" className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all">
-            <Compass className="w-4 h-4" /> Gestão de SIPAT
-          </Link>
           <Link href="/trainings/events" className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md shadow-violet-100 hover:opacity-90 hover:-translate-y-0.5 transition-all">
             <Plus className="w-4 h-4" /> Gestão Completa
           </Link>

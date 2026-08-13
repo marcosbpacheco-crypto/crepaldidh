@@ -10,6 +10,7 @@ export interface AccountReceivable {
   projectId?: string; projectName?: string; serviceName: string; amount: number; dueDate: string
   paymentDate?: string; status: ReceivableStatus; paymentMethodId?: string; paymentMethodName?: string
   notes: string; createdAt: string; invoiceFileUrl?: string; invoiceNumber?: string; invoiceIssuer?: string
+  attachmentUrl?: string
 }
 export interface AccountPayable {
   id: string; supplier: string; categoryId?: string; categoryName?: string; description: string

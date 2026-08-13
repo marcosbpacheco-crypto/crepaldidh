@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTrainings } from '../context/TrainingsContext'
 import { useCrm } from '../../crm/context/CrmContext'
+import { useClients } from '../../clients/context/ClientsContext'
 import type { TrainingEvent, TrainingParticipant } from '../context/TrainingsContext'
 import {
   Calendar, Users, Plus, Trash2, Edit2, Edit3, Compass,
@@ -25,6 +26,9 @@ export default function EventsPage() {
   } = useTrainings()
 
   const { companies, contacts } = useCrm()
+  const { clients } = useClients()
+
+  const activeClients = clients.filter(c => c.status === 'active')
 
   // Selected event for detail view and participant management
   const [selectedEvent, setSelectedEvent] = useState<TrainingEvent | null>(events[0] || null)
@@ -93,10 +97,10 @@ export default function EventsPage() {
 
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault()
-    const selectedComp = companies.find(c => c.id === eventForm.companyId)
+    const selectedComp = activeClients.find(c => c.companyId === eventForm.companyId) || companies.find(c => c.id === eventForm.companyId)
     const newEvent = addEvent({
       ...eventForm,
-      companyName: selectedComp ? selectedComp.name : 'Cliente Geral',
+      companyName: selectedComp ? ((selectedComp as any).companyTradeName || (selectedComp as any).tradeName || (selectedComp as any).companyName || (selectedComp as any).name) : 'Cliente Geral',
     })
     setSelectedEvent(newEvent)
     setShowEventModal(false)
@@ -191,10 +195,10 @@ export default function EventsPage() {
   const handleUpdateEvent = (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingEvent) return
-    const selectedComp = companies.find(c => c.id === eventForm.companyId)
+    const selectedComp = activeClients.find(c => c.companyId === eventForm.companyId) || companies.find(c => c.id === eventForm.companyId)
     updateEvent(editingEvent.id, {
       ...eventForm,
-      companyName: selectedComp ? selectedComp.name : 'Cliente Geral',
+      companyName: selectedComp ? ((selectedComp as any).companyTradeName || (selectedComp as any).tradeName || (selectedComp as any).companyName || (selectedComp as any).name) : 'Cliente Geral',
     })
     setShowEventModal(false)
     setEditingEvent(null)
@@ -470,8 +474,8 @@ export default function EventsPage() {
                   <select required value={eventForm.companyId} onChange={e => setEventForm({ ...eventForm, companyId: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white">
                     <option value="">Selecione o Cliente...</option>
-                    {companies.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    {activeClients.map(c => (
+                      <option key={c.id} value={c.companyId}>{c.companyTradeName || c.companyName}</option>
                     ))}
                   </select>
                 </div>

@@ -4,13 +4,14 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useFinancial, AccountReceivable, RecurringRule } from './context/FinancialContext'
 import { useFinancialRealtime } from '@/hooks/useFinancialRealtime'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
+import { financeService } from '@/services/financeService'
 import {
   LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Repeat, BarChart3,
   Zap, FileText, Brain, Plus, Search, X, Download,
   DollarSign, TrendingUp, AlertTriangle, CheckCircle, Clock,
   Calendar, Building2, Briefcase, Receipt, Trash2, Loader2, Printer,
   ChevronRight, RepeatIcon, Percent, Landmark, TrendingDown,
-  Filter, RotateCw, Upload, Banknote, ArrowLeftRight
+  Filter, RotateCw, Upload, Banknote, ArrowLeftRight, Paperclip, FileCheck2
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import dynamic from 'next/dynamic'
@@ -104,6 +105,9 @@ export default function FinancialPage() {
   const [viewInvoiceTarget, setViewInvoiceTarget] = useState<{ type: 'receivable' | 'payable'; id: string } | null>(null)
   const [invoiceFileData, setInvoiceFileData] = useState('')
   const [invoiceForm, setInvoiceForm] = useState({ number: '', issuer: '', amount: 0, issueDate: '' })
+  const [attachTarget, setAttachTarget] = useState<{ type: 'receivable' | 'payable'; id: string } | null>(null)
+  const [attachFileData, setAttachFileData] = useState('')
+  const [attachFileName, setAttachFileName] = useState('')
 
   const [recForm, setRecForm] = useState({ companyId: '', contractId: '', serviceName: '', amount: 0, dueDate: '', notes: '', paymentMethodId: '' })
   const [payForm, setPayForm] = useState({ supplier: '', categoryId: '', description: '', amount: 0, dueDate: '', notes: '' })
@@ -494,6 +498,7 @@ export default function FinancialPage() {
                           ) : (
                             <button onClick={() => { setInvoiceTarget({ type: 'receivable', id: r.id }); setInvoiceFileData(''); setInvoiceForm({ number: '', issuer: r.companyName, amount: r.amount, issueDate: r.dueDate }) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600" title="Upload NF"><Upload className="w-3.5 h-3.5" /></button>
                           )}
+                          <button onClick={() => setAttachTarget({ type: 'receivable', id: r.id })} className="p-1.5 rounded-lg hover:bg-cyan-50 text-cyan-600" title="Anexar documento"><Paperclip className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleDelRec(r.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -549,6 +554,7 @@ export default function FinancialPage() {
                           ) : (
                             <button onClick={() => { setInvoiceTarget({ type: 'payable', id: p.id }); setInvoiceFileData(''); setInvoiceForm({ number: '', issuer: p.supplier, amount: p.amount, issueDate: p.dueDate }) }} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600" title="Upload NF"><Upload className="w-3.5 h-3.5" /></button>
                           )}
+                          <button onClick={() => setAttachTarget({ type: 'payable', id: p.id })} className="p-1.5 rounded-lg hover:bg-cyan-50 text-cyan-600" title="Anexar documento"><Paperclip className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleDelPay(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -1347,6 +1353,102 @@ export default function FinancialPage() {
     </div>
   )
 
+  // ========== ATTACHMENT MODAL ==========
+  const attachModal = attachTarget && (() => {
+    const item = attachTarget.type === 'receivable'
+      ? fin.receivables.find(r => r.id === attachTarget.id)
+      : fin.payables.find(p => p.id === attachTarget.id)
+    if (!item) return null
+    const hasAttach = Boolean(item.attachmentUrl)
+    const persistAttachment = async (dataUrl: string) => {
+      try {
+        if (attachTarget.type === 'receivable') {
+          fin.updateReceivable(attachTarget.id, { attachmentUrl: dataUrl })
+          await financeService.updateReceivable(attachTarget.id, { attachmentUrl: dataUrl })
+        } else {
+          fin.updatePayable(attachTarget.id, { attachmentUrl: dataUrl })
+          await financeService.updatePayable(attachTarget.id, { attachmentUrl: dataUrl })
+        }
+      } catch (err) { console.error('Falha ao salvar anexo:', err) }
+    }
+    const removeAttachment = async () => {
+      try {
+        if (attachTarget.type === 'receivable') {
+          fin.updateReceivable(attachTarget.id, { attachmentUrl: '' })
+          await financeService.updateReceivable(attachTarget.id, { attachmentUrl: '' })
+        } else {
+          fin.updatePayable(attachTarget.id, { attachmentUrl: '' })
+          await financeService.updatePayable(attachTarget.id, { attachmentUrl: '' })
+        }
+      } catch (err) { console.error('Falha ao remover anexo:', err) }
+      setAttachTarget(null)
+    }
+    const downloadAttach = () => {
+      const mime = item.attachmentUrl!.split(';')[0].replace('data:', '') || 'application/octet-stream'
+      const ext = mime === 'application/pdf' ? 'pdf' : mime.startsWith('image/') ? mime.split('/')[1] : 'doc'
+      const name = attachTarget.type === 'receivable' ? (item as AccountReceivable).companyName : (item as any).supplier
+      const a = document.createElement('a')
+      a.href = item.attachmentUrl!
+      a.download = `anexo_${name || 'conta'}.${ext}`
+      a.click()
+    }
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setAttachTarget(null)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <h2 className="text-sm font-black text-slate-800 flex items-center gap-2"><Paperclip className="w-4 h-4 text-cyan-600" /> Anexo de Documento</h2>
+            <button onClick={() => setAttachTarget(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs">
+              <p className="text-[9px] text-slate-400 font-semibold uppercase mb-1">{attachTarget.type === 'receivable' ? 'Cliente' : 'Fornecedor'}</p>
+              <p className="font-bold text-slate-800">{attachTarget.type === 'receivable' ? (item as AccountReceivable).companyName : (item as any).supplier}</p>
+              <p className="text-[10px] text-slate-500 mt-1">{attachTarget.type === 'receivable' ? (item as AccountReceivable).serviceName : (item as any).description}</p>
+            </div>
+
+            {hasAttach ? (
+              <div className="flex flex-col items-center gap-2 bg-cyan-50/50 border border-cyan-100 rounded-xl p-5">
+                <FileCheck2 className="w-10 h-10 text-cyan-600" />
+                <p className="text-xs font-bold text-slate-700">Documento anexado</p>
+                <p className="text-[9px] text-slate-400 break-all max-w-full text-center">{item.attachmentUrl!.slice(0, 80)}...</p>
+                <div className="flex gap-2 w-full">
+                  <button onClick={downloadAttach}
+                    className="flex-1 py-2.5 bg-brand-teal text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-brand-teal/90">
+                    <Download className="w-4 h-4" /> Baixar
+                  </button>
+                  <button onClick={removeAttachment} className="flex-1 py-2.5 border border-red-200 text-red-500 rounded-xl text-xs font-semibold hover:bg-red-50">Remover</button>
+                </div>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors cursor-pointer"
+                onClick={() => document.getElementById('attach-file-input')?.click()}>
+                <div className="text-slate-400">
+                  <Upload className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-xs font-semibold">Clique para selecionar o documento</p>
+                  <p className="text-[10px] mt-1">Formatos: PDF, PNG, JPG, DOCX</p>
+                </div>
+              </div>
+            )}
+            <input id="attach-file-input" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.txt" className="hidden" onChange={e => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = async (ev) => {
+                const dataUrl = ev.target?.result as string
+                await persistAttachment(dataUrl)
+                setAttachTarget(null)
+              }
+              reader.readAsDataURL(file)
+            }} />
+          </div>
+          <div className="p-5 border-t border-slate-100 shrink-0">
+            <button onClick={() => setAttachTarget(null)} className="w-full py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50">Fechar</button>
+          </div>
+        </div>
+      </div>
+    )
+  })()
+
   // ========== MAIN RENDER ==========
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1394,6 +1496,7 @@ export default function FinancialPage() {
       {modalBtForm}
       {invoiceUploadModal}
       {invoiceViewModal}
+      {attachModal}
     </div>
   )
 }
