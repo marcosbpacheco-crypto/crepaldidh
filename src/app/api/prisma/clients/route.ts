@@ -3,48 +3,31 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    // Fetch all active clients
-    const clients = await prisma.client_list.findMany({
-      where: { deleted_at: null },
+    // Busca otimizada usando SQL JOIN direto no banco
+    const clients = await prisma.$queryRaw<any[]>`
+      SELECT DISTINCT cl.*
+      FROM public.client_list cl
+      JOIN public.crm_companies cc ON cl.company_id::uuid = cc.id
+      JOIN public.crm_contracts ct ON cc.id = ct.company_id
+      WHERE cl.deleted_at IS NULL
+      AND ct.status = 'approved'
+      ORDER BY cl.created_at DESC
+    `;
+
+    // Busca os detalhes relacionados para os clientes filtrados
+    const clientIds = clients.map(c => c.id);
+    
+    const details = await prisma.client_list.findMany({
+      where: { id: { in: clientIds } },
       include: {
         client_contacts: true,
         client_interactions: true,
         client_documents: true,
         client_feedbacks: true,
-      },
-      orderBy: { created_at: 'desc' },
-    })
+      }
+    });
 
-    // Fetch all companies with their approved contracts
-    const companiesWithApprovedContracts = await prisma.crm_companies.findMany({
-      where: {
-        crm_contracts: {
-          some: {
-            status: 'approved',
-          },
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        trade_name: true,
-      },
-    })
-
-    // Create a set of company IDs that have approved contracts
-    const companiesWithApprovedContractIds = new Set(
-      companiesWithApprovedContracts.map(c => c.id.toLowerCase().trim())
-    )
-
-    // Filter clients to only include those whose company has an approved contract
-    const filteredClients = clients.filter(client => {
-      if (!client.company_id) { console.log(`[DEBUG] Cliente ${client.company_name} sem company_id`); return false; }
-      const hasContract = companiesWithApprovedContractIds.has(client.company_id.toLowerCase().trim())
-      if (!hasContract) console.log(`[DEBUG] Cliente ${client.company_name} ocultado (não tem contrato aprovado)`);
-      return hasContract
-    })
-
-    return NextResponse.json({ clients: filteredClients })
+    return NextResponse.json({ clients: details })
   } catch (err: any) {
     console.error('Error fetching clients:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
