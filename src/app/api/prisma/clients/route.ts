@@ -10,7 +10,7 @@ export async function GET() {
       JOIN public.crm_companies cc ON cl.company_id::uuid = cc.id
       JOIN public.crm_contracts ct ON cc.id = ct.company_id
       WHERE cl.deleted_at IS NULL
-      AND ct.status = 'approved'
+      AND ct.status IN ('approved', 'active')
       ORDER BY cl.created_at DESC
     `;
 
