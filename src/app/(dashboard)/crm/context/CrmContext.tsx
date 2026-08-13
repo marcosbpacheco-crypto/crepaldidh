@@ -177,8 +177,10 @@ interface CrmContextType {
   deleteTask: (id: string) => void;
   addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt'>) => Proposal;
   updateProposalStatus: (id: string, status: Proposal['status']) => void;
+  deleteProposal: (id: string) => Promise<void>;
   addContract: (contract: Omit<Contract, 'id' | 'createdAt'>) => Contract;
   updateContractStatus: (id: string, status: Contract['status']) => void;
+  deleteContract: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
   updateClient: (id: string, updates: Partial<Client>) => void;
   deleteClient: (id: string) => void;
@@ -780,6 +782,11 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newProposal
   }
 
+  const deleteProposal = async (id: string) => {
+    updateProposalsState(proposals.filter(p => p.id !== id))
+    crmService.removeProposal(id).catch(err => console.error('[CRM] deleteProposal error:', err))
+  }
+
   const updateProposalStatus = (id: string, status: Proposal['status']) => {
     const prop = proposals.find(p => p.id === id)
     if (!prop) return
@@ -849,26 +856,9 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newContract
   }
 
-   const updateContractStatus = (id: string, status: Contract['status']) => {
-    const contr = contracts.find(c => c.id === id)
-    if (!contr) return
-    const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
-    updateContractsState(updated)
-    crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
-
-    // Log Activity
-    addActivity({
-      companyId: contr.companyId,
-      type: 'contract',
-      title: `Contrato atualizado`,
-      description: `Contrato "${contr.title}" mudou para status "${status}".`,
-      author: getRoleUserName(currentRole)
-    })
-
-    // Se aprovado, converter empresa para cliente ativo
-    if (status === 'approved') {
-      convertContractToClient(id)
-    }
+  const deleteContract = async (id: string) => {
+    updateContractsState(contracts.filter(c => c.id !== id))
+    crmService.removeContract(id).catch(err => console.error('[CRM] deleteContract error:', err))
   }
 
   const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
@@ -900,26 +890,42 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return clients.find(c => c.companyId === companyId)
   }
 
-  const convertContractToClient = (contractId: string) => {
+  const convertContractToClient = async (contractId: string) => {
     const contr = contracts.find(c => c.id === contractId)
     if (!contr) return
     if (clients.some(c => c.contractId === contractId)) return
-    const newClient: Client = {
-      id: crypto.randomUUID(),
-      companyId: contr.companyId,
-      contractId: contr.id,
-      status: 'active',
-      createdAt: new Date().toISOString()
+    
+    // 1. Criar cliente no banco via API
+    try {
+      const res = await fetch('/api/prisma/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          _type: 'client', 
+          companyId: contr.companyId,
+          contractId: contr.id,
+          status: 'active'
+        }),
+      })
+      if (!res.ok) throw new Error('Falha ao criar cliente')
+      const data = await res.json()
+      const newClient = data.client
+      
+      // 2. Atualizar estado local
+      const updated = [newClient, ...clients]
+      updateClientsState(updated)
+
+      addActivity({
+        companyId: contr.companyId,
+        type: 'comment',
+        title: 'Empresa convertida para cliente ativo',
+        description: `A empresa foi convertida para cliente ativo automaticamente após aprovação do contrato "${contr.title}".`,
+        author: getRoleUserName(currentRole)
+      })
+    } catch (err) {
+      console.error('[CRM] Erro ao converter contrato para cliente:', err)
+      alert('Erro ao ativar cliente. Tente novamente.')
     }
-    const updated = [newClient, ...clients]
-    updateClientsState(updated)
-    addActivity({
-      companyId: contr.companyId,
-      type: 'comment',
-      title: 'Empresa convertida para cliente ativo',
-      description: `A empresa foi convertida para cliente ativo automaticamente após aprovação do contrato "${contr.title}".`,
-      author: getRoleUserName(currentRole)
-    })
   }
 
   // Persistência é feita individualmente nas operações CRUD
@@ -984,8 +990,10 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTask,
         addProposal,
         updateProposalStatus,
+        deleteProposal,
         addContract,
         updateContractStatus,
+        deleteContract,
         // Client mutators (already present)
         addClient,
         updateClient,
