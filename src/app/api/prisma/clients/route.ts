@@ -38,8 +38,10 @@ export async function GET() {
 
     // Filter clients to only include those whose company has an approved contract
     const filteredClients = clients.filter(client => {
-      if (!client.company_id) return false
-      return companiesWithApprovedContractIds.has(client.company_id.toLowerCase().trim())
+      if (!client.company_id) { console.log(`[DEBUG] Cliente ${client.company_name} sem company_id`); return false; }
+      const hasContract = companiesWithApprovedContractIds.has(client.company_id.toLowerCase().trim())
+      if (!hasContract) console.log(`[DEBUG] Cliente ${client.company_name} ocultado (não tem contrato aprovado)`);
+      return hasContract
     })
 
     return NextResponse.json({ clients: filteredClients })
