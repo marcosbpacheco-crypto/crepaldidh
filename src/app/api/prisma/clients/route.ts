@@ -33,15 +33,13 @@ export async function GET() {
 
     // Create a set of company IDs that have approved contracts
     const companiesWithApprovedContractIds = new Set(
-      companiesWithApprovedContracts.map(c => c.id)
+      companiesWithApprovedContracts.map(c => c.id.toLowerCase().trim())
     )
 
     // Filter clients to only include those whose company has an approved contract
     const filteredClients = clients.filter(client => {
-      // Check if the client's company has an approved contract
-      // client_list has company_id field
       if (!client.company_id) return false
-      return companiesWithApprovedContractIds.has(client.company_id)
+      return companiesWithApprovedContractIds.has(client.company_id.toLowerCase().trim())
     })
 
     return NextResponse.json({ clients: filteredClients })
@@ -64,6 +62,7 @@ export async function POST(request: Request) {
           company_id: data.companyId || data.company_id || null,
           company_trade_name: data.companyTradeName || data.company_trade_name || null,
           cnpj: data.cnpj || null,
+          razao_social: data.razao_social || null,
           segment: data.segment || null,
           city: data.city || null,
           state: data.state || null,
@@ -161,6 +160,7 @@ export async function PATCH(request: Request) {
         ...(data.companyName && { company_name: data.companyName }),
         ...(data.companyTradeName && { company_trade_name: data.companyTradeName }),
         ...(data.cnpj && { cnpj: data.cnpj }),
+        ...(data.razaoSocial && { razao_social: data.razaoSocial }),
         ...(data.segment && { segment: data.segment }),
         ...(data.city && { city: data.city }),
         ...(data.state && { state: data.state }),
