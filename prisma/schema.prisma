@@ -908,6 +908,7 @@ model crm_companies {
   documents                         documents[]
   financial_accounts_receivable     financial_accounts_receivable[]
   mentoring_participants            mentoring_participants[]
+  mentoring_programs                mentoring_programs[]
   occupational_absences             occupational_absences[]
   occupational_alerts               occupational_alerts[]
   occupational_asos                 occupational_asos[]
@@ -1289,13 +1290,17 @@ model mentoring_participants {
   notes                 String?
   avatar                String?                 @db.VarChar(10)
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  program_id            String?                 @db.Uuid
+  participant_type      String?                 @db.VarChar(50)
   mentoring_assessments mentoring_assessments[]
   crm_companies         crm_companies?          @relation(fields: [company_id], references: [id], onUpdate: NoAction)
   mentoring_reports     mentoring_reports[]
+  mentoring_programs    mentoring_programs?     @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   pdi_plans             pdi_plans[]
   session_participants  session_participants[]
   tool_usages           tool_usages[]
 
+  @@index([program_id], map: "idx_mentoring_participants_program")
   @@schema("public")
 }
 
@@ -1310,6 +1315,172 @@ model mentoring_reports {
   generated_at           DateTime?               @default(now()) @db.Timestamptz(6)
   mentoring_participants mentoring_participants? @relation(fields: [participant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+model mentoring_programs {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modality          String                 @default("individual") @db.VarChar(20)
+  name              String                 @db.VarChar(255)
+  company_id        String?                @db.Uuid
+  company_name      String?                @db.VarChar(255)
+  mentor            String?                @db.VarChar(255)
+  rh_responsible    String?                @db.VarChar(255)
+  status            String                 @default("planejada") @db.VarChar(50)
+  start_date        DateTime?              @db.Date
+  end_date          DateTime?              @db.Date
+  main_objective    String?
+  progress          Int                    @default(0)
+  notes             String?
+  mentee_name       String?                @db.VarChar(255)
+  mentee_role       String?                @db.VarChar(255)
+  mentee_department String?                @db.VarChar(255)
+  mentee_contact    String?                @db.VarChar(255)
+  mentee_gestor     String?                @db.VarChar(255)
+  created_at        DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime               @default(now()) @db.Timestamptz(6)
+  crm_companies     crm_companies?         @relation(fields: [company_id], references: [id], onUpdate: NoAction)
+  mentoring_objectives mentoring_objectives[]
+  mentoring_actions mentoring_actions[]
+  mentoring_sessions mentoring_sessions[]
+  mentoring_feedbacks mentoring_feedbacks[]
+  mentoring_diagnostics mentoring_diagnostics[]
+  mentoring_indicators mentoring_indicators[]
+  mentoring_documents mentoring_documents[]
+  mentoring_history mentoring_history[]
+  mentoring_participants mentoring_participants[]
+
+  @@index([company_id], map: "idx_mentoring_programs_company")
+  @@index([modality], map: "idx_mentoring_programs_modality")
+  @@schema("public")
+}
+
+model mentoring_objectives {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id  String              @db.Uuid
+  title       String              @db.VarChar(255)
+  description String?
+  category    String?             @db.VarChar(100)
+  priority    String?             @db.VarChar(20)
+  indicator   String?             @db.VarChar(255)
+  goal        String?             @db.VarChar(255)
+  deadline    DateTime?           @db.Date
+  progress    Int                 @default(0)
+  status      String              @default("nao_iniciado") @db.VarChar(50)
+  observations String?
+  responsible String?             @db.VarChar(255)
+  created_at  DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  mentoring_actions mentoring_actions[]
+
+  @@index([program_id], map: "idx_mentoring_objectives_program")
+  @@schema("public")
+}
+
+model mentoring_actions {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id     String              @db.Uuid
+  objective_id   String?             @db.Uuid
+  description    String              @db.VarChar(255)
+  responsible    String?             @db.VarChar(255)
+  deadline       DateTime?           @db.Date
+  priority       String?             @db.VarChar(20)
+  status         String              @default("pendente") @db.VarChar(50)
+  evidence       String?
+  comment        String?
+  completed_date DateTime?           @db.Date
+  created_at     DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  mentoring_objectives mentoring_objectives? @relation(fields: [objective_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_actions_program")
+  @@index([objective_id], map: "idx_mentoring_actions_objective")
+  @@schema("public")
+}
+
+model mentoring_feedbacks {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id         String              @db.Uuid
+  session_id         String?             @db.Uuid
+  author_type        String              @default("mentor") @db.VarChar(20)
+  satisfaction       Int?
+  relevance          Int?
+  applicability      Int?
+  evolution_perceived Int?
+  comments           String?
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs  @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  mentoring_sessions mentoring_sessions? @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_feedbacks_program")
+  @@index([session_id], map: "idx_mentoring_feedbacks_session")
+  @@schema("public")
+}
+
+model mentoring_diagnostics {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id   String              @db.Uuid
+  period       String?             @db.VarChar(100)
+  status       String              @default("rascunho") @db.VarChar(50)
+  areas        Json?
+  observations String?
+  created_at   DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_diagnostics_program")
+  @@schema("public")
+}
+
+model mentoring_indicators {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id    String              @db.Uuid
+  name          String              @db.VarChar(255)
+  description   String?
+  unit          String?             @db.VarChar(50)
+  initial_value String?             @db.VarChar(100)
+  current_value String?             @db.VarChar(100)
+  target_value  String?             @db.VarChar(100)
+  trend         String?             @db.VarChar(50)
+  period        String?             @db.VarChar(100)
+  source        String?             @db.VarChar(255)
+  created_at    DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_indicators_program")
+  @@schema("public")
+}
+
+model mentoring_documents {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id  String              @db.Uuid
+  session_id  String?             @db.Uuid
+  document_id String?             @db.Uuid
+  name        String              @db.VarChar(255)
+  type        String?             @db.VarChar(100)
+  file_url    String?             @db.VarChar(1024)
+  description String?
+  created_at  DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  mentoring_sessions mentoring_sessions? @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_documents_program")
+  @@schema("public")
+}
+
+model mentoring_history {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id  String              @db.Uuid
+  entity_type String?             @db.VarChar(50)
+  entity_id   String?             @db.VarChar(100)
+  action      String?             @db.VarChar(255)
+  description String?
+  created_by  String?             @db.VarChar(255)
+  created_at  DateTime            @default(now()) @db.Timestamptz(6)
+  mentoring_programs mentoring_programs @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id], map: "idx_mentoring_history_program")
   @@schema("public")
 }
 
@@ -1330,10 +1501,29 @@ model mentoring_sessions {
   potentials           String?
   status               String?                @default("agendada") @db.VarChar(50)
   created_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  program_id           String?                @db.Uuid
+  session_number       Int?
+  start_time           DateTime?              @db.Time(6)
+  modality             String?                @db.VarChar(50)
+  theme                String?                @db.VarChar(255)
+  session_objective    String?
+  summary              String?
+  key_points           String?
+  decisions            String?
+  defined_actions      String?
+  private_observations String?
+  session_feedback     String?
+  next_session         DateTime?              @db.Date
+  mentor               String?                @db.VarChar(255)
+  mentee               String?                @db.VarChar(255)
+  mentoring_programs   mentoring_programs?    @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   session_participants session_participants[]
   tool_usages          tool_usages[]
+  mentoring_feedbacks  mentoring_feedbacks[]
+  mentoring_documents  mentoring_documents[]
 
   @@index([date], map: "idx_mentoring_sessions_date")
+  @@index([program_id], map: "idx_mentoring_sessions_program")
   @@schema("public")
 }
 

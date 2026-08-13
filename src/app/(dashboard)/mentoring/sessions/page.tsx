@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<MentoringType, string> = {
   coletiva: 'Coletiva',
   lideranca: 'Liderança',
   executiva: 'Executiva',
+  rh: 'RH',
 }
 
 const TYPE_COLORS: Record<MentoringType, string> = {
@@ -22,6 +23,7 @@ const TYPE_COLORS: Record<MentoringType, string> = {
   coletiva: 'bg-purple-100 text-purple-700 border-purple-200',
   lideranca: 'bg-amber-100 text-amber-700 border-amber-200',
   executiva: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  rh: 'bg-sky-100 text-sky-700 border-sky-200',
 }
 
 export default function SessionsPage() {
@@ -41,7 +43,6 @@ export default function SessionsPage() {
     duration: 60,
     objective: '',
     topics: '',
-    tools: [],
     actionPlan: '',
     nextSteps: '',
     insights: '',
@@ -52,8 +53,8 @@ export default function SessionsPage() {
 
   const filtered = sessions.filter(s => {
     const matchesSearch = s.title.toLowerCase().includes(search.toLowerCase()) ||
-      s.topics.toLowerCase().includes(search.toLowerCase()) ||
-      s.objective.toLowerCase().includes(search.toLowerCase())
+      (s.topics || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.objective || '').toLowerCase().includes(search.toLowerCase())
     const matchesType = filterType === 'all' || s.type === filterType
     return matchesSearch && matchesType
   })
@@ -64,7 +65,7 @@ export default function SessionsPage() {
     setShowForm(false)
     setForm({
       type: 'individual', title: '', participantIds: [], date: '', duration: 60,
-      objective: '', topics: '', tools: [], actionPlan: '', nextSteps: '',
+      objective: '', topics: '', actionPlan: '', nextSteps: '',
       insights: '', challenges: '', potentials: '', status: 'agendada'
     })
   }
@@ -129,7 +130,7 @@ export default function SessionsPage() {
           <div className="border-l-2 border-violet-100 pl-6 ml-4 space-y-6 relative">
             {filtered.map(s => {
               const dateObj = new Date(s.date)
-              const pNames = s.participantIds
+              const pNames = (s.participantIds || [])
                 .map(id => participants.find(p => p.id === id)?.name ?? id)
                 .join(', ')
 
@@ -175,7 +176,7 @@ export default function SessionsPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="w-3.5 h-3.5 text-slate-400" />
-                        {s.participantIds.length} participante(s)
+                        {(s.participantIds || []).length} participante(s)
                       </span>
                     </div>
                   </div>
@@ -311,12 +312,11 @@ export default function SessionsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo de Mentoria *</label>
-                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as MentoringType })}
+                  <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as any })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300">
                     <option value="individual">Individual</option>
                     <option value="coletiva">Coletiva</option>
-                    <option value="lideranca">Liderança</option>
-                    <option value="executiva">Executiva</option>
+                    <option value="rh">RH</option>
                   </select>
                 </div>
                 <div>
@@ -336,11 +336,11 @@ export default function SessionsPage() {
                       <label key={p.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={form.participantIds.includes(p.id)}
+                          checked={(form.participantIds || []).includes(p.id)}
                           onChange={e => {
                             const ids = e.target.checked
-                              ? [...form.participantIds, p.id]
-                              : form.participantIds.filter(id => id !== p.id)
+                              ? [...(form.participantIds || []), p.id]
+                              : (form.participantIds || []).filter(id => id !== p.id)
                             setForm({ ...form, participantIds: ids })
                           }}
                           className="rounded text-violet-600 focus:ring-violet-500"

@@ -9,7 +9,7 @@ import { Users, Plus, Search, Filter, ChevronRight, Mail, Phone, Building2, Brie
 
 export const ParticipantsContent = () => {
   if (typeof window === 'undefined') return null;
-  const { participants, pdiPlans, sessions, addParticipant, deleteParticipant } = useMentoring()
+  const { participants, programs, sessions, addParticipant, deleteParticipant } = useMentoring()
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -61,8 +61,8 @@ export const ParticipantsContent = () => {
       <div className="flex gap-3 flex-wrap">
         {[
           { label: 'Total', value: participants.length, color: 'bg-violet-100 text-violet-700' },
-          { label: 'Com PDI', value: pdiPlans.length, color: 'bg-blue-100 text-blue-700' },
-          { label: 'Com Sessões', value: participants.filter(p => sessions.some(s => s.participantIds.includes(p.id))).length, color: 'bg-emerald-100 text-emerald-700' },
+          { label: 'Em Mentorias', value: programs.filter(p => p.menteeName).length, color: 'bg-blue-100 text-blue-700' },
+          { label: 'Com Sessões', value: participants.filter(p => sessions.some(s => (s.participantIds || []).includes(p.id))).length, color: 'bg-emerald-100 text-emerald-700' },
         ].map(s => (
           <div key={s.label} className={`px-4 py-2 rounded-xl text-sm font-semibold ${s.color}`}>
             {s.value} {s.label}
@@ -73,11 +73,12 @@ export const ParticipantsContent = () => {
       {/* Participants grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(p => {
-          const pPDI = pdiPlans.find(pl => pl.participantId === p.id)
-          const completedPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.filter(g => g?.status === 'concluido').length : 0
-          const totalPDI = (pPDI && Array.isArray(pPDI.goals)) ? pPDI.goals.length : 0
-          const pct = totalPDI > 0 ? Math.round((completedPDI / totalPDI) * 100) : 0
-          const sessCount = sessions.filter(s => s.participantIds.includes(p.id)).length
+          const pPrograms = programs.filter(pr => pr.menteeName === p.name || (Array.isArray(pr.participants) && pr.participants.some(pp => pp.id === p.id)))
+          const pObjectives = pPrograms.flatMap(pr => Array.isArray(pr.objectives) ? pr.objectives : [])
+          const completedObjectives = pObjectives.filter(o => o.status === 'concluido').length
+          const totalObjectives = pObjectives.length
+          const pct = totalObjectives > 0 ? Math.round((completedObjectives / totalObjectives) * 100) : 0
+          const sessCount = sessions.filter(s => (s.participantIds || []).includes(p.id)).length
 
           return (
             <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
@@ -125,10 +126,10 @@ export const ParticipantsContent = () => {
                   </div>
                 )}
 
-                {/* PDI progress */}
+                {/* Objectives progress */}
                 <div className="pt-2 border-t border-slate-100">
                   <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-xs font-semibold text-slate-500">PDI Progress</span>
+                    <span className="text-xs font-semibold text-slate-500">Progresso em Objetivos</span>
                     <span className="text-xs font-bold text-violet-700">{pct}%</span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -136,7 +137,7 @@ export const ParticipantsContent = () => {
                       style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex justify-between mt-2">
-                    <span className="text-xs text-slate-400">{completedPDI}/{totalPDI} metas</span>
+                    <span className="text-xs text-slate-400">{completedObjectives}/{totalObjectives} objetivos</span>
                     <span className="text-xs text-slate-400">{sessCount} sessões</span>
                   </div>
                 </div>

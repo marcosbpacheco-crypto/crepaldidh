@@ -1,4 +1,8 @@
-import type { Institution, Mentor, Participant, MentoringSession, MentoringGoal, PDIPlan, PdiAction, MentoringFeedback, MentoringAssessment, MentoringNote, Competency, CompetencyAssessment, MentorTool, MentoringReport } from '@/types/mentoring'
+import type {
+  MentoringProgram, MentoringObjective, MentoringAction, MentoringSession,
+  MentoringFeedback, MentoringDiagnostic, MentoringIndicator, MentoringDocument,
+  MentoringHistory, Participant, Competency, DevelopmentTool, Assessment, MentoringReport,
+} from '@/types/mentoring'
 
 const BASE = '/api/prisma/mentoring'
 
@@ -10,60 +14,94 @@ async function api(url: string, opts?: RequestInit) {
 }
 
 export const mentoringService = {
-  async listInstitutions(): Promise<Institution[]> {
-    return []
-  },
-  async createInstitution(_input: Partial<Institution>): Promise<Institution> {
-    throw new Error('Not implemented via Prisma API')
-  },
-  async listMentors(): Promise<Mentor[]> {
-    return []
-  },
-  async createMentor(_input: Partial<Mentor>): Promise<Mentor> {
-    throw new Error('Not implemented via Prisma API')
-  },
-  async listParticipants(): Promise<Participant[]> {
+  // ---- Programas ----
+  async listPrograms(): Promise<MentoringProgram[]> {
     const data = await api(BASE)
-    return (data.participants || []).map(mp)
+    return (data.programs || []).map(mapProgram)
   },
-  async createParticipant(input: Partial<Participant>): Promise<Participant> {
+  async createProgram(input: Partial<MentoringProgram>): Promise<MentoringProgram> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'participant', ...input }),
+      body: JSON.stringify({ _type: 'program', ...input }),
     })
-    return mp(data.participant)
+    return mapProgram(data.program)
   },
-  async updateParticipant(id: string, input: Partial<Participant>): Promise<Participant> {
+  async updateProgram(id: string, input: Partial<MentoringProgram>): Promise<MentoringProgram> {
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'participant', id, ...input }),
+      body: JSON.stringify({ _type: 'program', id, ...input }),
     })
-    return mp(data.participant)
+    return mapProgram(data.program)
   },
-  async removeParticipant(id: string): Promise<void> {
+  async removeProgram(id: string): Promise<void> {
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'participant', id }),
+      body: JSON.stringify({ _type: 'program', id }),
     })
   },
-  async listSessions(participantId?: string): Promise<MentoringSession[]> {
+
+  // ---- Objetivos ----
+  async createObjective(input: Partial<MentoringObjective>): Promise<MentoringObjective> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'objective', ...input }),
+    })
+    return mapObjective(data.objective)
+  },
+  async updateObjective(id: string, input: Partial<MentoringObjective>): Promise<MentoringObjective> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'objective', id, ...input }),
+    })
+    return mapObjective(data.objective)
+  },
+  async removeObjective(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'objective', id }),
+    })
+  },
+
+  // ---- Ações ----
+  async createAction(input: Partial<MentoringAction>): Promise<MentoringAction> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'action', ...input }),
+    })
+    return mapAction(data.action)
+  },
+  async updateAction(id: string, input: Partial<MentoringAction>): Promise<MentoringAction> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'action', id, ...input }),
+    })
+    return mapAction(data.action)
+  },
+  async removeAction(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'action', id }),
+    })
+  },
+
+  // ---- Sessões ----
+  async listSessions(): Promise<MentoringSession[]> {
     const data = await api(BASE)
-    const all = (data.sessions || []).map((s: any) => ms(s))
-    return participantId ? all.filter((s: any) => s.participantId === participantId) : all
+    return (data.sessions || []).map(mapSession)
   },
   async createSession(input: Partial<MentoringSession>): Promise<MentoringSession> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'session', ...input }),
     })
-    return ms(data.session)
+    return mapSession(data.session)
   },
   async updateSession(id: string, input: Partial<MentoringSession>): Promise<MentoringSession> {
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'session', id, ...input }),
     })
-    return ms(data.session)
+    return mapSession(data.session)
   },
   async removeSession(id: string): Promise<void> {
     await api(BASE, {
@@ -71,60 +109,141 @@ export const mentoringService = {
       body: JSON.stringify({ _type: 'session', id }),
     })
   },
-  async listGoals(_participantId?: string): Promise<MentoringGoal[]> {
-    return []
+
+  // ---- Feedbacks ----
+  async createFeedback(input: Partial<MentoringFeedback>): Promise<MentoringFeedback> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'feedback', ...input }),
+    })
+    return mapFeedback(data.feedback)
   },
-  async listPdiPlans(participantId?: string): Promise<PDIPlan[]> {
+  async updateFeedback(id: string, input: Partial<MentoringFeedback>): Promise<MentoringFeedback> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'feedback', id, ...input }),
+    })
+    return mapFeedback(data.feedback)
+  },
+  async removeFeedback(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'feedback', id }),
+    })
+  },
+
+  // ---- Diagnósticos ----
+  async createDiagnostic(input: Partial<MentoringDiagnostic>): Promise<MentoringDiagnostic> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostic', ...input }),
+    })
+    return mapDiagnostic(data.diagnostic)
+  },
+  async updateDiagnostic(id: string, input: Partial<MentoringDiagnostic>): Promise<MentoringDiagnostic> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostic', id, ...input }),
+    })
+    return mapDiagnostic(data.diagnostic)
+  },
+  async removeDiagnostic(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'diagnostic', id }),
+    })
+  },
+
+  // ---- Indicadores ----
+  async createIndicator(input: Partial<MentoringIndicator>): Promise<MentoringIndicator> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'indicator', ...input }),
+    })
+    return mapIndicator(data.indicator)
+  },
+  async updateIndicator(id: string, input: Partial<MentoringIndicator>): Promise<MentoringIndicator> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'indicator', id, ...input }),
+    })
+    return mapIndicator(data.indicator)
+  },
+  async removeIndicator(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'indicator', id }),
+    })
+  },
+
+  // ---- Documentos ----
+  async createDocument(input: Partial<MentoringDocument>): Promise<MentoringDocument> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'document', ...input }),
+    })
+    return mapDocument(data.document)
+  },
+  async updateDocument(id: string, input: Partial<MentoringDocument>): Promise<MentoringDocument> {
+    const data = await api(BASE, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'document', id, ...input }),
+    })
+    return mapDocument(data.document)
+  },
+  async removeDocument(id: string): Promise<void> {
+    await api(BASE, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'document', id }),
+    })
+  },
+
+  // ---- Histórico ----
+  async createHistory(input: Partial<MentoringHistory>): Promise<MentoringHistory> {
+    const data = await api(BASE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _type: 'history', ...input }),
+    })
+    return mapHistory(data.history)
+  },
+
+  // ---- Participantes ----
+  async listParticipants(): Promise<Participant[]> {
     const data = await api(BASE)
-    const all = (data.pdi_plans || []).map((p: any) => mpp(p))
-    return participantId ? all.filter((p: any) => p.participantId === participantId) : all
+    return (data.participants || []).map(mapParticipant)
   },
-  async createPdiPlan(input: Partial<PDIPlan>): Promise<PDIPlan> {
+  async createParticipant(input: Partial<Participant>): Promise<Participant> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiPlan', ...input }),
+      body: JSON.stringify({ _type: 'participant', ...input }),
     })
-    return mpp(data.pdiPlan)
+    return mapParticipant(data.participant)
   },
-  async updatePdiPlan(id: string, input: Partial<PDIPlan>): Promise<PDIPlan> {
+  async updateParticipant(id: string, input: Partial<Participant>): Promise<Participant> {
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiPlan', id, ...input }),
+      body: JSON.stringify({ _type: 'participant', id, ...input }),
     })
-    return mpp(data.pdiPlan)
+    return mapParticipant(data.participant)
   },
-  async removePdiPlan(id: string): Promise<void> {
+  async removeParticipant(id: string): Promise<void> {
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiPlan', id }),
+      body: JSON.stringify({ _type: 'participant', id }),
     })
   },
-  async createPdiGoal(input: Partial<any>): Promise<any> {
-    const data = await api(BASE, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiGoal', ...input }),
-    })
-    return data.pdiGoal
-  },
-  async updatePdiGoal(id: string, input: Partial<any>): Promise<any> {
-    const data = await api(BASE, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiGoal', id, ...input }),
-    })
-    return data.pdiGoal
-  },
-  async removePdiGoal(id: string): Promise<void> {
-    await api(BASE, {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _type: 'pdiGoal', id }),
-    })
+
+  // ---- Competências / Ferramentas / Avaliações / Relatórios ----
+  async listCompetencies(): Promise<Competency[]> {
+    const data = await api(BASE)
+    return (data.competencies || []).map((c: any) => ({ ...c, isCustom: c.is_custom ?? false }))
   },
   async createCompetency(input: Partial<Competency>): Promise<Competency> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'competency', ...input }),
     })
-    return data.competency
+    return { ...data.competency, isCustom: data.competency?.is_custom ?? false }
   },
   async removeCompetency(id: string): Promise<void> {
     await api(BASE, {
@@ -132,63 +251,155 @@ export const mentoringService = {
       body: JSON.stringify({ _type: 'competency', id }),
     })
   },
-  async createAssessment(input: Partial<any>): Promise<any> {
+  async listTools(): Promise<DevelopmentTool[]> {
+    const data = await api(BASE)
+    return data.tools || []
+  },
+  async listAssessments(): Promise<Assessment[]> {
+    const data = await api(BASE)
+    return (data.assessments || []).map((a: any) => ({
+      ...a, participantId: a.participant_id, evaluatorId: a.evaluator_id,
+      competencyScores: a.assessment_results || [],
+    }))
+  },
+  async createAssessment(input: Partial<Assessment>): Promise<Assessment> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'assessment', ...input }),
     })
     return data.assessment
   },
-  async createReport(input: Partial<any>): Promise<any> {
+  async listReports(): Promise<MentoringReport[]> {
+    const data = await api(BASE)
+    return (data.reports || []).map((r: any) => ({ ...r, participantId: r.participant_id, pdfUrl: r.pdf_url, generatedAt: r.generated_at }))
+  },
+  async createReport(input: Partial<MentoringReport>): Promise<MentoringReport> {
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'report', ...input }),
     })
     return data.report
   },
-  async listPdiActions(_planId?: string): Promise<PdiAction[]> {
-    return []
-  },
-  async listCompetencies(): Promise<Competency[]> {
-    const data = await api(BASE)
-    return data.competencies || []
-  },
-  async listTools(): Promise<MentorTool[]> {
-    const data = await api(BASE)
-    return data.tools || []
-  },
-  async listFeedbacks(_sessionId?: string): Promise<MentoringFeedback[]> {
-    return []
-  },
-  async listAssessments(): Promise<any[]> {
-    const data = await api(BASE)
-    return data.assessments || []
-  },
-  async listReports(): Promise<any[]> {
-    const data = await api(BASE)
-    return data.reports || []
-  },
 }
 
-function mp(r: any): Participant { return { ...r, mentorId: r.mentor_id, institutionId: r.institution_id, contractId: r.contract_id, crmContactId: r.crm_contact_id, currentCycle: r.current_cycle, startDate: r.start_date } }
-function ms(r: any): MentoringSession {
+// ============ MAPPERS ============
+
+export function mapProgram(r: any): MentoringProgram {
+  return {
+    ...r,
+    companyId: r.company_id,
+    companyName: r.company_name,
+    rhResponsible: r.rh_responsible,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    mainObjective: r.main_objective,
+    menteeName: r.mentee_name,
+    menteeRole: r.mentee_role,
+    menteeDepartment: r.mentee_department,
+    menteeContact: r.mentee_contact,
+    menteeGestor: r.mentee_gestor,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    objectives: Array.isArray(r.objectives) ? r.objectives.map(mapObjective) : [],
+    actions: Array.isArray(r.actions) ? r.actions.map(mapAction) : [],
+    sessions: Array.isArray(r.sessions) ? r.sessions.map(mapSession) : [],
+    participants: Array.isArray(r.participants) ? r.participants.map(mapParticipant) : [],
+    feedbacks: Array.isArray(r.feedbacks) ? r.feedbacks.map(mapFeedback) : [],
+    diagnostics: Array.isArray(r.diagnostics) ? r.diagnostics.map(mapDiagnostic) : [],
+    indicators: Array.isArray(r.indicators) ? r.indicators.map(mapIndicator) : [],
+    documents: Array.isArray(r.documents) ? r.documents.map(mapDocument) : [],
+    history: Array.isArray(r.history) ? r.history.map(mapHistory) : [],
+  }
+}
+
+export function mapObjective(r: any): MentoringObjective {
+  return {
+    ...r,
+    programId: r.program_id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    actions: Array.isArray(r.actions) ? r.actions.map(mapAction) : [],
+  }
+}
+
+export function mapAction(r: any): MentoringAction {
+  return { ...r, programId: r.program_id, objectiveId: r.objective_id, completedDate: r.completed_date, createdAt: r.created_at }
+}
+
+export function mapSession(r: any): MentoringSession {
   const participantIds = Array.isArray(r.session_participants)
     ? r.session_participants.map((sp: any) => sp.participant_id)
     : (Array.isArray(r.participantIds) ? r.participantIds : [])
-  return { ...r, participantIds, participantId: r.participant_id, mentorId: r.mentor_id, sessionType: r.session_type, method: r.method, mood: r.mood, nextDate: r.next_date, paAction: r.pa_action }
+  return {
+    ...r,
+    programId: r.program_id,
+    sessionNumber: r.session_number,
+    startTime: r.start_time ? String(r.start_time).slice(0, 5) : undefined,
+    keyPoints: r.key_points,
+    definedActions: r.defined_actions,
+    privateObservations: r.private_observations,
+    sessionFeedback: r.session_feedback,
+    nextSession: r.next_session,
+    participantIds,
+    createdAt: r.created_at,
+  }
 }
-function mg(r: any): MentoringGoal { return { ...r, participantId: r.participant_id, deadline: r.deadline, createdAt: r.created_at } }
-function mpp(r: any): PDIPlan { return { ...r, participantId: r.participant_id, createdAt: r.created_at } }
 
-function mpRow(r: any) {
-  const { mentorId, institutionId, contractId, crmContactId, currentCycle, startDate, ...rest } = r
-  return { ...rest, mentor_id: r.mentorId, institution_id: r.institutionId, contract_id: r.contractId, crm_contact_id: r.crmContactId, current_cycle: r.currentCycle, start_date: r.startDate }
+export function mapFeedback(r: any): MentoringFeedback {
+  return {
+    ...r,
+    programId: r.program_id,
+    sessionId: r.session_id,
+    authorType: r.author_type,
+    evolutionPerceived: r.evolution_perceived,
+    createdAt: r.created_at,
+  }
 }
-function msRow(r: any) {
-  const { participantId, mentorId, sessionType, method, mood, nextDate, paAction, ...rest } = r
-  return { ...rest, participant_id: r.participantId, mentor_id: r.mentorId, session_type: r.sessionType, method: r.method, mood: r.mood, next_date: r.nextDate, pa_action: r.paAction }
+
+export function mapDiagnostic(r: any): MentoringDiagnostic {
+  let areas: any[] = []
+  try {
+    areas = Array.isArray(r.areas) ? r.areas : (r.areas ? JSON.parse(r.areas) : [])
+  } catch { areas = [] }
+  return { ...r, programId: r.program_id, areas, createdAt: r.created_at }
 }
-function mppRow(r: any) {
-  const { participantId, ...rest } = r
-  return { ...rest, participant_id: r.participantId }
+
+export function mapIndicator(r: any): MentoringIndicator {
+  return {
+    ...r,
+    programId: r.program_id,
+    initialValue: r.initial_value,
+    currentValue: r.current_value,
+    targetValue: r.target_value,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }
+}
+
+export function mapDocument(r: any): MentoringDocument {
+  return { ...r, programId: r.program_id, sessionId: r.session_id, documentId: r.document_id, fileUrl: r.file_url, createdAt: r.created_at }
+}
+
+export function mapHistory(r: any): MentoringHistory {
+  return {
+    ...r,
+    programId: r.program_id,
+    entityType: r.entity_type,
+    entityId: r.entity_id,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+  }
+}
+
+export function mapParticipant(r: any): Participant {
+  return {
+    ...r,
+    companyId: r.company_id,
+    companyName: r.company_name,
+    directLeader: r.direct_leader,
+    startDate: r.start_date,
+    createdAt: r.created_at,
+    programId: r.program_id,
+    participantType: r.participant_type,
+  }
 }

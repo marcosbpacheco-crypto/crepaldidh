@@ -70,7 +70,7 @@ export default function AssessmentsPage() {
 
               {/* Competency scores */}
               <div className="space-y-3">
-                {ass.competencyScores.map(score => {
+                {(ass.competencyScores || []).map(score => {
                   const comp = competencies.find(c => c.id === score.competencyId)
                   return (
                     <div key={score.competencyId} className="space-y-1.5">

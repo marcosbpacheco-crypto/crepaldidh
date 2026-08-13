@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMentoring } from '../../context/MentoringContext'
-import type { Participant, MentoringSession, PDIPlan } from '../../context/MentoringContext'
+import type { Participant, MentoringSession } from '../../context/MentoringContext'
 import Link from 'next/link'
 import {
   Users, Calendar, Target, Award, Brain, Phone, Mail,
@@ -17,15 +17,15 @@ export default function ParticipantDetailPage() {
   const router = useRouter()
   const id = params.id as string
   const {
-    participants, sessions, pdiPlans, competencies, tools, assessments,
-    addAssessment, generateAIInsights, suggestPDI, deleteParticipant
+    participants, sessions, programs, objectives, competencies, tools, assessments,
+    addAssessment, generateAIInsights, deleteParticipant
   } = useMentoring()
 
   const [participant, setParticipant] = useState<Participant | null>(null)
   const [aiInsights, setAiInsights] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [showAssessmentForm, setShowAssessmentForm] = useState(false)
-  const [selectedTab, setSelectedTab] = useState<'profile' | 'pdi' | 'timeline' | 'assessments'>('profile')
+  const [selectedTab, setSelectedTab] = useState<'profile' | 'objectives' | 'timeline' | 'assessments'>('profile')
 
   // Form for new assessment
   const [assessmentType, setAssessmentType] = useState<'autoavaliacao' | 'lider' | '180' | '360'>('autoavaliacao')
@@ -58,8 +58,11 @@ export default function ParticipantDetailPage() {
     )
   }
 
-  const pSessions = sessions.filter(s => s.participantIds.includes(id))
-  const pPDI = pdiPlans.find(pl => pl.participantId === id)
+  const pSessions = sessions.filter(s => (s.participantIds || []).includes(id) || s.mentee === participant.name)
+  const pObjectives = objectives.filter(o => {
+    const prog = programs.find(p => p.id === o.programId)
+    return prog?.menteeName === participant.name || prog?.id === participant.programId
+  })
   const pAssessments = assessments.filter(a => a.participantId === id)
 
   const handleAIInsights = async () => {
@@ -102,7 +105,7 @@ export default function ParticipantDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Perfil do Participante</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Dossiê de mentoria, PDI e avaliações comportamentais</p>
+          <p className="text-slate-500 text-sm mt-0.5">Dossiê de mentoria, objetivos e avaliações comportamentais</p>
         </div>
       </div>
 
@@ -196,7 +199,7 @@ export default function ParticipantDetailPage() {
             <div className="flex gap-2 border-b border-slate-100 pb-3 flex-wrap">
               {[
                 { id: 'profile', label: 'Dossiê', icon: ClipboardList },
-                { id: 'pdi', label: 'Plano PDI', icon: Target },
+                { id: 'objectives', label: 'Objetivos', icon: Target },
                 { id: 'timeline', label: 'Histórico', icon: Activity },
                 { id: 'assessments', label: 'Avaliações', icon: BarChart3 },
               ].map(tab => (
@@ -237,15 +240,15 @@ export default function ParticipantDetailPage() {
                   </div>
 
                   <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 space-y-2">
-                    <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Progresso PDI</span>
+                    <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Progresso de Objetivos</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-slate-500 block">Metas Ativas</span>
-                        <span className="font-bold text-slate-700 text-sm">{pPDI && Array.isArray(pPDI.goals) ? pPDI.goals.length : 0}</span>
+                        <span className="text-slate-500 block">Objetivos Ativos</span>
+                        <span className="font-bold text-slate-700 text-sm">{pObjectives.filter(o => o.status !== 'concluido' && o.status !== 'cancelado').length}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Metas Concluídas</span>
-                        <span className="font-bold text-slate-700 text-sm">{pPDI && Array.isArray(pPDI.goals) ? pPDI.goals.filter(g => g?.status === 'concluido').length : 0}</span>
+                        <span className="text-slate-500 block">Objetivos Concluídos</span>
+                        <span className="font-bold text-slate-700 text-sm">{pObjectives.filter(o => o.status === 'concluido').length}</span>
                       </div>
                     </div>
                   </div>
@@ -253,30 +256,30 @@ export default function ParticipantDetailPage() {
               </div>
             )}
 
-            {/* Tab content - PDI Plan */}
-            {selectedTab === 'pdi' && (
+            {/* Tab content - Objectives */}
+            {selectedTab === 'objectives' && (
               <div className="space-y-4">
-                {pPDI ? (
+                {pObjectives.length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-50">
                       <div>
-                        <h4 className="font-bold text-slate-800">{pPDI.title}</h4>
-                        <p className="text-xs text-slate-400">{pPDI.period}</p>
+                        <h4 className="font-bold text-slate-800">Objetivos da Mentoria</h4>
+                        <p className="text-xs text-slate-400">Metas e indicadores de desenvolvimento</p>
                       </div>
-                      <Link href="/mentoring/pdi" className="text-xs text-violet-600 font-bold hover:underline">
-                        Gerenciar Completo
+                      <Link href="/mentoring/individual" className="text-xs text-violet-600 font-bold hover:underline">
+                        Gerenciar Mentorias
                       </Link>
                     </div>
 
                     <div className="space-y-3">
-                      {pPDI.goals.map(goal => (
+                      {pObjectives.map(goal => (
                         <div key={goal.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
                           <div className="flex justify-between items-start">
                             <div>
                               <span className="text-[10px] font-bold px-2 py-0.5 bg-violet-100 text-violet-700 border border-violet-200 rounded-md">
-                                {goal.competency}
+                                {goal.category || 'Mentoria'}
                               </span>
-                              <h5 className="font-bold text-sm text-slate-800 mt-1.5">{goal.objective}</h5>
+                              <h5 className="font-bold text-sm text-slate-800 mt-1.5">{goal.title}</h5>
                             </div>
                             <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full uppercase">
                               {goal.status}
@@ -284,12 +287,12 @@ export default function ParticipantDetailPage() {
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-50">
                             <div>
-                              <span className="text-slate-400 block">Ação</span>
-                              <span className="text-slate-600">{goal.action}</span>
+                              <span className="text-slate-400 block">Indicador</span>
+                              <span className="text-slate-600">{goal.indicator || '—'}</span>
                             </div>
                             <div>
                               <span className="text-slate-400 block">Prazo</span>
-                              <span className="text-slate-600">{new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>
+                              <span className="text-slate-600">{goal.deadline ? new Date(goal.deadline).toLocaleDateString('pt-BR') : '—'}</span>
                             </div>
                           </div>
                         </div>
@@ -299,9 +302,9 @@ export default function ParticipantDetailPage() {
                 ) : (
                   <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl space-y-3">
                     <Target className="w-10 h-10 text-slate-300 mx-auto" />
-                    <p className="text-sm font-medium text-slate-500">Nenhum PDI cadastrado</p>
-                    <Link href="/mentoring/pdi" className="inline-block px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-all">
-                      Criar Primeiro PDI
+                    <p className="text-sm font-medium text-slate-500">Nenhum objetivo de mentoria cadastrado</p>
+                    <Link href="/mentoring/individual" className="inline-block px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-xl text-xs font-bold transition-all">
+                      Criar Primeiro Objetivo
                     </Link>
                   </div>
                 )}
@@ -379,7 +382,7 @@ export default function ParticipantDetailPage() {
 
                         {/* Scores grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {ass.competencyScores.map(score => {
+                          {(ass.competencyScores || []).map(score => {
                             const comp = competencies.find(c => c.id === score.competencyId)
                             return (
                               <div key={score.competencyId} className="bg-white p-3 border border-slate-100 rounded-xl flex flex-col justify-between">

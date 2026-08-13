@@ -16,8 +16,8 @@ export default function CompetenciesPage() {
 
   const filtered = competencies.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.category.toLowerCase().includes(search.toLowerCase()) ||
-    c.description.toLowerCase().includes(search.toLowerCase())
+    (c.category || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.description || '').toLowerCase().includes(search.toLowerCase())
   )
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -209,16 +209,16 @@ function generateAIResponse(assistantType: AiAssistantType, userMessage: string,
   if (assistantType === 'mentoring') {
     if (msg.includes('resumo') || msg.includes('sessão')) {
       const recent = men.sessions.filter(s => s.status === 'realizada').slice(-1)[0]
-      if (recent) return `💡 **Resumo da Sessão**\n\n**Título**: ${recent.title}\n**Data**: ${new Date(recent.date).toLocaleDateString('pt-BR')}\n**Duração**: ${recent.duration} min\n\n**Tópicos**\n${recent.topics.split(',').map(t => `• ${t.trim()}`).join('\n')}\n\n**Insights**\n${recent.insights || 'N/A'}\n\n**Plano de Ação**\n${recent.actionPlan || 'N/A'}\n\n**Próximos Passos**\n${recent.nextSteps || 'N/A'}`
+      if (recent) return `💡 **Resumo da Sessão**\n\n**Título**: ${recent.title}\n**Data**: ${new Date(recent.date).toLocaleDateString('pt-BR')}\n**Duração**: ${recent.duration} min\n\n**Tópicos**\n${(recent.topics || '').split(',').map(t => `• ${t.trim()}`).join('\n')}\n\n**Insights**\n${recent.insights || 'N/A'}\n\n**Plano de Ação**\n${recent.actionPlan || 'N/A'}\n\n**Próximos Passos**\n${recent.nextSteps || 'N/A'}`
       return '💡 **Resumo de Sessão**\n\nNenhuma sessão realizada encontrada.'
     }
-    if (msg.includes('pdi') || msg.includes('meta') || msg.includes('competência')) {
-      return `📋 **Sugestão de PDI**\n\n**Participante**: [Nome]\n**Período**: 6 meses\n\n**Metas Sugeridas**\n\n1. **Comunicação Assertiva**\n   • Ação: Participar de workshop de CNV\n   • Prazo: 60 dias\n   • Indicador: Feedback 360 > 4/5\n\n2. **Liderança Inspiradora**\n   • Ação: Mentoria semanal + leitura guiada\n   • Prazo: 90 dias\n   • Indicador: Engajamento da equipe > 80%\n\n3. **Inteligência Emocional**\n   • Ação: Diário de emoções + sessões de coaching\n   • Prazo: 180 dias\n   • Indicador: Redução de conflitos em 50%\n\n**Competências a Desenvolver**\n• ${men.competencies.slice(0, 4).map(c => c.name).join(', ')}`
+    if (msg.includes('objetivo') || msg.includes('meta') || msg.includes('competência')) {
+      return `📋 **Sugestão de Objetivos de Mentoria**\n\n**Mentorado**: [Nome]\n**Período**: 6 meses\n\n**Objetivos Sugeridos**\n\n1. **Comunicação Assertiva**\n   • Ação: Participar de workshop de CNV\n   • Prazo: 60 dias\n   • Indicador: Feedback 360 > 4/5\n\n2. **Liderança Inspiradora**\n   • Ação: Mentoria semanal + leitura guiada\n   • Prazo: 90 dias\n   • Indicador: Engajamento da equipe > 80%\n\n3. **Inteligência Emocional**\n   • Ação: Diário de emoções + sessões de coaching\n   • Prazo: 180 dias\n   • Indicador: Redução de conflitos em 50%\n\n**Competências a Desenvolver**\n• ${men.competencies.slice(0, 4).map(c => c.name).join(', ')}`
     }
     if (msg.includes('devolutiva') || msg.includes('feedback')) {
       return `💬 **Devolutiva de Mentoria**\n\nPrezado(a) [Nome],\n\nGostaria de compartilhar algumas observações sobre nossa sessão de mentoria:\n\n**Pontos Fortes**\n• Capacidade analítica e visão estratégica\n• Comprometimento com o desenvolvimento\n• Boa comunicação interpessoal\n\n**Oportunidades de Desenvolvimento**\n• Gestão do tempo — priorização de tarefas\n• Delegação — confiar mais na equipe\n• Autocuidado — equilibrar vida pessoal/profissional\n\n**Próximos Passos**\n1. Aplicar feedback SBI com 3 colaboradores\n2. Praticar escuta ativa em reuniões\n3. Relatório de progresso em 30 dias\n\n> Seguimos juntos nesta jornada de desenvolvimento!`
     }
-    return '💡 **Assistente de Mentorias/PDI**\n\nComandos:\n• **resumo** — resume última sessão\n• **pdi** — sugere plano de desenvolvimento\n• **meta** — sugere metas por competência\n• **devolutiva** — gera devolutiva para o mentorado'
+    return '💡 **Assistente de Mentorias**\n\nComandos:\n• **resumo** — resume última sessão\n• **objetivo** — sugere objetivos de mentoria\n• **meta** — sugere metas por competência\n• **devolutiva** — gera devolutiva para o mentorado'
   }
 
   // ── FINANCIAL ─────────────────────────────────

@@ -33,6 +33,7 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
   const [expanded, setExpanded] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [people, setPeople] = useState(0)
+  const [collaborators, setCollaborators] = useState(0)
 
   const [form, setForm] = useState({
     companyId: '',
@@ -64,6 +65,7 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
     setShowForm(false)
     setEditing(null)
     setPeople(0)
+    setCollaborators(0)
     setForm({
       companyId: '', trainingTypeId: '', targetType: 'empresa', name: '', theme: '', objective: '',
       facilitator: 'Bruno Crepaldi', modality: 'presencial', location: '', eventDate: new Date().toISOString().split('T')[0],
@@ -74,6 +76,8 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
 
   const openEdit = (ev: TrainingEvent) => {
     setEditing(ev)
+    setPeople(ev.targetType === 'pessoa' ? ev.expectedParticipants : 0)
+    setCollaborators(ev.targetType !== 'pessoa' ? ev.expectedParticipants : 0)
     setForm({
       companyId: ev.companyId || '',
       trainingTypeId: ev.trainingTypeId || '',
@@ -105,7 +109,7 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
       ...form,
       type: category,
       hoursDuration: Number(form.hoursDuration),
-      expectedParticipants: form.targetType === 'pessoa' ? (people || 1) : form.expectedParticipants,
+      expectedParticipants: form.targetType === 'pessoa' ? (people || 1) : (collaborators || form.expectedParticipants),
       companyId: form.targetType === 'pessoa' ? undefined : form.companyId || undefined,
       companyName: form.targetType === 'pessoa' ? undefined : (selectedComp ? (selectedComp.tradeName || selectedComp.name) : undefined),
       trainingTypeId: form.trainingTypeId || undefined,
@@ -191,20 +195,33 @@ export default function TypeWorkspace({ category, accent, accentBg, accentText }
             </label>
 
             {form.targetType !== 'pessoa' ? (
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">
-                Empresa (obrigatório)
-                <select
-                  required
-                  value={form.companyId}
-                  onChange={e => setForm({ ...form, companyId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-300"
-                >
-                  <option value="">Selecionar empresa...</option>
-                  {companies
-                    .filter(c => c.status === 'active')
-                    .map(c => <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>)}
-                </select>
-              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">
+                  Empresa (obrigatório)
+                  <select
+                    required
+                    value={form.companyId}
+                    onChange={e => setForm({ ...form, companyId: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-300"
+                  >
+                    <option value="">Selecionar empresa...</option>
+                    {companies
+                      .filter(c => c.status === 'active')
+                      .map(c => <option key={c.id} value={c.id}>{c.tradeName || c.name}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">
+                  Qtd. colaboradores
+                  <input
+                    type="number"
+                    min={1}
+                    value={collaborators}
+                    onChange={e => setCollaborators(Number(e.target.value))}
+                    placeholder="Ex: 30"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-300"
+                  />
+                </label>
+              </div>
             ) : (
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">
                 Quantidade de pessoas

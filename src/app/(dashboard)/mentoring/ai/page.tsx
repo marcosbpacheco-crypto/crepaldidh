@@ -5,11 +5,10 @@ import { useMentoring } from '../context/MentoringContext'
 import { Sparkles, Brain, User, AlertCircle, RefreshCw, Send, HelpCircle, CheckCircle } from 'lucide-react'
 
 export default function AIPage() {
-  const { participants, generateAIInsights, suggestPDI } = useMentoring()
+  const { participants, generateAIInsights } = useMentoring()
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [insights, setInsights] = useState('')
-  const [pdiSuggestions, setPdiSuggestions] = useState<any[]>([])
 
   const handleGenerate = async () => {
     if (!selectedParticipantId) return
@@ -17,8 +16,6 @@ export default function AIPage() {
     try {
       const ins = await generateAIInsights(selectedParticipantId)
       setInsights(ins)
-      const sug = await suggestPDI(selectedParticipantId)
-      setPdiSuggestions(sug)
     } catch {
       setInsights('Erro ao processar requisição com a Inteligência Artificial.')
     } finally {
@@ -36,7 +33,7 @@ export default function AIPage() {
             <span className="text-sm font-semibold text-violet-600 uppercase tracking-wider">Módulo de IA Integrada</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-800">IA & Devolutivas Executivas</h1>
-          <p className="text-slate-500 text-sm">Resumos automatizados, análises comportamentais e sugestões de PDIs impulsionados por Inteligência Artificial</p>
+          <p className="text-slate-500 text-sm">Resumos automatizados e análises comportamentais preparados para integração com Inteligência Artificial</p>
         </div>
       </div>
 
@@ -58,7 +55,6 @@ export default function AIPage() {
                 onChange={e => {
                   setSelectedParticipantId(e.target.value)
                   setInsights('')
-                  setPdiSuggestions([])
                 }}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 font-medium text-slate-700 cursor-pointer"
               >
@@ -83,7 +79,7 @@ export default function AIPage() {
             <span className="font-bold text-violet-700 block">O que a IA analisa?</span>
             <ul className="list-disc list-inside space-y-1.5 text-slate-500">
               <li>Histórico de sessões e resumos acordados</li>
-              <li>A evolução das metas do Plano PDI</li>
+              <li>A evolução dos objetivos da mentoria</li>
               <li>Mapeamento comportamental DISC e ferramentas</li>
               <li>Notas e observações qualitativas do mentor</li>
             </ul>
@@ -112,31 +108,6 @@ export default function AIPage() {
                   {insights}
                 </p>
               </div>
-
-              {/* Suggestions target table card */}
-              {pdiSuggestions.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 pb-3 border-b border-slate-50">
-                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                    <h3 className="font-bold text-slate-800 text-base">Sugestões de Metas PDI sugeridas por IA</h3>
-                  </div>
-
-                  <div className="space-y-3">
-                    {pdiSuggestions.map((sug, idx) => (
-                      <div key={idx} className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md uppercase">
-                            {sug.competency}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-sm text-slate-800 mt-1">{sug.objective}</h4>
-                        <p className="text-xs text-slate-600 mt-1"><span className="font-bold">Ação Sugerida:</span> {sug.action}</p>
-                        <p className="text-xs text-slate-600"><span className="font-bold">Indicador de Evolução:</span> {sug.indicator}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 p-20 text-center shadow-sm text-slate-400">
