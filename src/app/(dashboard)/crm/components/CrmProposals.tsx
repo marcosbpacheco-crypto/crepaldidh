@@ -164,7 +164,7 @@ function dateExtenso(): string {
 export const CrmProposals: React.FC = () => {
   const { 
     proposals, contracts, companies, services, addService,
-    addProposal, updateProposalStatus, addContract
+    addProposal, updateProposalStatus, addContract, updateContractStatus
   } = useCrm()
   const admin = useAdmin()
   const hasFinancialAccess = admin.checkPermission('financial', 'view')
@@ -524,12 +524,13 @@ export const CrmProposals: React.FC = () => {
                       </td>
                       <td className="p-4">
                         <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase ${
+                          contr.status === 'approved' ? 'bg-blue-100 text-blue-800' :
                           contr.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
                           contr.status === 'expired' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
                         }`}>
-                          {contr.status === 'active' ? 'Ativo' : contr.status === 'expired' ? 'Expirado' : 'Encerrado'}
+                          {contr.status === 'approved' ? 'Aprovado' : contr.status === 'active' ? 'Ativo' : contr.status === 'expired' ? 'Expirado' : 'Encerrado'}
                         </span>
-                        {contr.status === 'active' && (
+                        {contr.status === 'approved' && (
                           <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-brand-teal bg-brand-teal/10 border border-brand-teal/20 rounded-full">
                             Empresa cliente ativa
                           </span>
@@ -1225,16 +1226,17 @@ export const CrmProposals: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                  <select
-                    value={manualContractForm.status}
-                    onChange={e => setManualContractForm({ ...manualContractForm, status: e.target.value as Contract['status'] })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
-                  >
-                    <option value="active">Ativo</option>
-                    <option value="draft">Rascunho</option>
-                    <option value="expired">Expirado</option>
-                    <option value="terminated">Encerrado</option>
-                  </select>
+                   <select
+                     value={manualContractForm.status}
+                     onChange={e => setManualContractForm({ ...manualContractForm, status: e.target.value as Contract['status'] })}
+                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                   >
+                     <option value="draft">Rascunho</option>
+                     <option value="active">Ativo</option>
+                     <option value="approved">Aprovado</option>
+                     <option value="expired">Expirado</option>
+                     <option value="terminated">Encerrado</option>
+                   </select>
                 </div>
               </div>
 

@@ -10,8 +10,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 export type Company = {
   id?: string
   name: string
-  trade_name?: string // UI field for "Nome Fantasia"
+  trade_name?: string // Nome Fantasia
   cnpj: string
+  legal_name?: string // Razão Social (opcional, para complementar o nome)
   segment?: string
   employees_count?: number
   city?: string
@@ -28,7 +29,8 @@ export type Company = {
 const schema = z.object({
   name: z.string().min(1, 'Razão Social é obrigatória'),
   trade_name: z.string().optional(),
-  cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/[0-9]{4}-[0-9]{2}$/, 'CNPJ deve estar no formato 00.000.000/0000-00'),
+  cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/[0-9]{4}-[0-9]{2}$/, 'CNPJ deve estar no formato 00.000.000/0000-00').optional().or(z.literal('')),
+  legal_name: z.string().optional(),
   segment: z.string().optional(),
   employees_count: z.coerce.number().int().positive().optional(),
   city: z.string().optional(),
@@ -64,6 +66,7 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
         name: company.name,
         trade_name: company.trade_name,
         cnpj: company.cnpj,
+        legal_name: company.legal_name,
         segment: company.segment,
         employees_count: company.employees_count,
         city: company.city,
@@ -81,7 +84,8 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
     const payload = {
       name: data.name,
       trade_name: data.trade_name,
-      cnpj: data.cnpj,
+      cnpj: data.cnpj || null,
+      legal_name: data.legal_name || null,
       segment: data.segment,
       employees_count: data.employees_count,
       city: data.city,
@@ -114,7 +118,7 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
         <input {...register('trade_name')} className="mt-1 block w-full rounded-md border-gray-300" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700">CNPJ *</label>
+        <label className="block text-sm font-medium text-gray-700">CNPJ (opcional)</label>
         <input {...register('cnpj')} className="mt-1 block w-full rounded-md border-gray-300" />
         {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
       </div>

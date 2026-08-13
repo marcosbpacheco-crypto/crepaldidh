@@ -775,7 +775,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
 
   const handleSave = async () => {
     if (isSubmitting) return
-    if (!form.companyName.trim() || !form.companyTradeName.trim()) return
+    if (!form.companyTradeName.trim()) return
     setIsSubmitting(true)
     if (isEdit && onUpdate && editData) {
       await onUpdate(editData.id, {
@@ -816,7 +816,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-xs font-bold text-slate-400 mb-1 block">Razão Social *</label>
+              <label className="text-xs font-bold text-slate-400 mb-1 block">Razão Social</label>
               <input value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>
@@ -824,7 +824,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
               <input value={form.companyTradeName} onChange={e => setForm(f => ({ ...f, companyTradeName: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ</label>
+              <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ (opcional)</label>
               <input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>

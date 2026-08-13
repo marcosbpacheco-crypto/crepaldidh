@@ -7,10 +7,10 @@ async function syncClientFromContract(companyId: string | null | undefined, stat
   if (!companyId) return
   const isActive = status === 'active'
 
-  const company = await prisma.crm_companies.findUnique({
-    where: { id: companyId },
-    select: { name: true, trade_name: true, cnpj: true, segment: true, city: true, state: true },
-  })
+   const company = await prisma.crm_companies.findUnique({
+     where: { id: companyId },
+     select: { name: true, trade_name: true, cnpj: true, legal_name: true, segment: true, city: true, state: true },
+   })
 
   const existing = await prisma.client_list.findFirst({
     where: { company_id: companyId },
@@ -18,37 +18,39 @@ async function syncClientFromContract(companyId: string | null | undefined, stat
   })
 
   if (existing) {
-    await prisma.client_list.update({
-      where: { id: existing.id },
-      data: {
-        status: isActive ? 'active' : existing.status,
-        deleted_at: isActive ? null : existing.deleted_at,
-        ...(isActive && startDate ? { start_date: new Date(startDate) } : {}),
-        ...(isActive && endDate ? { end_date: new Date(endDate) } : {}),
-        ...(isActive && value !== undefined ? { total_value: value, monthly_value: value } : {}),
-        company_name: company?.name || existing.company_name,
-        company_trade_name: company?.trade_name || existing.company_trade_name,
-      },
-    })
-  } else if (isActive) {
-    await prisma.client_list.create({
-      data: {
-        company_id: companyId,
-        company_name: company?.name || 'Empresa',
-        company_trade_name: company?.trade_name || null,
-        cnpj: company?.cnpj || null,
-        segment: company?.segment || null,
-        city: company?.city || null,
-        state: company?.state || null,
-        status: 'active',
-        start_date: startDate ? new Date(startDate) : null,
-        end_date: endDate ? new Date(endDate) : null,
-        total_value: value ?? 0,
-        monthly_value: value ?? 0,
-        services: [],
-      },
-    })
-  }
+     await prisma.client_list.update({
+       where: { id: existing.id },
+       data: {
+         status: isActive ? 'active' : existing.status,
+         deleted_at: isActive ? null : existing.deleted_at,
+         ...(isActive && startDate ? { start_date: new Date(startDate) } : {}),
+         ...(isActive && endDate ? { end_date: new Date(endDate) } : {}),
+         ...(isActive && value !== undefined ? { total_value: value, monthly_value: value } : {}),
+         company_name: company?.name || existing.company_name,
+         company_trade_name: company?.trade_name || existing.company_trade_name,
+         razao_social: company?.legal_name || company?.name || existing.razao_social,
+       },
+     })
+   } else if (isActive) {
+     await prisma.client_list.create({
+       data: {
+         company_id: companyId,
+         company_name: company?.name || 'Empresa',
+         company_trade_name: company?.trade_name || null,
+         razao_social: company?.legal_name || company?.name || null,
+         cnpj: company?.cnpj || null,
+         segment: company?.segment || null,
+         city: company?.city || null,
+         state: company?.state || null,
+         status: 'active',
+         start_date: startDate ? new Date(startDate) : null,
+         end_date: endDate ? new Date(endDate) : null,
+         total_value: value ?? 0,
+         monthly_value: value ?? 0,
+         services: [],
+       },
+     })
+   }
 }
 
 export async function GET() {

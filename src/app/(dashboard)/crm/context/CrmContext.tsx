@@ -100,7 +100,7 @@ export interface Contract {
   startDate: string
   endDate: string
   autoRenew: boolean
-  status: 'draft' | 'active' | 'expired' | 'terminated'
+  status: 'draft' | 'active' | 'expired' | 'terminated' | 'approved'
   attachments: string[]
   createdAt: string
 }
@@ -849,12 +849,26 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newContract
   }
 
-  const updateContractStatus = (id: string, status: Contract['status']) => {
+   const updateContractStatus = (id: string, status: Contract['status']) => {
     const contr = contracts.find(c => c.id === id)
     if (!contr) return
     const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
     updateContractsState(updated)
     crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
+
+    // Log Activity
+    addActivity({
+      companyId: contr.companyId,
+      type: 'contract',
+      title: `Contrato atualizado`,
+      description: `Contrato "${contr.title}" mudou para status "${status}".`,
+      author: getRoleUserName(currentRole)
+    })
+
+    // Se aprovado, converter empresa para cliente ativo
+    if (status === 'approved') {
+      convertContractToClient(id)
+    }
   }
 
   const addClient = (c: Omit<Client, 'id' | 'createdAt'>) => {
@@ -890,10 +904,21 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const contr = contracts.find(c => c.id === contractId)
     if (!contr) return
     if (clients.some(c => c.contractId === contractId)) return
-    addClient({
+    const newClient: Client = {
+      id: crypto.randomUUID(),
       companyId: contr.companyId,
       contractId: contr.id,
-      status: 'active'
+      status: 'active',
+      createdAt: new Date().toISOString()
+    }
+    const updated = [newClient, ...clients]
+    updateClientsState(updated)
+    addActivity({
+      companyId: contr.companyId,
+      type: 'comment',
+      title: 'Empresa convertida para cliente ativo',
+      description: `A empresa foi convertida para cliente ativo automaticamente após aprovação do contrato "${contr.title}".`,
+      author: getRoleUserName(currentRole)
     })
   }
 

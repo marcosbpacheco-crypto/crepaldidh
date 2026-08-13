@@ -11,6 +11,7 @@ export interface CompanyRow {
   name: string;
   trade_name: string;
   cnpj: string;
+  legal_name: string;
   segment: string;
   employees: number;
   city: string;

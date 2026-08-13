@@ -24,7 +24,7 @@ export interface Proposal {
 }
 export interface Contract {
   id: string; companyId: string; proposalId?: string; title: string; value: number; startDate: string; endDate: string
-  autoRenew: boolean; status: 'draft' | 'active' | 'expired' | 'terminated'; attachments: string[]; createdAt: string
+  autoRenew: boolean; status: 'draft' | 'active' | 'expired' | 'terminated' | 'approved'; attachments: string[]; createdAt: string
 }
 export interface Seller { id: string; name: string; role: string; avatar: string }
 export interface CrmClient {

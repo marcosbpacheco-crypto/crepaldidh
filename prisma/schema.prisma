@@ -812,9 +812,10 @@ model client_interactions {
 model client_list {
   id                   String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   company_id           String?               @db.VarChar(255)
-  company_name         String                @db.VarChar(255)
+  company_name         String?               @db.VarChar(255)
   company_trade_name   String?               @db.VarChar(255)
   cnpj                 String?               @db.VarChar(20)
+  razao_social         String?               @db.VarChar(255)
   segment              String?               @db.VarChar(100)
   city                 String?               @db.VarChar(100)
   state                String?               @db.VarChar(50)
