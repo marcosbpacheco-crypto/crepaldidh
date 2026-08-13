@@ -153,8 +153,8 @@ export async function login(formData: FormData) {
 
     return { error: 'E-mail ou senha inválidos.' }
   } catch (err: any) {
-    console.error('[login] error:', err?.message || err)
-    return { error: 'Erro ao conectar ao servidor. Tente novamente.' }
+    console.error('[login] DETALHE DO ERRO:', err)
+    return { error: `Erro ao conectar: ${err?.message || 'Falha desconhecida'}` }
   }
 }
 
