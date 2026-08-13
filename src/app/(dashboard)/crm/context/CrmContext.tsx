@@ -179,7 +179,7 @@ interface CrmContextType {
   updateProposalStatus: (id: string, status: Proposal['status']) => void;
   deleteProposal: (id: string) => Promise<void>;
   addContract: (contract: Omit<Contract, 'id' | 'createdAt'>) => Contract;
-  updateContractStatus: (id: string, status: Contract['status']) => void;
+  updateContractStatus?: (id: string, status: Contract['status']) => void;
   deleteContract: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
   updateClient: (id: string, updates: Partial<Client>) => void;
@@ -795,6 +795,17 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateProposalsState(updated)
     crmService.updateProposal(id, { status }).catch(err => console.error('[CRM] updateProposalStatus error:', err))
 
+    // Atualiza status do contrato
+    if (status === 'approved') convertContractToClient(id)
+
+  const updateContractStatus = (id: string, status: Contract['status']) => {
+    const contract = contracts.find(c => c.id === id)
+if (!contract) return
+    const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
+    updateContractsState(updated)
+    crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
+  }
+
     // Log Activity
     addActivity({
       companyId: prop.companyId,
@@ -992,7 +1003,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateProposalStatus,
         deleteProposal,
         addContract,
-        updateContractStatus,
         deleteContract,
         // Client mutators (already present)
         addClient,

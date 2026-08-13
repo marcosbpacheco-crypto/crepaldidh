@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    // Fetch all active clients
     const clients = await prisma.client_list.findMany({
       where: { deleted_at: null },
       include: {
@@ -13,8 +14,39 @@ export async function GET() {
       },
       orderBy: { created_at: 'desc' },
     })
-    return NextResponse.json({ clients })
+
+    // Fetch all companies with their approved contracts
+    const companiesWithApprovedContracts = await prisma.crm_companies.findMany({
+      where: {
+        crm_contracts: {
+          some: {
+            status: 'approved',
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        trade_name: true,
+      },
+    })
+
+    // Create a set of company IDs that have approved contracts
+    const companiesWithApprovedContractIds = new Set(
+      companiesWithApprovedContracts.map(c => c.id)
+    )
+
+    // Filter clients to only include those whose company has an approved contract
+    const filteredClients = clients.filter(client => {
+      // Check if the client's company has an approved contract
+      // client_list has company_id field
+      if (!client.company_id) return false
+      return companiesWithApprovedContractIds.has(client.company_id)
+    })
+
+    return NextResponse.json({ clients: filteredClients })
   } catch (err: any) {
+    console.error('Error fetching clients:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

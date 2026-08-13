@@ -5,7 +5,7 @@ import { useCrm, Proposal, Contract } from '../context/CrmContext'
 import { useAdmin } from '../../admin/context/AdminContext'
 import { documentService } from '@/services/documentService'
 import { 
-  FileText, Award, DollarSign, Calendar, Plus, Printer, 
+  Edit2, FileText, Award, DollarSign, Calendar, Plus, Printer, 
   Trash2, X, Eye, CheckCircle2, AlertTriangle, RefreshCw, Paperclip,
   Brain, Sparkles, Download, Upload
 } from 'lucide-react'
@@ -440,11 +440,12 @@ export const CrmProposals: React.FC = () => {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => { if(confirm('Tem certeza?')) deleteContract(contr.id) }}
+                            onClick={() => { if(confirm('Tem certeza?')) deleteContract(prop.id) }}
                             className="p-1.5 bg-slate-100 hover:bg-red-100 text-slate-600 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                      </div>
                       </td>
                     </tr>
                   ))
