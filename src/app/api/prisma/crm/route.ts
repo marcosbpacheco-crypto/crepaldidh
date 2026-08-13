@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // como cliente ativo no módulo Clientes (tabela client_list).
 async function syncClientFromContract(companyId: string | null | undefined, status: string, startDate?: string, endDate?: string, value?: number) {
   if (!companyId) return
-  const isActive = status === 'active'
+  const isActive = status === 'active' || status === 'approved'
 
    const company = await prisma.crm_companies.findUnique({
      where: { id: companyId },
