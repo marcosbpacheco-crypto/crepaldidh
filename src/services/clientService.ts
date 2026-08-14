@@ -2,6 +2,30 @@ import type { Client, ClientContact, ClientInteraction, ClientFeedbackRanking } 
 
 const BASE = '/api/prisma/clients'
 
+// ----------------------------------------------------------------
+// Single-flight GET cache: multiple list*() calls in the same tick
+// share ONE HTTP request, dramatically reducing load time.
+// ----------------------------------------------------------------
+const GET_TTL = 8000
+let getCache: { promise: Promise<any>; ts: number } | null = null
+
+async function getData() {
+  const now = Date.now()
+  if (getCache && now - getCache.ts < GET_TTL) {
+    return getCache.promise
+  }
+  const promise = request<{ clients: any[] }>(BASE)
+  getCache = { promise, ts: now }
+  promise.catch(() => {
+    if (getCache?.promise === promise) getCache = null
+  })
+  return promise
+}
+
+function invalidateGetCache() {
+  getCache = null
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
@@ -72,7 +96,7 @@ function mapFeedback(r: any): ClientFeedbackRanking {
 
 export const clientService = {
   async list(): Promise<Client[]> {
-    const json = await request<{ clients: any[] }>(BASE)
+    const json = await getData()
     return (json.clients || []).map(mapClient)
   },
 
@@ -82,6 +106,7 @@ export const clientService = {
   },
 
   async create(input: Partial<Client> & { id?: string }): Promise<Client> {
+    invalidateGetCache()
     const json = await request<{ client: any }>(BASE, {
       method: 'POST',
       body: JSON.stringify({ _type: 'client', ...input }),
@@ -90,6 +115,7 @@ export const clientService = {
   },
 
   async update(id: string, input: Partial<Client>): Promise<Client> {
+    invalidateGetCache()
     const json = await request<{ client: any }>(BASE, {
       method: 'PATCH',
       body: JSON.stringify({ _type: 'client', id, ...input }),
@@ -98,6 +124,7 @@ export const clientService = {
   },
 
   async remove(id: string): Promise<void> {
+    invalidateGetCache()
     await request(BASE, {
       method: 'DELETE',
       body: JSON.stringify({ id }),
@@ -105,6 +132,7 @@ export const clientService = {
   },
 
   async restore(id: string): Promise<Client> {
+    invalidateGetCache()
     const json = await request<{ client: any }>(BASE, {
       method: 'PATCH',
       body: JSON.stringify({ _type: 'restore', id }),
@@ -113,6 +141,7 @@ export const clientService = {
   },
 
   async hardDelete(id: string): Promise<void> {
+    invalidateGetCache()
     await request(BASE, {
       method: 'DELETE',
       body: JSON.stringify({ id, _type: 'hard' }),
@@ -120,7 +149,7 @@ export const clientService = {
   },
 
   async listAllContacts(): Promise<ClientContact[]> {
-    const json = await request<{ clients: any[] }>(BASE)
+    const json = await getData()
     const contacts: ClientContact[] = []
     for (const c of json.clients || []) {
       if (c.client_contacts) {
@@ -137,6 +166,7 @@ export const clientService = {
   },
 
   async createContact(input: Partial<ClientContact> & { id?: string }): Promise<ClientContact> {
+    invalidateGetCache()
     const json = await request<{ contact: any }>(BASE, {
       method: 'POST',
       body: JSON.stringify({ _type: 'contact', ...input }),
@@ -145,6 +175,7 @@ export const clientService = {
   },
 
   async updateContact(id: string, input: Partial<ClientContact>): Promise<ClientContact> {
+    invalidateGetCache()
     const json = await request<{ contact: any }>(BASE, {
       method: 'PATCH',
       body: JSON.stringify({ _type: 'contact', id, ...input }),
@@ -153,6 +184,7 @@ export const clientService = {
   },
 
   async deleteContact(id: string): Promise<void> {
+    invalidateGetCache()
     await request(BASE, {
       method: 'DELETE',
       body: JSON.stringify({ _type: 'contact', id }),
@@ -160,6 +192,7 @@ export const clientService = {
   },
 
   async createInteraction(input: Partial<ClientInteraction> & { id?: string }): Promise<ClientInteraction> {
+    invalidateGetCache()
     const json = await request<{ interaction: any }>(BASE, {
       method: 'POST',
       body: JSON.stringify({ _type: 'interaction', ...input }),
@@ -168,6 +201,7 @@ export const clientService = {
   },
 
   async createFeedback(input: Partial<ClientFeedbackRanking> & { id?: string }): Promise<ClientFeedbackRanking> {
+    invalidateGetCache()
     const json = await request<{ feedback: any }>(BASE, {
       method: 'POST',
       body: JSON.stringify({ _type: 'feedback', ...input }),
@@ -176,7 +210,7 @@ export const clientService = {
   },
 
   async listAllInteractions(): Promise<ClientInteraction[]> {
-    const json = await request<{ clients: any[] }>(BASE)
+    const json = await getData()
     const interactions: ClientInteraction[] = []
     for (const c of json.clients || []) {
       if (c.client_interactions) {
@@ -193,7 +227,7 @@ export const clientService = {
   },
 
   async listAllFeedbacks(): Promise<ClientFeedbackRanking[]> {
-    const json = await request<{ clients: any[] }>(BASE)
+    const json = await getData()
     const feedbacks: ClientFeedbackRanking[] = []
     for (const c of json.clients || []) {
       if (c.client_feedbacks) {

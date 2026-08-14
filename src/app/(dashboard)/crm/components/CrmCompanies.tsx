@@ -23,6 +23,7 @@ export const CrmCompanies: React.FC = () => {
   const isAdminOrDiretor = currentRoleName === 'Administrador' || currentRoleName === 'Diretor'
   const { 
     companies, contacts, deals, activities,
+    proposals, contracts,
     addCompany, updateCompany, deleteCompany, hardDeleteCompany, restoreCompany,
     addContact, updateContact, deleteContact
   } = useCrm()
@@ -38,6 +39,7 @@ export const CrmCompanies: React.FC = () => {
   const [isEditContactOpen, setIsEditContactOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showLinkBlocked, setShowLinkBlocked] = useState(false)
   
   // Selected Contact for editing
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
@@ -111,6 +113,27 @@ export const CrmCompanies: React.FC = () => {
     if (!selectedCompany) return []
     return deals.filter(d => d.companyId === selectedCompany.id)
   }, [deals, selectedCompany])
+
+  // Business rule: a company linked to proposals and/or contracts cannot be deleted
+  const hasLinkedProposals = useMemo(() => {
+    if (!selectedCompany) return false
+    return proposals.some(p => p.companyId === selectedCompany.id)
+  }, [proposals, selectedCompany])
+
+  const hasLinkedContracts = useMemo(() => {
+    if (!selectedCompany) return false
+    return contracts.some(c => c.companyId === selectedCompany.id)
+  }, [contracts, selectedCompany])
+
+  const hasCommercialLinks = hasLinkedProposals || hasLinkedContracts
+
+  const tryOpenDeleteConfirm = () => {
+    if (hasCommercialLinks) {
+      setShowLinkBlocked(true)
+      return
+    }
+    setShowDeleteConfirm(true)
+  }
 
   // 3. Actions
   const handleCreateCompanySubmit = (e: React.FormEvent) => {
@@ -337,7 +360,7 @@ export const CrmCompanies: React.FC = () => {
                     {selectedCompany.status !== 'inactive' ? (
                       <>
                         <button
-                          onClick={() => { setShowDeleteConfirm(true); }}
+                          onClick={tryOpenDeleteConfirm}
                           className="p-2 border border-amber-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                           title="Inativar Empresa"
                         >
@@ -345,7 +368,15 @@ export const CrmCompanies: React.FC = () => {
                           Inativar
                         </button>
                         <button
-                          onClick={async () => { setDeletingId(selectedCompany.id); await hardDeleteCompany(selectedCompany.id); setDeletingId(null); }}
+                          onClick={() => {
+                            if (hasCommercialLinks) {
+                              setShowLinkBlocked(true)
+                              return
+                            }
+                            setDeletingId(selectedCompany.id)
+                            hardDeleteCompany(selectedCompany.id)
+                            setDeletingId(null)
+                          }}
                           disabled={deletingId === selectedCompany.id}
                           className="p-2 border border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
                           title="Excluir Permanentemente"
@@ -1213,6 +1244,31 @@ export const CrmCompanies: React.FC = () => {
             <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
               <button onClick={async () => { setDeletingId(selectedCompany.id); await deleteCompany(selectedCompany.id); setDeletingId(null); setShowDeleteConfirm(false) }} disabled={deletingId === selectedCompany.id} className="flex-1 px-3 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-xl hover:bg-amber-700 transition-all disabled:opacity-50">{deletingId === selectedCompany.id ? 'Inativando...' : 'Confirmar Inativação'}</button>
               <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-2 border border-slate-200 text-[11px] font-semibold rounded-xl hover:bg-slate-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    {/* Linked commercial records blocked modal */}
+      {showLinkBlocked && selectedCompany && (
+        <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center" onClick={() => setShowLinkBlocked(false)}>
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><Lock className="w-5 h-5" /></div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Empresa vinculada</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Não é possível excluir/inativar agora.</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              A empresa <strong>{selectedCompany.tradeName || selectedCompany.name}</strong> possui
+              {hasLinkedProposals ? ' <strong>propostas</strong>' : ''}
+              {hasLinkedProposals && hasLinkedContracts ? ' e' : ''}
+              {hasLinkedContracts ? ' <strong>contratos</strong>' : ''} vinculados no Gestão Comercial.
+              Para excluir ou inativar, desvincule primeiro as propostas e contratos da empresa.
+            </p>
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+              <button onClick={() => setShowLinkBlocked(false)} className="flex-1 px-3 py-2 bg-brand-teal text-white text-[11px] font-bold rounded-xl hover:bg-brand-teal/95 transition-all">Entendi</button>
             </div>
           </div>
         </div>

@@ -505,6 +505,18 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true })
     }
 
+    // Business rule: company linked to proposals/contracts cannot be deleted
+    const [linkedProposal, linkedContract] = await Promise.all([
+      prisma.crm_proposals.findFirst({ where: { company_id: id } }),
+      prisma.crm_contracts.findFirst({ where: { company_id: id } }),
+    ])
+    if (linkedProposal || linkedContract) {
+      return NextResponse.json(
+        { error: 'Empresa vinculada a propostas e/ou contratos no Gestão Comercial. Desvincule antes de excluir.' },
+        { status: 409 }
+      )
+    }
+
     await prisma.crm_companies.update({
       where: { id },
       data: { deleted_at: new Date(), status: 'inactive' },

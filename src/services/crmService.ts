@@ -9,13 +9,38 @@ async function api(url: string, opts?: RequestInit) {
   return data
 }
 
+// ----------------------------------------------------------------
+// Single-flight GET cache: when multiple list*() methods are called
+// in the same tick (Promise.all), they share ONE HTTP request.
+// ----------------------------------------------------------------
+const GET_TTL = 8000
+let getCache: { promise: Promise<any>; ts: number } | null = null
+
+async function getData() {
+  const now = Date.now()
+  if (getCache && now - getCache.ts < GET_TTL) {
+    return getCache.promise
+  }
+  const promise = api(BASE)
+  getCache = { promise, ts: now }
+  promise.catch(() => {
+    if (getCache?.promise === promise) getCache = null
+  })
+  return promise
+}
+
+function invalidateGetCache() {
+  getCache = null
+}
+
 export const crmService = {
   async listCompanies(): Promise<Company[]> {
-    const data = await api(BASE)
+    const data = await getData()
     return (data.companies || []).map(mc)
   },
 
   async createCompany(input: Partial<Company>): Promise<Company> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'company', ...input }),
@@ -24,6 +49,7 @@ export const crmService = {
   },
 
   async updateCompany(id: string, input: Partial<Company>): Promise<Company> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...input }),
@@ -32,6 +58,7 @@ export const crmService = {
   },
 
   async removeCompany(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -39,7 +66,7 @@ export const crmService = {
   },
 
   async listContacts(companyId?: string): Promise<Contact[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Contact[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_contacts || []) {
@@ -50,6 +77,7 @@ export const crmService = {
   },
 
   async createContact(input: Partial<Contact>): Promise<Contact> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contact', ...input }),
@@ -58,6 +86,7 @@ export const crmService = {
   },
 
   async updateContact(id: string, input: Partial<Contact>): Promise<Contact> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contact', id, ...input }),
@@ -66,6 +95,7 @@ export const crmService = {
   },
 
   async removeContact(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contact', id }),
@@ -73,7 +103,7 @@ export const crmService = {
   },
 
   async listDeals(companyId?: string): Promise<Deal[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Deal[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_deals || []) {
@@ -84,6 +114,7 @@ export const crmService = {
   },
 
   async createDeal(input: Partial<Deal>): Promise<Deal> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'deal', ...input }),
@@ -92,6 +123,7 @@ export const crmService = {
   },
 
   async updateDeal(id: string, input: Partial<Deal>): Promise<Deal> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'deal', id, ...input }),
@@ -100,6 +132,7 @@ export const crmService = {
   },
 
   async removeDeal(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'deal', id }),
@@ -107,7 +140,7 @@ export const crmService = {
   },
 
   async listActivities(companyId?: string, dealId?: string): Promise<Activity[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Activity[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_activities || []) {
@@ -121,6 +154,7 @@ export const crmService = {
   },
 
   async createActivity(input: Partial<Activity>): Promise<Activity> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'activity', ...input }),
@@ -129,6 +163,7 @@ export const crmService = {
   },
 
   async removeActivity(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'activity', id }),
@@ -136,7 +171,7 @@ export const crmService = {
   },
 
   async listTasks(companyId?: string, dealId?: string): Promise<Task[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Task[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_tasks || []) {
@@ -150,6 +185,7 @@ export const crmService = {
   },
 
   async createTask(input: Partial<Task>): Promise<Task> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'task', ...input }),
@@ -158,6 +194,7 @@ export const crmService = {
   },
 
   async updateTask(id: string, input: Partial<Task>): Promise<Task> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'task', id, ...input }),
@@ -166,6 +203,7 @@ export const crmService = {
   },
 
   async removeTask(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'task', id }),
@@ -173,7 +211,7 @@ export const crmService = {
   },
 
   async listProposals(companyId?: string): Promise<Proposal[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Proposal[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_proposals || []) {
@@ -184,6 +222,7 @@ export const crmService = {
   },
 
   async createProposal(input: Partial<Proposal>): Promise<Proposal> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'proposal', ...input }),
@@ -192,6 +231,7 @@ export const crmService = {
   },
 
   async updateProposal(id: string, input: Partial<Proposal>): Promise<Proposal> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'proposal', id, ...input }),
@@ -200,6 +240,7 @@ export const crmService = {
   },
 
   async removeProposal(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'proposal', id }),
@@ -207,7 +248,7 @@ export const crmService = {
   },
 
   async listContracts(companyId?: string): Promise<Contract[]> {
-    const data = await api(BASE)
+    const data = await getData()
     const all: Contract[] = []
     for (const c of data.companies || []) {
       for (const r of c.crm_contracts || []) {
@@ -218,6 +259,7 @@ export const crmService = {
   },
 
   async createContract(input: Partial<Contract>): Promise<Contract> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contract', ...input }),
@@ -226,6 +268,7 @@ export const crmService = {
   },
 
   async updateContract(id: string, input: Partial<Contract>): Promise<Contract> {
+    invalidateGetCache()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contract', id, ...input }),
@@ -234,6 +277,7 @@ export const crmService = {
   },
 
   async removeContract(id: string): Promise<void> {
+    invalidateGetCache()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'contract', id }),
@@ -241,12 +285,12 @@ export const crmService = {
   },
 
   async listSellers(): Promise<Seller[]> {
-    const data = await api(BASE)
+    const data = await getData()
     return data.sellers || []
   },
 
   async listCrmClients(): Promise<CrmClient[]> {
-    const data = await api(BASE)
+    const data = await getData()
     return data.clients || []
   },
 }
