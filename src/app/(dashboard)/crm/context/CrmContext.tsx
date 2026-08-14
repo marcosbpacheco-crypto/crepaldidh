@@ -179,7 +179,6 @@ interface CrmContextType {
   updateProposalStatus: (id: string, status: Proposal['status']) => void;
   deleteProposal: (id: string) => Promise<void>;
   addContract: (contract: Omit<Contract, 'id' | 'createdAt'>) => Contract;
-  updateContractStatus?: (id: string, status: Contract['status']) => void;
   deleteContract: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
   updateClient: (id: string, updates: Partial<Client>) => void;

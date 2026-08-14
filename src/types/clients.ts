@@ -17,6 +17,7 @@ export interface Client {
   companyName: string
   companyTradeName: string
   cnpj: string
+  razao_social: string
   segment: string
   city: string
   state: string

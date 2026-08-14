@@ -19,6 +19,7 @@ function mapClient(r: any): Client {
     companyName: r.company_name ?? '',
     companyTradeName: r.company_trade_name ?? r.company_name ?? '',
     cnpj: r.cnpj ?? '',
+    razao_social: r.razao_social ?? '',
     segment: r.segment ?? '',
     city: r.city ?? '',
     state: r.state ?? '',

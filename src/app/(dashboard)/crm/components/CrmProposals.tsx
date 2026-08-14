@@ -164,7 +164,7 @@ function dateExtenso(): string {
 export const CrmProposals: React.FC = () => {
   const { 
     proposals, contracts, companies, services, addService,
-    addProposal, updateProposalStatus, deleteProposal, addContract, updateContractStatus, deleteContract
+    addProposal, updateProposalStatus, deleteProposal, addContract, deleteContract
   } = useCrm()
   const admin = useAdmin()
   const hasFinancialAccess = admin.checkPermission('financial', 'view')

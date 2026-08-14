@@ -726,6 +726,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
     companyName: editData.companyName,
     companyTradeName: editData.companyTradeName,
     cnpj: editData.cnpj,
+    razao_social: editData.razao_social,
     segment: editData.segment,
     city: editData.city,
     state: editData.state,
@@ -743,6 +744,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
     companyName: '',
     companyTradeName: '',
     cnpj: '',
+    razao_social: '',
     segment: '',
     city: '',
     state: '',
@@ -822,6 +824,14 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">Nome Fantasia *</label>
               <input value={form.companyTradeName} onChange={e => setForm(f => ({ ...f, companyTradeName: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ (opcional)</label>
+              <input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 mb-1 block">Razão Social (opcional)</label>
+              <input value={form.razao_social} onChange={e => setForm(f => ({ ...f, razao_social: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ (opcional)</label>

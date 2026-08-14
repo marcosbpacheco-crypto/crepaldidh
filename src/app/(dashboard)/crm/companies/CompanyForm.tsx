@@ -118,6 +118,10 @@ export const CompanyForm: React.FC<Props> = ({ company, onSuccess }) => {
         <input {...register('trade_name')} className="mt-1 block w-full rounded-md border-gray-300" />
       </div>
       <div>
+        <label className="block text-sm font-medium text-gray-700">Razão Social (Complementar)</label>
+        <input {...register('legal_name')} className="mt-1 block w-full rounded-md border-gray-300" />
+      </div>
+      <div>
         <label className="block text-sm font-medium text-gray-700">CNPJ (opcional)</label>
         <input {...register('cnpj')} className="mt-1 block w-full rounded-md border-gray-300" />
         {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
