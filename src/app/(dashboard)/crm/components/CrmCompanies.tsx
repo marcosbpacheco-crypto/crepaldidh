@@ -261,7 +261,7 @@ export const CrmCompanies: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-140px)] animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 h-auto lg:h-[calc(100vh-140px)] animate-fade-in">
       
       {/* LEFT SIDEBAR: List of Companies (4 cols) */}
       <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full overflow-hidden">
@@ -326,12 +326,12 @@ export const CrmCompanies: React.FC = () => {
       </div>
 
       {/* RIGHT PANEL: Details of Selected Company (8 cols) */}
-      <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full overflow-hidden">
+      <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col min-w-0 overflow-hidden">
         {selectedCompany ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
             
             {/* Detail Header */}
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{selectedCompany.cnpj}</span>
                 <h3 className="text-slate-800 font-black text-xl flex items-center gap-2 mt-1">
@@ -677,7 +677,7 @@ export const CrmCompanies: React.FC = () => {
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
                     <input

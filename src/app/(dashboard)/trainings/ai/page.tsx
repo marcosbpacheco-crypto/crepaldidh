@@ -209,7 +209,7 @@ export default function TrainingsAIPage() {
               </div>
 
               {selectedAction === 'email' && !inputs.eventId && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-600 mb-1">Nome do Evento</label>
                     <input value={inputs.eventName} onChange={e => setInputs({ ...inputs, eventName: e.target.value })}

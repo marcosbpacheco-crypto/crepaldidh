@@ -261,7 +261,7 @@ export const CrmAIHelper: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-140px)] animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 h-auto lg:h-[calc(100vh-140px)] animate-fade-in">
       {/* LEFT PANEL */}
       <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col p-4 space-y-1 h-full overflow-y-auto">
         <div className="p-2 flex items-center gap-2 mb-4">

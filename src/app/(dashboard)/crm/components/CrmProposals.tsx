@@ -362,7 +362,7 @@ export const CrmProposals: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in flex flex-col h-[calc(100vh-140px)]">
+    <div className="space-y-6 animate-fade-in flex flex-col h-auto lg:h-[calc(100vh-140px)]">
       
       {/* Sub Tabs and Actions */}
       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -595,8 +595,9 @@ export const CrmProposals: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="p-4 flex items-center justify-center gap-2">
-                         <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase ${
+                      <td className="p-4">
+                        <div className="flex items-center justify-start lg:justify-center gap-2 flex-wrap">
+                         <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase whitespace-nowrap ${
                           contr.status === 'approved' ? 'bg-blue-100 text-blue-800' :
                           contr.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
                           contr.status === 'expired' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
@@ -604,7 +605,7 @@ export const CrmProposals: React.FC = () => {
                           {contr.status === 'approved' ? 'Aprovado' : contr.status === 'active' ? 'Ativo' : contr.status === 'expired' ? 'Expirado' : 'Encerrado'}
                         </span>
                         {contr.status === 'approved' && (
-                          <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-brand-teal bg-brand-teal/10 border border-brand-teal/20 rounded-full">
+                          <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-brand-teal bg-brand-teal/10 border border-brand-teal/20 rounded-full whitespace-nowrap">
                             Empresa cliente ativa
                           </span>
                         )}
@@ -620,6 +621,7 @@ export const CrmProposals: React.FC = () => {
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                        </div>
                       </td>
                     </tr>
                   ))

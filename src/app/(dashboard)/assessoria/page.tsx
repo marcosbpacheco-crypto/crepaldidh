@@ -186,7 +186,7 @@ function SwotTab({ ctx, search }: { ctx: ReturnType<typeof useAssessoria>; searc
             <h3 className="text-[13px] font-bold text-slate-800">{s.empresa}</h3>
             <button onClick={() => ctx.deleteSwot(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className={`${quadrantClass} bg-emerald-50/50 border-emerald-200`}>
               <p className="text-[9px] font-bold text-emerald-700 uppercase mb-1.5 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> Forças</p>
               <ul className="list-disc list-inside text-[10px] text-emerald-800 space-y-0.5">{s.forcas.map((f, i) => <li key={i}>{f}</li>)}</ul>

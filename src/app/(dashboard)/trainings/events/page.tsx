@@ -609,7 +609,7 @@ export default function EventsPage() {
                   placeholder="Ex: João da Silva" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Empresa *</label>
                   <input required value={partForm.companyName} onChange={e => setPartForm({ ...partForm, companyName: e.target.value })}
@@ -632,7 +632,7 @@ export default function EventsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
                   <input type="email" value={partForm.email} onChange={e => setPartForm({ ...partForm, email: e.target.value })}

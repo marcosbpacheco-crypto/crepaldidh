@@ -70,7 +70,7 @@ export default function CatalogManager({ category }: { category: 'Treinamento' |
             placeholder="Descrição / ementa (opcional)"
             className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-300"
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider space-y-1">
               Vinculável a
               <select

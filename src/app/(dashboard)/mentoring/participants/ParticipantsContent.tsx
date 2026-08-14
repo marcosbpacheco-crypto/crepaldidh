@@ -170,8 +170,8 @@ export const ParticipantsContent = () => {
               <p className="text-sm text-slate-500">Cadastre um colaborador ou líder para acompanhamento</p>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Nome completo *</label>
                   <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" placeholder="João da Silva" />
@@ -216,7 +216,7 @@ export const ParticipantsContent = () => {
                   <input required type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Observações</label>
                   <textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" placeholder="Focos de desenvolvimento, contexto..." />

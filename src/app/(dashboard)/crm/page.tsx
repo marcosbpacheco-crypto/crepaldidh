@@ -50,7 +50,7 @@ function CrmMainContent() {
   }
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-6">
       
       {/* Page Title & Role Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">

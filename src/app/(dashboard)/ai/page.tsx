@@ -84,7 +84,7 @@ export default function AiPage() {
   ]
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-0 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+    <div className="flex h-auto lg:h-[calc(100vh-8rem)] gap-0 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
       {/* ── Sidebar ──────────────────────────── */}
       <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-white border-r border-slate-100 flex flex-col overflow-hidden shrink-0`}>
         {sidebarOpen && (

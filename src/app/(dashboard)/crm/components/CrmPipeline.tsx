@@ -160,7 +160,7 @@ export const CrmPipeline: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-140px)] animate-fade-in">
+    <div className="space-y-6 flex flex-col h-auto lg:h-[calc(100vh-140px)] animate-fade-in">
       
       {/* Top Filter and Actions Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">

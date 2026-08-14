@@ -304,8 +304,8 @@ export default function SessionsPage() {
               <p className="text-sm text-slate-500">Insira todos os dados e detalhes da sessão realizada ou agendada</p>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Título da Sessão *</label>
                   <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" placeholder="Ex: Sessão 1 - Introdução e PDI" />
@@ -324,12 +324,12 @@ export default function SessionsPage() {
                   <input required type="number" min={15} step={15} value={form.duration} onChange={e => setForm({ ...form, duration: parseInt(e.target.value) || 60 })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Data e Hora *</label>
                   <input required type="datetime-local" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Participante(s) *</label>
                   <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-slate-200 p-3 rounded-xl bg-slate-50">
                     {participants.map(p => (
@@ -350,17 +350,17 @@ export default function SessionsPage() {
                     ))}
                   </div>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Objetivo da Sessão</label>
                   <textarea rows={2} value={form.objective} onChange={e => setForm({ ...form, objective: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" placeholder="Definir os focos principais do acompanhamento..." />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Assuntos/Tópicos Tratados</label>
                   <textarea rows={2} value={form.topics} onChange={e => setForm({ ...form, topics: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" placeholder="Feedback da equipe, DISC, hábitos..." />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Plano de Ação</label>
                   <textarea rows={2} value={form.actionPlan} onChange={e => setForm({ ...form, actionPlan: e.target.value })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none" placeholder="Tarefas e compromissos acordados..." />

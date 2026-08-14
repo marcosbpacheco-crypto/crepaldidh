@@ -88,7 +88,7 @@ function ClientsMainContent() {
     calendar.events.filter(e => e.clientId === clientId || (e.companyName && clients.find(c => c.id === clientId && (c.companyName === e.companyName || c.companyTradeName === e.companyName))))
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -120,8 +120,8 @@ function ClientsMainContent() {
         </div>
       )}
 
-      <div className="flex gap-6">
-        <div className={`${selectedId ? 'w-[420px]' : 'flex-1'} transition-all duration-300 flex-shrink-0`}>
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className={`w-full lg:w-[420px] transition-all duration-300 flex-shrink-0 ${selectedId ? 'hidden lg:block' : ''}`}>
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -198,6 +198,7 @@ function ClientsMainContent() {
         </div>
 
         {selected && (
+          <div className="flex-1 min-w-0">
           <ClientDetail
             client={selected}
             contacts={contacts.filter(c => c.clientId === selected.id)}
@@ -221,6 +222,7 @@ function ClientsMainContent() {
             hasFinancialAccess={hasFinancialAccess}
             isAdminOrDiretor={isAdminOrDiretor}
           />
+          </div>
         )}
       </div>
 
@@ -371,7 +373,7 @@ function ClientDetail({
         </div>
       </div>
 
-      <div className="flex gap-1 px-6 pt-4 border-b border-slate-100">
+      <div className="flex gap-1 px-4 sm:px-6 pt-4 border-b border-slate-100 overflow-x-auto scrollbar-none">
         {[
           { id: 'info', label: 'Informações', icon: <Building2 className="w-3.5 h-3.5" /> },
           { id: 'contacts', label: 'Contatos', icon: <User className="w-3.5 h-3.5" /> },
@@ -816,22 +818,14 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="col-span-1 sm:col-span-2">
               <label className="text-xs font-bold text-slate-400 mb-1 block">Razão Social</label>
               <input value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">Nome Fantasia *</label>
               <input value={form.companyTradeName} onChange={e => setForm(f => ({ ...f, companyTradeName: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ (opcional)</label>
-              <input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1 block">Razão Social (opcional)</label>
-              <input value={form.razao_social} onChange={e => setForm(f => ({ ...f, razao_social: e.target.value }))} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">CNPJ (opcional)</label>
@@ -881,7 +875,7 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-400 mb-1 block">Data Início</label>
               <input type="date" value={form.startDate} onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); calcTotal() }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/20" />
