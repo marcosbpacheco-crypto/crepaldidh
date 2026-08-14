@@ -27,6 +27,7 @@ export interface Company {
   name: string // Razão Social
   tradeName: string // Nome Fantasia
   cnpj: string
+  legalName?: string // Razão Social (complementar)
   segment: string
   employees: number
   city: string

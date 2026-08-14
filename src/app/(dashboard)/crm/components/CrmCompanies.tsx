@@ -64,6 +64,8 @@ export const CrmCompanies: React.FC = () => {
 
   const [createCompanyForm, setCreateCompanyForm] = useState({
     name: '',
+    legalName: '',
+    cnpj: '',
     segment: 'Indústria',
     city: '',
     state: '',
@@ -121,7 +123,8 @@ export const CrmCompanies: React.FC = () => {
     const created = addCompany({
         name: createCompanyForm.name,
         tradeName: createCompanyForm.name,
-        cnpj: '',
+        legalName: createCompanyForm.legalName,
+        cnpj: createCompanyForm.cnpj,
         employees: 0,
         website: '',
         instagram: '',
@@ -142,6 +145,8 @@ export const CrmCompanies: React.FC = () => {
     // Reset Form
     setCreateCompanyForm({
         name: '',
+        legalName: '',
+        cnpj: '',
         segment: 'Indústria',
         city: '',
         state: '',
@@ -605,6 +610,29 @@ export const CrmCompanies: React.FC = () => {
                   onChange={e => setCreateCompanyForm({ ...createCompanyForm, name: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Razão Social</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Crepaldi DH Consultoria LTDA"
+                    value={createCompanyForm.legalName}
+                    onChange={e => setCreateCompanyForm({ ...createCompanyForm, legalName: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CNPJ</label>
+                  <input
+                    type="text"
+                    placeholder="00.000.000/0000-00"
+                    value={createCompanyForm.cnpj}
+                    onChange={e => setCreateCompanyForm({ ...createCompanyForm, cnpj: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

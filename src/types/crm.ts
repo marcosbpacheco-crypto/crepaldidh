@@ -3,7 +3,7 @@ export interface Contact {
   birthday: string; influence: 'high' | 'medium' | 'low'; notes: string
 }
 export interface Company {
-  id: string; name: string; tradeName: string; cnpj: string; segment: string; employees: number
+  id: string; name: string; tradeName: string; cnpj: string; legalName?: string; segment: string; employees: number
   city: string; state: string; website: string; instagram: string; respPrincipal: string; respRH: string
   respFinanceiro: string; phone: string; email: string; notes: string; status: 'active' | 'inactive'; createdAt: string
 }
