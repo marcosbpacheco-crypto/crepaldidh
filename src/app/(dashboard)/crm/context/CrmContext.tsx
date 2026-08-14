@@ -177,9 +177,12 @@ interface CrmContextType {
   toggleTaskStatus: (id: string) => void;
   deleteTask: (id: string) => void;
   addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt'>) => Proposal;
+  updateProposal: (id: string, updates: Partial<Proposal>) => void;
   updateProposalStatus: (id: string, status: Proposal['status']) => void;
   deleteProposal: (id: string) => Promise<void>;
   addContract: (contract: Omit<Contract, 'id' | 'createdAt'>) => Contract;
+  updateContract: (id: string, updates: Partial<Contract>) => void;
+  updateContractStatus: (id: string, status: Contract['status']) => void;
   deleteContract: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
   updateClient: (id: string, updates: Partial<Client>) => void;
@@ -787,6 +790,14 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     crmService.removeProposal(id).catch(err => console.error('[CRM] deleteProposal error:', err))
   }
 
+  const updateProposal = (id: string, updates: Partial<Proposal>) => {
+    const prop = proposals.find(p => p.id === id)
+    if (!prop) return
+    const updated = proposals.map(p => p.id === id ? { ...p, ...updates } : p)
+    updateProposalsState(updated)
+    crmService.updateProposal(id, updates).catch(err => console.error('[CRM] updateProposal error:', err))
+  }
+
   const updateProposalStatus = (id: string, status: Proposal['status']) => {
     const prop = proposals.find(p => p.id === id)
     if (!prop) return
@@ -794,17 +805,6 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = proposals.map(p => p.id === id ? { ...p, status } : p)
     updateProposalsState(updated)
     crmService.updateProposal(id, { status }).catch(err => console.error('[CRM] updateProposalStatus error:', err))
-
-    // Atualiza status do contrato
-    if (status === 'approved') convertContractToClient(id)
-
-  const updateContractStatus = (id: string, status: Contract['status']) => {
-    const contract = contracts.find(c => c.id === id)
-if (!contract) return
-    const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
-    updateContractsState(updated)
-    crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
-  }
 
     // Log Activity
     addActivity({
@@ -830,6 +830,22 @@ if (!contract) return
         attachments: []
       })
     }
+  }
+
+  const updateContract = (id: string, updates: Partial<Contract>) => {
+    const contract = contracts.find(c => c.id === id)
+    if (!contract) return
+    const updated = contracts.map(c => c.id === id ? { ...c, ...updates } : c)
+    updateContractsState(updated)
+    crmService.updateContract(id, updates).catch(err => console.error('[CRM] updateContract error:', err))
+  }
+
+  const updateContractStatus = (id: string, status: Contract['status']) => {
+    const contract = contracts.find(c => c.id === id)
+    if (!contract) return
+    const updated = contracts.map(c => c.id === id ? { ...c, status } : c)
+    updateContractsState(updated)
+    crmService.updateContract(id, { status }).catch(err => console.error('[CRM] updateContractStatus error:', err))
   }
 
   // Contracts CRUD
@@ -1000,9 +1016,12 @@ if (!contract) return
         toggleTaskStatus,
         deleteTask,
         addProposal,
+        updateProposal,
         updateProposalStatus,
         deleteProposal,
         addContract,
+        updateContract,
+        updateContractStatus,
         deleteContract,
         // Client mutators (already present)
         addClient,
