@@ -1,17 +1,21 @@
 import type { CalendarEvent, CalendarParticipant, CalendarReminder } from '@/types/calendar'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/calendar'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const calendarService = {
   async list(): Promise<CalendarEvent[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.events || []).map(mapEvent)
   },
   async create(input: Partial<CalendarEvent>): Promise<CalendarEvent> {
@@ -35,7 +39,7 @@ export const calendarService = {
     })
   },
   async listParticipants(eventId?: string): Promise<CalendarParticipant[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: CalendarParticipant[] = []
     for (const e of data.events || []) {
       for (const r of e.calendar_participants || []) {
@@ -64,7 +68,7 @@ export const calendarService = {
     })
   },
   async listReminders(eventId?: string): Promise<CalendarReminder[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: CalendarReminder[] = []
     for (const e of data.events || []) {
       for (const r of e.calendar_reminders || []) {

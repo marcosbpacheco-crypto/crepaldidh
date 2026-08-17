@@ -1,4 +1,5 @@
 import type { AccountReceivable, AccountPayable, FinancialCategory, PaymentMethod, RecurringRule, FinancialTransaction, FinancialInvoice, BankTransaction } from '@/types/finance'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/financial'
 
@@ -9,13 +10,16 @@ async function api(url: string, opts?: RequestInit) {
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const financeService = {
   // Categories
   async listCategories(): Promise<FinancialCategory[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.categories || []
   },
   async createCategory(input: Partial<FinancialCategory>): Promise<FinancialCategory> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'category', ...input }),
@@ -23,6 +27,7 @@ export const financeService = {
     return data.category
   },
   async removeCategory(id: string): Promise<void> {
+    flight.invalidate()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'category', id }),
@@ -31,10 +36,11 @@ export const financeService = {
 
   // Payment methods
   async listPaymentMethods(): Promise<PaymentMethod[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.paymentMethods || []
   },
   async createPaymentMethod(input: Partial<PaymentMethod>): Promise<PaymentMethod> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'paymentMethod', ...input }),
@@ -44,10 +50,11 @@ export const financeService = {
 
   // Receivables
   async listReceivables(): Promise<AccountReceivable[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.receivables || []).map(mr)
   },
   async createReceivable(input: Partial<AccountReceivable>): Promise<AccountReceivable> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'receivable', ...input }),
@@ -55,6 +62,7 @@ export const financeService = {
     return mr(data.receivable)
   },
   async updateReceivable(id: string, input: Partial<AccountReceivable>): Promise<AccountReceivable> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...input }),
@@ -62,6 +70,7 @@ export const financeService = {
     return mr(data.receivable)
   },
   async removeReceivable(id: string): Promise<void> {
+    flight.invalidate()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'receivable', id }),
@@ -70,10 +79,11 @@ export const financeService = {
 
   // Payables
   async listPayables(): Promise<AccountPayable[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.payables || []).map(mp)
   },
   async createPayable(input: Partial<AccountPayable>): Promise<AccountPayable> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'payable', ...input }),
@@ -81,6 +91,7 @@ export const financeService = {
     return mp(data.payable)
   },
   async updatePayable(id: string, input: Partial<AccountPayable>): Promise<AccountPayable> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'payable', id, ...input }),
@@ -88,6 +99,7 @@ export const financeService = {
     return mp(data.payable)
   },
   async removePayable(id: string): Promise<void> {
+    flight.invalidate()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'payable', id }),
@@ -96,10 +108,11 @@ export const financeService = {
 
   // Recurring rules
   async listRecurringRules(): Promise<RecurringRule[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.recurringRules || []).map(mrr)
   },
   async createRecurringRule(input: Partial<RecurringRule>): Promise<RecurringRule> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'recurringRule', ...input }),
@@ -107,6 +120,7 @@ export const financeService = {
     return mrr(data.recurringRule)
   },
   async updateRecurringRule(id: string, input: Partial<RecurringRule>): Promise<RecurringRule> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'recurringRule', id, ...input }),
@@ -114,6 +128,7 @@ export const financeService = {
     return mrr(data.recurringRule)
   },
   async removeRecurringRule(id: string): Promise<void> {
+    flight.invalidate()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'recurringRule', id }),
@@ -122,16 +137,17 @@ export const financeService = {
 
   // Transactions
   async listTransactions(): Promise<FinancialTransaction[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.transactions || []).map(mt)
   },
 
   // Invoices
   async listInvoices(): Promise<FinancialInvoice[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.invoices || []
   },
   async createInvoice(input: Partial<FinancialInvoice>): Promise<FinancialInvoice> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'invoice', ...input }),
@@ -141,10 +157,11 @@ export const financeService = {
 
   // Bank transactions
   async listBankTransactions(): Promise<BankTransaction[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.bankTransactions || []
   },
   async createBankTransaction(input: Partial<BankTransaction>): Promise<BankTransaction> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'bankTransaction', ...input }),

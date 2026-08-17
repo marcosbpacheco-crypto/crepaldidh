@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { userService } from '@/services/userService'
 
 export type TenantStatus = 'active' | 'suspended' | 'trial' | 'cancelled'
 export type BillingStatus = 'paid' | 'pending' | 'overdue' | 'cancelled'
@@ -80,11 +81,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    fetch('/api/prisma/admin')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.tenants && Array.isArray(res.tenants) && res.tenants.length > 0) {
-          setTenants(res.tenants.map((t: any) => ({
+    Promise.all([userService.listTenants(), userService.listUsage()])
+      .then(([remoteTenants, remoteUsage]) => {
+        if (remoteTenants.length > 0) {
+          setTenants(remoteTenants.map((t: any) => ({
             id: t.id ?? '',
             name: t.name ?? '',
             cnpj: t.cnpj ?? '',
@@ -102,14 +102,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             createdAt: t.created_at ?? '',
           })))
         }
-        if (res?.usage && Array.isArray(res.usage)) {
-          setTenantsUsage(res.usage.map((u: any) => ({
+        if (remoteUsage.length > 0) {
+          setTenantsUsage(remoteUsage.map((u: any) => ({
             id: u.id ?? '', tenantId: u.tenant_id ?? '',
             metric: u.metric ?? 'users', value: u.value ?? 0, recordedAt: u.recorded_at ?? '',
           })))
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error('[TenantContext] load error:', err))
   }, [])
 
   const currentTenant = useMemo(() => tenants.find(t => t.id === currentTenantId) || null, [tenants, currentTenantId])

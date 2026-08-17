@@ -1,17 +1,21 @@
 import type { Project, ProjectTask } from '@/types/projects'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/projects'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const projectService = {
   async list(): Promise<Project[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.projects || []).map(mp)
   },
 
@@ -39,7 +43,7 @@ export const projectService = {
   },
 
   async listTasks(projectId?: string): Promise<ProjectTask[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.tasks || []).map(mt)
     return projectId ? all.filter((t: ProjectTask) => t.project_id === projectId) : all
   },

@@ -1,17 +1,21 @@
 import type { Diagnostico, Okr, Swot, PlanoAcao, Kpi, KpiMeta, Relatorio, Checkin, Ferramenta } from '@/types/assessoria'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/assessoria'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const assessoriaService = {
   async listDiagnosticos(empresa?: string): Promise<Diagnostico[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.diagnosticos || []).map((d: any) => md(d))
     return empresa ? all.filter((d: any) => d.empresa === empresa) : all
   },
@@ -36,7 +40,7 @@ export const assessoriaService = {
     })
   },
   async listOkrs(empresa?: string): Promise<Okr[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.okrs || []).map((o: any) => mo(o))
     return empresa ? all.filter((o: any) => o.empresa === empresa) : all
   },
@@ -61,7 +65,7 @@ export const assessoriaService = {
     })
   },
   async listSwots(empresa?: string): Promise<Swot[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.swots || []).map((s: any) => ms(s))
     return empresa ? all.filter((s: any) => s.empresa === empresa) : all
   },
@@ -86,7 +90,7 @@ export const assessoriaService = {
     })
   },
   async listPlanos(empresa?: string): Promise<PlanoAcao[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.planosAcao || []).map((p: any) => mpa(p))
     return empresa ? all.filter((p: any) => p.empresa === empresa) : all
   },
@@ -111,7 +115,7 @@ export const assessoriaService = {
     })
   },
   async listKpis(empresa?: string): Promise<Kpi[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all = (data.kpis || []).map((k: any) => mk(k))
     return empresa ? all.filter((k: any) => k.empresa === empresa) : all
   },

@@ -1,21 +1,26 @@
 import type { SipatProgram, TrainingEvent, TrainingParticipant, TrainingCertificate, TrainingFeedback, TrainingMaterial, TrainingReport, TrainingTypeItem, TrainingTypeMaterial, TrainingTimelineStep } from '@/types/trainings'
 import type { SipatDay } from '@/types/trainings'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/trainings'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const trainingService = {
   async listEvents(): Promise<TrainingEvent[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.events || []).map(me)
   },
   async createEvent(input: Partial<TrainingEvent>): Promise<TrainingEvent> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'event', ...input }),
@@ -23,6 +28,7 @@ export const trainingService = {
     return me(data.event)
   },
   async updateEvent(id: string, input: Partial<TrainingEvent>): Promise<TrainingEvent> {
+    flight.invalidate()
     const data = await api(BASE, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...input }),
@@ -30,6 +36,7 @@ export const trainingService = {
     return me(data.event)
   },
   async removeEvent(id: string): Promise<void> {
+    flight.invalidate()
     await api(BASE, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _type: 'event', id }),
@@ -37,7 +44,7 @@ export const trainingService = {
   },
 
   async listParticipants(eventId?: string): Promise<TrainingParticipant[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingParticipant[] = []
     for (const e of data.events || []) {
       for (const p of e.training_participants || []) {
@@ -68,7 +75,7 @@ export const trainingService = {
   },
 
   async listCertificates(): Promise<TrainingCertificate[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingCertificate[] = []
     for (const e of data.events || []) {
       for (const c of e.training_certificates || []) {
@@ -86,7 +93,7 @@ export const trainingService = {
   },
 
   async listFeedbacks(eventId?: string): Promise<TrainingFeedback[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingFeedback[] = []
     for (const e of data.events || []) {
       for (const f of e.training_feedbacks || []) {
@@ -104,7 +111,7 @@ export const trainingService = {
   },
 
   async listMaterials(eventId?: string): Promise<TrainingMaterial[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingMaterial[] = []
     for (const e of data.events || []) {
       for (const m of e.training_materials || []) {
@@ -128,7 +135,7 @@ export const trainingService = {
   },
 
   async listReports(): Promise<TrainingReport[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingReport[] = []
     for (const e of data.events || []) {
       for (const r of e.training_reports || []) {
@@ -146,7 +153,7 @@ export const trainingService = {
   },
 
   async listSipats(): Promise<SipatProgram[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.sipatPrograms || []
   },
   async createSipat(input: Partial<SipatProgram>): Promise<SipatProgram> {
@@ -159,7 +166,7 @@ export const trainingService = {
 
   // ---- Catálogo de tipos ----
   async listTrainingTypes(): Promise<TrainingTypeItem[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.trainingTypes || []).map(mtt)
   },
   async createTrainingType(input: Partial<TrainingTypeItem>): Promise<TrainingTypeItem> {
@@ -185,7 +192,7 @@ export const trainingService = {
 
   // ---- Materiais do catálogo ----
   async listTypeMaterials(): Promise<TrainingTypeMaterial[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.typeMaterials || []).map(mtm)
   },
   async createTypeMaterial(input: Partial<TrainingTypeMaterial>): Promise<TrainingTypeMaterial> {
@@ -204,7 +211,7 @@ export const trainingService = {
 
   // ---- Linha do tempo ----
   async listTimelineSteps(eventId?: string): Promise<TrainingTimelineStep[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: TrainingTimelineStep[] = (data.timelineSteps || []).map(mtl)
     return eventId ? all.filter(t => t.eventId === eventId) : all
   },

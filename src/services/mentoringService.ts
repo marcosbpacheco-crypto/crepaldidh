@@ -3,20 +3,24 @@ import type {
   MentoringFeedback, MentoringDiagnostic, MentoringIndicator, MentoringDocument,
   MentoringHistory, Participant, Competency, DevelopmentTool, Assessment, MentoringReport,
 } from '@/types/mentoring'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/mentoring'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const mentoringService = {
   // ---- Programas ----
   async listPrograms(): Promise<MentoringProgram[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.programs || []).map(mapProgram)
   },
   async createProgram(input: Partial<MentoringProgram>): Promise<MentoringProgram> {
@@ -86,7 +90,7 @@ export const mentoringService = {
 
   // ---- Sessões ----
   async listSessions(): Promise<MentoringSession[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.sessions || []).map(mapSession)
   },
   async createSession(input: Partial<MentoringSession>): Promise<MentoringSession> {
@@ -209,7 +213,7 @@ export const mentoringService = {
 
   // ---- Participantes ----
   async listParticipants(): Promise<Participant[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.participants || []).map(mapParticipant)
   },
   async createParticipant(input: Partial<Participant>): Promise<Participant> {
@@ -235,7 +239,7 @@ export const mentoringService = {
 
   // ---- Competências / Ferramentas / Avaliações / Relatórios ----
   async listCompetencies(): Promise<Competency[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.competencies || []).map((c: any) => ({ ...c, isCustom: c.is_custom ?? false }))
   },
   async createCompetency(input: Partial<Competency>): Promise<Competency> {
@@ -252,11 +256,11 @@ export const mentoringService = {
     })
   },
   async listTools(): Promise<DevelopmentTool[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.tools || []
   },
   async listAssessments(): Promise<Assessment[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.assessments || []).map((a: any) => ({
       ...a, participantId: a.participant_id, evaluatorId: a.evaluator_id,
       competencyScores: a.assessment_results || [],
@@ -270,7 +274,7 @@ export const mentoringService = {
     return data.assessment
   },
   async listReports(): Promise<MentoringReport[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.reports || []).map((r: any) => ({ ...r, participantId: r.participant_id, pdfUrl: r.pdf_url, generatedAt: r.generated_at }))
   },
   async createReport(input: Partial<MentoringReport>): Promise<MentoringReport> {

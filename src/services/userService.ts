@@ -1,14 +1,18 @@
 import type { User, Permission, Role, AuditLog, LgpdConsent, PrivacyRequest } from '@/types/admin'
 import type { Tenant, TenantPlan, TenantUsage } from '@/types/tenants'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/admin'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
+
+const flight = createSingleFlight(() => api(BASE))
 
 function mapUser(u: any): User {
   if (!u) return u
@@ -96,11 +100,11 @@ function mapPrivacyRequest(r: any): PrivacyRequest {
 
 export const userService = {
   async list(): Promise<User[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.users || []).map(mapUser)
   },
   async getByEmail(email: string): Promise<User | null> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const u = (data.users || []).find((u: any) => u.email === email)
     return u ? mapUser(u) : null
   },
@@ -125,11 +129,11 @@ export const userService = {
     })
   },
   async listRoles(): Promise<Role[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.roles || []
   },
   async listPermissions(): Promise<Permission[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.permissions || []).map(mapPermission)
   },
   async createPermission(input: Partial<Permission>): Promise<Permission> {
@@ -140,27 +144,27 @@ export const userService = {
     return data.permission ? mapPermission(data.permission) : data
   },
   async listAuditLogs(): Promise<AuditLog[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.auditLogs || []).map(mapAuditLog)
   },
   async listLgpdConsents(): Promise<LgpdConsent[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.lgpdConsents || []).map(mapLgpdConsent)
   },
   async listPrivacyRequests(): Promise<PrivacyRequest[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.privacyRequests || []).map(mapPrivacyRequest)
   },
   async listTenants(): Promise<Tenant[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.tenants || []
   },
   async listPlans(): Promise<TenantPlan[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.plans || []
   },
   async listUsage(): Promise<TenantUsage[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.usage || []
   },
 }

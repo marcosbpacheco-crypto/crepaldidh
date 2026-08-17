@@ -1,37 +1,41 @@
 import type { Document, DocumentVersion, DocumentAccessLog, DocumentCategory, KnowledgeTool, KnowledgeDynamic, KnowledgeUsage, KnowledgeLink, KnowledgeFavorite } from '@/types/documents'
+import { createSingleFlight } from '@/lib/single-flight'
 
 const BASE = '/api/prisma/documents'
 
 async function api(url: string, opts?: RequestInit) {
+  if (opts?.method && opts.method !== 'GET') flight.invalidate()
   const res = await fetch(url, opts)
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
 }
 
+const flight = createSingleFlight(() => api(BASE))
+
 export const documentService = {
   async list(): Promise<Document[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.documents || []).map(md)
   },
   async listTools(): Promise<KnowledgeTool[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.tools || []).map(mt)
   },
   async listDynamics(): Promise<KnowledgeDynamic[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.dynamics || []).map(mdy)
   },
   async listUsage(): Promise<KnowledgeUsage[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.usage || []).map(mu)
   },
   async listLinks(): Promise<KnowledgeLink[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.links || []).map(ml)
   },
   async listFavorites(): Promise<KnowledgeFavorite[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return (data.favorites || []).map(mf)
   },
   async create(input: Partial<Document>): Promise<Document> {
@@ -55,7 +59,7 @@ export const documentService = {
     })
   },
   async listVersions(documentId?: string): Promise<DocumentVersion[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: DocumentVersion[] = []
     for (const d of data.documents || []) {
       for (const r of d.document_versions || []) {
@@ -72,7 +76,7 @@ export const documentService = {
     return mv(data.version)
   },
   async listAccessLogs(documentId?: string): Promise<DocumentAccessLog[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     const all: DocumentAccessLog[] = []
     for (const d of data.documents || []) {
       for (const r of d.document_access_logs || []) {
@@ -89,7 +93,7 @@ export const documentService = {
     return ma(data.accessLog)
   },
   async listCategories(): Promise<DocumentCategory[]> {
-    const data = await api(BASE)
+    const data = await flight.get()
     return data.categories || []
   },
   async createTool(input: Partial<KnowledgeTool>): Promise<KnowledgeTool> {
