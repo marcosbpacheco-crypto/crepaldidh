@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmService } from '@/services/crmService'
 import { documentService } from '@/services/documentService'
+import { userService } from '@/services/userService'
 import type { ClientService } from '@/types/clients'
 
 // ==========================================
@@ -225,11 +226,18 @@ const PIPELINE_STAGES = [
   'Cliente perdido'
 ]
 
-const SELLERS: Seller[] = [
-  { id: 'seller-1', name: 'Bruno Crepaldi', role: 'Diretor Comercial', avatar: 'BC' },
-  { id: 'seller-2', name: 'Ana Beatriz', role: 'Gerente Comercial', avatar: 'AB' },
-  { id: 'seller-3', name: 'Carlos Eduardo', role: 'Consultor de Negócios', avatar: 'CE' }
-]
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+}
+
+function userToSeller(u: any): Seller {
+  return {
+    id: u.id ?? u.user_id ?? '',
+    name: u.name || u.email || 'Sem nome',
+    role: u.roleName || u.role_name || 'Comercial',
+    avatar: u.avatar || initials(u.name || u.email || ''),
+  }
+}
 
 // ==========================================
 // 3. SEED DATA (INITIAL VALUES)
@@ -284,6 +292,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reports, setReports] = useState<Report[]>([])
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentRole, setCurrentRole] = useState<UserRole>('admin')
+  const [sellers, setSellers] = useState<Seller[]>([])
 
   const queryClient = useQueryClient()
 
@@ -320,6 +329,15 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (apiContracts.length > 0) setContracts(apiContracts)
       if (apiClients.length > 0) setClients(apiClients)
     }).catch((err) => console.error('[CRM] service load error:', err))
+
+    userService.list()
+      .then(users => {
+        const registered = (users || []).filter(u => u && u.id && u.active !== false)
+        if (registered.length > 0) {
+          setSellers(registered.map(userToSeller))
+        }
+      })
+      .catch((err) => console.error('[CRM] sellers load error:', err))
   }, [])
 
   // Atencao: CrmContext NAO deve manipular clients_data.
@@ -993,7 +1011,7 @@ export const CrmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reports,
         interviews,
         // Static data
-        sellers: SELLERS,
+        sellers,
         services,
         addService,
         pipelineStages: PIPELINE_STAGES,

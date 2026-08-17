@@ -6,7 +6,7 @@ import { useProjectsRealtime } from '@/hooks/useProjectsRealtime'
 import { useTrainings } from '@/app/(dashboard)/trainings/context/TrainingsContext'
 import { useCrm } from '@/app/(dashboard)/crm/context/CrmContext'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
-import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2, Edit2, Lock } from 'lucide-react'
+import { Briefcase, Plus, Calendar, Users, DollarSign, CheckCircle, Clock, ChevronRight, X, Building2, Edit2, Lock, Trash2 } from 'lucide-react'
 
 const NoAccess = () => (
   <span className="flex items-center gap-1 text-slate-300 font-bold"><Lock className="w-3 h-3" />---</span>
@@ -42,7 +42,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function ProjectsPage() {
   useProjectsRealtime()
-  const { projects: ctxProjects = [], createProject, updateProject } = useProjects()
+  const { projects: ctxProjects = [], createProject, updateProject, deleteProject } = useProjects()
   const { events } = useTrainings()
   const { companies } = useCrm()
   const hasFinancialAccess = useAdmin().checkPermission('financial', 'view')
@@ -115,6 +115,22 @@ export default function ProjectsPage() {
     setEditingProject(null)
     resetForm()
     setShowForm(true)
+  }
+
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (p: Project) => {
+    if (!confirm(`Excluir o projeto "${p.name}"? Esta ação não pode ser desfeita.`)) return
+    setDeleting(true)
+    try {
+      await deleteProject(p.id)
+      if (selected?.id === p.id) setSelected(null)
+    } catch (e) {
+      console.error('Erro ao excluir projeto:', e)
+      alert('Erro ao excluir o projeto.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const projectEvents = selected ? events.filter(e => e.projectId === selected.id || e.companyId === selected.companyId) : []
@@ -214,6 +230,14 @@ export default function ProjectsPage() {
                       title="Editar projeto"
                     >
                       <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selected)}
+                      disabled={deleting}
+                      className="p-2 bg-white/10 hover:bg-red-500/30 rounded-xl transition-colors disabled:opacity-50"
+                      title="Excluir projeto"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
