@@ -902,6 +902,7 @@ model crm_companies {
   created_by                        String?                             @db.Uuid
   updated_at                        DateTime?                           @default(now()) @db.Timestamptz(6)
   deleted_at                        DateTime?                           @db.Timestamptz(6)
+  services                          Json?                               @default("[]")
   calendar_events                   calendar_events[]
   crm_activities                    crm_activities[]
   users                             users?                              @relation(fields: [created_by], references: [id], onUpdate: NoAction)

@@ -3,10 +3,12 @@
 import React, { useState, useMemo } from 'react'
 import { useCrm, Company, Contact } from '../context/CrmContext'
 import { useAdmin } from '../../admin/context/AdminContext'
+import { useServicesCatalog } from '@/hooks/useServicesCatalog'
+import type { ClientService } from '@/types/clients'
 import { 
   Building2, Users, Search, Plus, Mail, Phone, MapPin, 
   Globe, Link2, Edit2, Trash2, X, PlusCircle, Check,
-  AlertCircle, FileText, Lock
+  AlertCircle, FileText, Lock, Briefcase
 } from 'lucide-react'
 
 const NoAccess = () => (
@@ -27,6 +29,12 @@ export const CrmCompanies: React.FC = () => {
     addCompany, updateCompany, deleteCompany, hardDeleteCompany, restoreCompany,
     addContact, updateContact, deleteContact
   } = useCrm()
+
+  const catalog = useServicesCatalog()
+  const catalogServices = catalog.services
+
+  const [companyServices, setCompanyServices] = useState<string[]>([])
+  const [editCompanyServices, setEditCompanyServices] = useState<string[]>([])
 
   // 1. Selection & Search States
   const [searchTerm, setSearchTerm] = useState('')
@@ -136,6 +144,16 @@ export const CrmCompanies: React.FC = () => {
   }
 
   // 3. Actions
+  const toggleCompanyService = (name: string) => {
+    setCompanyServices(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name])
+  }
+
+  const toggleEditCompanyService = (name: string) => {
+    setEditCompanyServices(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name])
+  }
+
+  const servicesToClientServices = (names: string[]): ClientService[] => names.map(name => ({ name, status: 'not_started', startDate: '', endDate: '', progress: 0 }))
+
   const handleCreateCompanySubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!createCompanyForm.name) {
@@ -160,7 +178,8 @@ export const CrmCompanies: React.FC = () => {
         state: createCompanyForm.state,
         phone: createCompanyForm.phone,
         email: createCompanyForm.email,
-        notes: createCompanyForm.notes
+        notes: createCompanyForm.notes,
+        services: servicesToClientServices(companyServices)
     })
     setSelectedCompanyId(created.id)
     setIsCompanyModalOpen(false)
@@ -177,12 +196,13 @@ export const CrmCompanies: React.FC = () => {
         email: '',
         notes: '',
     })
+    setCompanyServices([])
   }
 
   const handleEditCompanySubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedCompany && companyForm.name) {
-      updateCompany(selectedCompany.id, companyForm)
+      updateCompany(selectedCompany.id, { ...companyForm, services: servicesToClientServices(editCompanyServices) })
       setIsEditCompanyOpen(false)
     }
   }
@@ -207,6 +227,7 @@ export const CrmCompanies: React.FC = () => {
       notes: selectedCompany.notes,
       status: selectedCompany.status
     })
+    setEditCompanyServices((selectedCompany.services || []).map(s => s.name))
     setIsEditCompanyOpen(true)
   }
 
@@ -452,6 +473,22 @@ export const CrmCompanies: React.FC = () => {
                       {selectedCompany.phone || 'N/A'}
                     </span>
                   </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-100/50">
+                  <span className="text-slate-400 block font-medium mb-2">Serviços Prestados</span>
+                  {selectedCompany.services && selectedCompany.services.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCompany.services.map(service => (
+                        <span key={service.name} className="px-3 py-1 rounded-full bg-brand-teal/10 text-brand-teal text-xs font-bold border border-brand-teal/20">
+                          <Briefcase className="w-3 h-3 inline mr-1" />
+                          {service.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-slate-400 italic text-xs">Nenhum serviço vinculado</span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs mt-6 pt-4 border-t border-slate-100/50">
@@ -733,6 +770,37 @@ export const CrmCompanies: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5" /> Serviços Prestados
+                </label>
+                {catalog.isLoading ? (
+                  <div className="text-xs text-slate-400 animate-pulse">Carregando catálogo de serviços...</div>
+                ) : catalogServices.length === 0 ? (
+                  <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {catalogServices.map(service => {
+                      const active = companyServices.includes(service.name)
+                      return (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() => toggleCompanyService(service.name)}
+                          className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
+                            active
+                              ? 'bg-brand-teal text-white border-brand-teal shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-brand-teal hover:text-brand-teal'
+                          }`}
+                        >
+                          {service.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -942,6 +1010,37 @@ export const CrmCompanies: React.FC = () => {
                   rows={3}
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-teal/50 text-xs"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5" /> Serviços Prestados
+                </label>
+                {catalog.isLoading ? (
+                  <div className="text-xs text-slate-400 animate-pulse">Carregando catálogo de serviços...</div>
+                ) : catalogServices.length === 0 ? (
+                  <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {catalogServices.map(service => {
+                      const active = editCompanyServices.includes(service.name)
+                      return (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() => toggleEditCompanyService(service.name)}
+                          className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
+                            active
+                              ? 'bg-brand-teal text-white border-brand-teal shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-brand-teal hover:text-brand-teal'
+                          }`}
+                        >
+                          {service.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

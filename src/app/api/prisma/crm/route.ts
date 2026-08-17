@@ -103,6 +103,7 @@ export async function POST(request: Request) {
           legal_name: data.legalName || data.legal_name || null,
           created_by: data.createdBy || data.created_by || null,
           tenant_id: data.tenantId || data.tenant_id || null,
+          services: data.services !== undefined ? (Array.isArray(data.services) ? data.services : []) : [],
         },
         update: {
           name: data.name,
@@ -460,6 +461,7 @@ export async function PATCH(request: Request) {
         ...(data.notes !== undefined && { notes: data.notes }),
         ...(data.status && { status: data.status }),
         ...(data.legalName && { legal_name: data.legalName }),
+        ...(data.services !== undefined && { services: Array.isArray(data.services) ? data.services : [] }),
       },
     })
     return NextResponse.json({ company })

@@ -7,6 +7,7 @@ import { useClients } from './hooks/useClientsHooks'
 import { useClientsRealtime } from '@/hooks/useClientsRealtime'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
+import { useServicesCatalog } from '@/hooks/useServicesCatalog'
 import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
@@ -763,7 +764,8 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
   const [form, setForm] = useState(initialForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const serviceOptions = ['Diagnóstico Psicossocial', 'NR01', 'Palestras', 'Treinamentos', 'SIPAT', 'Mentorias', 'Desenvolvimento de Lideranças', 'Cultura Organizacional', 'PDI', 'Consultoria Estratégica']
+  const catalog = useServicesCatalog()
+  const serviceOptions = catalog.services.map(s => s.name)
 
   const toggleService = (s: string) => {
     setForm(f => ({ ...f, services: f.services.includes(s) ? f.services.filter(x => x !== s) : [...f.services, s] }))

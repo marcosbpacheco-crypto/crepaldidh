@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmService } from '@/services/crmService'
 import { documentService } from '@/services/documentService'
+import type { ClientService } from '@/types/clients'
 
 // ==========================================
 // 1. INTERFACES & TYPES
@@ -42,6 +43,7 @@ export interface Company {
   notes: string
   status: 'active' | 'inactive'
   createdAt: string
+  services?: ClientService[]
 }
 
 export interface Deal {

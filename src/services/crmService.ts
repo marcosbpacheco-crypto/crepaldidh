@@ -295,7 +295,7 @@ export const crmService = {
   },
 }
 
-function mc(r: any): Company { return { ...r, tradeName: r.trade_name, legalName: r.legal_name, respPrincipal: r.resp_principal, respRH: r.resp_rh, respFinanceiro: r.resp_financeiro, createdAt: r.created_at } }
+function mc(r: any): Company { return { ...r, tradeName: r.trade_name, legalName: r.legal_name, respPrincipal: r.resp_principal, respRH: r.resp_rh, respFinanceiro: r.resp_financeiro, createdAt: r.created_at, services: Array.isArray(r.services) ? r.services : [] } }
 function mapContact(r: any): Contact { return { ...r, companyId: r.company_id, influence: r.influence || 'medium', birthday: r.birthday || '' } }
 function md(r: any): Deal { return { ...r, companyId: r.company_id, sellerId: r.seller_id, dueDate: r.due_date, createdAt: r.created_at, lostReason: r.lost_reason } }
 function ma(r: any): Activity { return { ...r, companyId: r.company_id, dealId: r.deal_id } }
