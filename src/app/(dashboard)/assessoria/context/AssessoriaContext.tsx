@@ -1,7 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import React, { createContext, useContext, useCallback, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { assessoriaService } from '@/services/assessoriaService'
 import type { Diagnostico, Okr, Swot, PlanoAcao, PlanoAcaoItem, Kpi, KpiMeta, Relatorio, Checkin, Ferramenta } from '@/types/assessoria'
 
@@ -13,6 +13,7 @@ interface AssessoriaContextType {
   swots: Swot[]
   planosAcao: PlanoAcao[]
   kpis: Kpi[]
+  loading: boolean
   addDiagnostico: (d: Omit<Diagnostico, 'id' | 'dataCriacao'>) => void
   updateDiagnostico: (id: string, updates: Partial<Diagnostico>) => void
   deleteDiagnostico: (id: string) => void
@@ -34,89 +35,237 @@ interface AssessoriaContextType {
 
 const AssessoriaContext = createContext<AssessoriaContextType | undefined>(undefined)
 
-function gid(): string { return 'ass-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6) }
+const D_KEY = ['assessoria', 'diagnosticos']
+const O_KEY = ['assessoria', 'okrs']
+const S_KEY = ['assessoria', 'swots']
+const P_KEY = ['assessoria', 'planos']
+const K_KEY = ['assessoria', 'kpis']
+
+function normDiag(d: Diagnostico): Diagnostico {
+  return {
+    ...d,
+    titulo: d.titulo || '',
+    empresa: d.empresa || '',
+    responsavel: d.responsavel || '',
+    areasAvaliadas: Array.isArray(d.areasAvaliadas) ? d.areasAvaliadas : [],
+    pontuacaoGeral: d.pontuacaoGeral ?? 0,
+    status: d.status || 'rascunho',
+    dataCriacao: d.dataCriacao || (d as any).createdAt || (d as any).created_at || '',
+    observacoes: d.observacoes || '',
+  }
+}
+function normOkr(o: Okr): Okr {
+  return {
+    ...o,
+    objetivo: o.objetivo || '',
+    empresa: o.empresa || '',
+    ciclo: o.ciclo || '',
+    keyResults: Array.isArray(o.keyResults) ? o.keyResults : [],
+    status: o.status || 'ativo',
+    dataCriacao: o.dataCriacao || (o as any).createdAt || (o as any).created_at || '',
+  }
+}
+function normSwot(s: Swot): Swot {
+  return {
+    ...s,
+    empresa: s.empresa || '',
+    forcas: Array.isArray(s.forcas) ? s.forcas : [],
+    fraquezas: Array.isArray(s.fraquezas) ? s.fraquezas : [],
+    oportunidades: Array.isArray(s.oportunidades) ? s.oportunidades : [],
+    ameacas: Array.isArray(s.ameacas) ? s.ameacas : [],
+    dataCriacao: s.dataCriacao || (s as any).createdAt || (s as any).created_at || '',
+  }
+}
+function normPlano(p: any): PlanoAcao {
+  const itens: PlanoAcaoItem[] = Array.isArray(p.itens)
+    ? p.itens.map((it: any) => ({
+        id: it.id || crypto.randomUUID(),
+        acao: it.acao || '',
+        descricao: it.descricao || '',
+        prazo: it.prazo || '',
+        responsavel: it.responsavel || '',
+        prioridade: it.prioridade || 'media',
+        categoria: it.categoria || 'demanda',
+        status: it.status || 'pendente',
+        linkedTaskId: it.linkedTaskId,
+      }))
+    : []
+  return {
+    id: p.id,
+    titulo: p.titulo || p.acao || '',
+    empresa: p.empresa || '',
+    responsavel: p.responsavel || '',
+    categoria: p.categoria || 'demanda',
+    prioridade: p.prioridade || 'media',
+    prazo: p.prazo || '',
+    status: p.status === 'concluido' ? 'concluido' : 'ativo',
+    itens,
+    dataCriacao: p.dataCriacao || p.createdAt || p.created_at || '',
+  }
+}
+function normKpi(k: Kpi): Kpi {
+  return {
+    ...k,
+    nome: k.nome || (k as any).indicador || '',
+    empresa: k.empresa || '',
+    meta: k.meta ?? 0,
+    atual: k.atual ?? 0,
+    unidade: k.unidade || '',
+    periodo: k.periodo || '',
+    tendencia: k.tendencia || 'estavel',
+  }
+}
 
 export function AssessoriaProvider({ children }: { children: React.ReactNode }) {
-  const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([])
-  const [okrs, setOkrs] = useState<Okr[]>([])
-  const [swots, setSwots] = useState<Swot[]>([])
-  const [planosAcao, setPlanosAcao] = useState<PlanoAcao[]>([])
-  const [kpis, setKpis] = useState<Kpi[]>([])
+  const qc = useQueryClient()
 
-  const queryClient = useQueryClient()
+  const diagQuery = useQuery({
+    queryKey: D_KEY,
+    queryFn: () => assessoriaService.listDiagnosticos().then(list => list.map(normDiag)),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+  const okrQuery = useQuery({
+    queryKey: O_KEY,
+    queryFn: () => assessoriaService.listOkrs().then(list => list.map(normOkr)),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+  const swotQuery = useQuery({
+    queryKey: S_KEY,
+    queryFn: () => assessoriaService.listSwots().then(list => list.map(normSwot)),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+  const planoQuery = useQuery({
+    queryKey: P_KEY,
+    queryFn: () => assessoriaService.listPlanos().then(list => list.map(normPlano)),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+  const kpiQuery = useQuery({
+    queryKey: K_KEY,
+    queryFn: () => assessoriaService.listKpis().then(list => list.map(normKpi)),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+  const invalidate = (keys: string[][]) => qc.invalidateQueries({ queryKey: keys.length === 1 ? keys[0] : keys })
+  const invalidateAll = () => { invalidate([D_KEY, O_KEY, S_KEY, P_KEY, K_KEY]) }
 
-    Promise.all([
-      assessoriaService.listDiagnosticos(),
-      assessoriaService.listOkrs(),
-      assessoriaService.listSwots(),
-      assessoriaService.listPlanos(),
-      assessoriaService.listKpis(),
-    ]).then(([diag, okrList, swotList, planos, kpiList]) => {
-      if (diag.length > 0) setDiagnosticos(diag)
-      if (okrList.length > 0) setOkrs(okrList)
-      if (swotList.length > 0) setSwots(swotList)
-      if (planos.length > 0) setPlanosAcao(planos.map(p => ({
-        ...p,
-        categoria: p.categoria || 'demanda',
-        prioridade: p.prioridade || 'media',
-        prazo: p.prazo || '',
-        itens: (Array.isArray(p.itens) ? p.itens : []).map((it: any) => ({
-          acao: it.acao || '',
-          descricao: it.descricao || '',
-          prazo: it.prazo || '',
-          responsavel: it.responsavel || '',
-          prioridade: it.prioridade || 'media',
-          categoria: it.categoria || 'demanda',
-          status: it.status || 'pendente',
-          linkedTaskId: it.linkedTaskId,
-          id: it.id || gid(),
-        })),
-      })))
-      if (kpiList.length > 0) setKpis(kpiList)
-    }).catch((err) => console.error('[AssessoriaContext] load error:', err))
-  }, [])
+  // ---- Diagnósticos ----
+  const createDiag = useMutation({ mutationFn: (i: any) => assessoriaService.createDiagnostico(i), onSuccess: () => invalidate([D_KEY]) })
+  const updateDiag = useMutation({ mutationFn: ({ id, ...i }: any) => assessoriaService.updateDiagnostico(id, i), onSuccess: () => invalidate([D_KEY]) })
+  const deleteDiag = useMutation({ mutationFn: (id: string) => assessoriaService.removeDiagnostico(id), onSuccess: () => invalidate([D_KEY]) })
 
-  // Persistência é feita individualmente nas operações CRUD
+  const addDiagnostico = useCallback((d: Omit<Diagnostico, 'id' | 'dataCriacao'>) => {
+    createDiag.mutate({ ...d, id: crypto.randomUUID(), dataCriacao: new Date().toISOString() })
+  }, [createDiag])
+  const updateDiagnostico = useCallback((id: string, updates: Partial<Diagnostico>) => {
+    updateDiag.mutate({ id, ...updates })
+  }, [updateDiag])
+  const deleteDiagnostico = useCallback((id: string) => {
+    deleteDiag.mutate(id)
+  }, [deleteDiag])
 
-  const addDiagnostico = useCallback((d: Omit<Diagnostico, 'id' | 'dataCriacao'>) => { setDiagnosticos(prev => [...prev, { ...d, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
-  const updateDiagnostico = useCallback((id: string, updates: Partial<Diagnostico>) => { setDiagnosticos(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d)) }, [])
-  const deleteDiagnostico = useCallback((id: string) => { setDiagnosticos(prev => prev.filter(d => d.id !== id)) }, [])
+  // ---- OKRs ----
+  const createOkr = useMutation({ mutationFn: (i: any) => assessoriaService.createOkr(i), onSuccess: () => invalidate([O_KEY]) })
+  const updateOkrM = useMutation({ mutationFn: ({ id, ...i }: any) => assessoriaService.updateOkr(id, i), onSuccess: () => invalidate([O_KEY]) })
+  const deleteOkrM = useMutation({ mutationFn: (id: string) => assessoriaService.removeOkr(id), onSuccess: () => invalidate([O_KEY]) })
 
-  const addOkr = useCallback((o: Omit<Okr, 'id' | 'dataCriacao'>) => { setOkrs(prev => [...prev, { ...o, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
-  const updateOkr = useCallback((id: string, updates: Partial<Okr>) => { setOkrs(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o)) }, [])
-  const deleteOkr = useCallback((id: string) => { setOkrs(prev => prev.filter(o => o.id !== id)) }, [])
-  const updateKr = useCallback((okrId: string, krIndex: number, atual: number) => { setOkrs(prev => prev.map(o => o.id === okrId ? { ...o, keyResults: o.keyResults.map((kr, i) => i === krIndex ? { ...kr, atual } : kr) } : o)) }, [])
+  const addOkr = useCallback((o: Omit<Okr, 'id' | 'dataCriacao'>) => {
+    createOkr.mutate({ ...o, id: crypto.randomUUID(), dataCriacao: new Date().toISOString() })
+  }, [createOkr])
+  const updateOkr = useCallback((id: string, updates: Partial<Okr>) => {
+    updateOkrM.mutate({ id, ...updates })
+  }, [updateOkrM])
+  const deleteOkr = useCallback((id: string) => {
+    deleteOkrM.mutate(id)
+  }, [deleteOkrM])
 
-  const addSwot = useCallback((s: Omit<Swot, 'id' | 'dataCriacao'>) => { setSwots(prev => [...prev, { ...s, id: gid(), dataCriacao: new Date().toISOString() }]) }, [])
-  const updateSwot = useCallback((id: string, updates: Partial<Swot>) => { setSwots(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s)) }, [])
-  const deleteSwot = useCallback((id: string) => { setSwots(prev => prev.filter(s => s.id !== id)) }, [])
+  const updateKr = useCallback((okrId: string, krIndex: number, atual: number) => {
+    const okr = okrQuery.data?.find(o => o.id === okrId)
+    if (!okr) return
+    const keyResults = okr.keyResults.map((kr, i) => (i === krIndex ? { ...kr, atual } : kr))
+    qc.setQueryData(O_KEY, (old: any) => (old || []).map((o: any) => (o.id === okrId ? { ...o, keyResults } : o)))
+    updateOkrM.mutate({ id: okrId, keyResults })
+  }, [okrQuery.data, updateOkrM, qc])
+
+  // ---- SWOT ----
+  const createSwot = useMutation({ mutationFn: (i: any) => assessoriaService.createSwot(i), onSuccess: () => invalidate([S_KEY]) })
+  const updateSwotM = useMutation({ mutationFn: ({ id, ...i }: any) => assessoriaService.updateSwot(id, i), onSuccess: () => invalidate([S_KEY]) })
+  const deleteSwotM = useMutation({ mutationFn: (id: string) => assessoriaService.removeSwot(id), onSuccess: () => invalidate([S_KEY]) })
+
+  const addSwot = useCallback((s: Omit<Swot, 'id' | 'dataCriacao'>) => {
+    createSwot.mutate({ ...s, id: crypto.randomUUID(), dataCriacao: new Date().toISOString() })
+  }, [createSwot])
+  const updateSwot = useCallback((id: string, updates: Partial<Swot>) => {
+    updateSwotM.mutate({ id, ...updates })
+  }, [updateSwotM])
+  const deleteSwot = useCallback((id: string) => {
+    deleteSwotM.mutate(id)
+  }, [deleteSwotM])
+
+  // ---- Plano de Ação ----
+  const createPlano = useMutation({ mutationFn: (i: any) => assessoriaService.createPlano(i), onSuccess: () => invalidate([P_KEY]) })
+  const updatePlanoM = useMutation({ mutationFn: ({ id, ...i }: any) => assessoriaService.updatePlano(id, i), onSuccess: () => invalidate([P_KEY]) })
+  const deletePlanoM = useMutation({ mutationFn: (id: string) => assessoriaService.removePlano(id), onSuccess: () => invalidate([P_KEY]) })
 
   const addPlanoAcao = useCallback((p: Omit<PlanoAcao, 'id' | 'dataCriacao'>) => {
-    const planoId = gid()
-    const withIds: PlanoAcao = {
+    const plano: PlanoAcao = {
       ...p,
-      id: planoId,
+      id: crypto.randomUUID(),
       dataCriacao: new Date().toISOString(),
-      itens: (p.itens || []).map(item => ({ ...item, id: item.id || gid() })),
+      itens: (p.itens || []).map(item => ({ ...item, id: item.id || crypto.randomUUID() })),
     }
-    setPlanosAcao(prev => [...prev, withIds])
-  }, [])
-  const updatePlanoAcao = useCallback((id: string, updates: Partial<PlanoAcao>) => { setPlanosAcao(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)) }, [])
-  const updatePlanoItem = useCallback((planoId: string, itemId: string, updates: Partial<PlanoAcaoItem>) => {
-    setPlanosAcao(prev => prev.map(p => p.id === planoId ? { ...p, itens: p.itens.map(it => it.id === itemId ? { ...it, ...updates } : it) } : p))
-  }, [])
-  const deletePlanoAcao = useCallback((id: string) => { setPlanosAcao(prev => prev.filter(p => p.id !== id)) }, [])
+    createPlano.mutate(plano)
+  }, [createPlano])
+  const updatePlanoAcao = useCallback((id: string, updates: Partial<PlanoAcao>) => {
+    updatePlanoM.mutate({ id, ...updates })
+  }, [updatePlanoM])
+  const deletePlanoAcao = useCallback((id: string) => {
+    deletePlanoM.mutate(id)
+  }, [deletePlanoM])
 
-  const addKpi = useCallback((k: Omit<Kpi, 'id'>) => { setKpis(prev => [...prev, { ...k, id: gid() }]) }, [])
-  const updateKpi = useCallback((id: string, updates: Partial<Kpi>) => { setKpis(prev => prev.map(k => k.id === id ? { ...k, ...updates } : k)) }, [])
-  const deleteKpi = useCallback((id: string) => { setKpis(prev => prev.filter(k => k.id !== id)) }, [])
+  // Debounce persistência de itens (evita request a cada tecla)
+  const itemTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const updatePlanoItem = useCallback((planoId: string, itemId: string, updates: Partial<PlanoAcaoItem>) => {
+    qc.setQueryData(P_KEY, (old: any) => (old || []).map((p: any) =>
+      p.id === planoId
+        ? { ...p, itens: p.itens.map((it: any) => (it.id === itemId ? { ...it, ...updates } : it)) }
+        : p
+    ))
+    if (itemTimers.current[planoId]) clearTimeout(itemTimers.current[planoId])
+    itemTimers.current[planoId] = setTimeout(() => {
+      const plano = (qc.getQueryData(P_KEY) as any[] | undefined)?.find((p: any) => p.id === planoId)
+      if (plano) updatePlanoM.mutate({ id: planoId, itens: plano.itens, titulo: plano.titulo, empresa: plano.empresa })
+      delete itemTimers.current[planoId]
+    }, 600)
+  }, [qc, updatePlanoM])
+
+  // ---- KPIs ----
+  const createKpi = useMutation({ mutationFn: (i: any) => assessoriaService.createKpi(i), onSuccess: () => invalidate([K_KEY]) })
+  const updateKpiM = useMutation({ mutationFn: ({ id, ...i }: any) => assessoriaService.updateKpi(id, i), onSuccess: () => invalidate([K_KEY]) })
+  const deleteKpiM = useMutation({ mutationFn: (id: string) => assessoriaService.removeKpi(id), onSuccess: () => invalidate([K_KEY]) })
+
+  const addKpi = useCallback((k: Omit<Kpi, 'id'>) => {
+    createKpi.mutate({ ...k, id: crypto.randomUUID() })
+  }, [createKpi])
+  const updateKpi = useCallback((id: string, updates: Partial<Kpi>) => {
+    updateKpiM.mutate({ id, ...updates })
+  }, [updateKpiM])
+  const deleteKpi = useCallback((id: string) => {
+    deleteKpiM.mutate(id)
+  }, [deleteKpiM])
 
   return (
     <AssessoriaContext.Provider value={{
-      diagnosticos, okrs, swots, planosAcao, kpis,
+      diagnosticos: diagQuery.data ?? [],
+      okrs: okrQuery.data ?? [],
+      swots: swotQuery.data ?? [],
+      planosAcao: planoQuery.data ?? [],
+      kpis: kpiQuery.data ?? [],
+      loading: diagQuery.isLoading || okrQuery.isLoading || swotQuery.isLoading || planoQuery.isLoading || kpiQuery.isLoading,
       addDiagnostico, updateDiagnostico, deleteDiagnostico,
       addOkr, updateOkr, deleteOkr, updateKr,
       addSwot, updateSwot, deleteSwot,

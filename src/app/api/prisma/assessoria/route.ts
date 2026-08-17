@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// O campo `dados` (JSONB) armazena o objeto COMPLETO do frontend,
+// garantindo round-trip sem perda de campos. As colunas tipadas
+// (empresa, status, etc.) são preenchidas para consultas básicas.
+
+function strip(r: any) {
+  if (!r) return r
+  const { dados, ...rest } = r
+  return { ...rest, ...(dados || {}) }
+}
+
+async function mergeDados(existing: any, incoming: any) {
+  return { ...((existing?.dados as any) || {}), ...incoming }
+}
+
 export async function GET() {
   try {
     const [diagnosticos, okrs, swots, planosAcao, kpis] = await Promise.all([
@@ -10,23 +24,12 @@ export async function GET() {
       prisma.assessoria_action_plans.findMany({ orderBy: { created_at: 'desc' } }),
       prisma.assessoria_kpis.findMany({ orderBy: { created_at: 'desc' } }),
     ])
-    const normalizeArray = (v: unknown): string[] => {
-      if (Array.isArray(v)) return v.filter((item): item is string => typeof item === 'string')
-      if (typeof v === 'string' && v.trim()) return [v]
-      return []
-    }
     return NextResponse.json({
-      diagnosticos: diagnosticos.map(d => ({
-        ...d,
-        areasAvaliadas: normalizeArray((d as any).areasAvaliadas ?? (d as any).areas_avaliadas),
-      })),
-      okrs: okrs.map(o => ({
-        ...o,
-        key_results: Array.isArray(o.key_results) ? o.key_results : [],
-      })),
-      swots,
-      planosAcao,
-      kpis,
+      diagnosticos: diagnosticos.map(strip),
+      okrs: okrs.map(strip),
+      swots: swots.map(strip),
+      planosAcao: planosAcao.map(strip),
+      kpis: kpis.map(strip),
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
@@ -44,19 +47,21 @@ export async function POST(request: Request) {
         where: { id: dId },
         create: {
           id: dId,
-          empresa: data.empresa,
+          empresa: data.empresa || '',
           data: data.data ? new Date(data.data) : null,
           status: data.status || 'rascunho',
           diagnostico: data.diagnostico || null,
+          dados: data,
         },
         update: {
           empresa: data.empresa,
           data: data.data ? new Date(data.data) : null,
           status: data.status || 'rascunho',
           diagnostico: data.diagnostico || null,
+          dados: data,
         },
       })
-      return NextResponse.json({ diagnostico })
+      return NextResponse.json({ diagnostico: strip(diagnostico) })
     }
 
     if (_type === 'okr') {
@@ -65,21 +70,23 @@ export async function POST(request: Request) {
         where: { id: oId },
         create: {
           id: oId,
-          empresa: data.empresa,
-          titulo: data.titulo,
+          empresa: data.empresa || '',
+          titulo: data.titulo || data.objetivo || 'OKR',
           objetivo: data.objetivo || null,
           key_results: data.keyResults || data.key_results || [],
           status: data.status || 'active',
+          dados: data,
         },
         update: {
           empresa: data.empresa,
-          titulo: data.titulo,
+          titulo: data.titulo || data.objetivo || 'OKR',
           objetivo: data.objetivo || null,
           key_results: data.keyResults || data.key_results || [],
           status: data.status || 'active',
+          dados: data,
         },
       })
-      return NextResponse.json({ okr })
+      return NextResponse.json({ okr: strip(okr) })
     }
 
     if (_type === 'swot') {
@@ -88,11 +95,12 @@ export async function POST(request: Request) {
         where: { id: sId },
         create: {
           id: sId,
-          empresa: data.empresa,
+          empresa: data.empresa || '',
           forcas: data.forcas || [],
           fraquezas: data.fraquezas || [],
           oportunidades: data.oportunidades || [],
           ameacas: data.ameacas || [],
+          dados: data,
         },
         update: {
           empresa: data.empresa,
@@ -100,9 +108,10 @@ export async function POST(request: Request) {
           fraquezas: data.fraquezas || [],
           oportunidades: data.oportunidades || [],
           ameacas: data.ameacas || [],
+          dados: data,
         },
       })
-      return NextResponse.json({ swot })
+      return NextResponse.json({ swot: strip(swot) })
     }
 
     if (_type === 'planoAcao') {
@@ -111,21 +120,23 @@ export async function POST(request: Request) {
         where: { id: paId },
         create: {
           id: paId,
-          empresa: data.empresa,
-          acao: data.acao,
+          empresa: data.empresa || '',
+          acao: data.acao || data.titulo || 'Plano',
           prazo: data.prazo ? new Date(data.prazo) : null,
           responsavel: data.responsavel || null,
           status: data.status || 'pending',
+          dados: data,
         },
         update: {
           empresa: data.empresa,
-          acao: data.acao,
+          acao: data.acao || data.titulo || 'Plano',
           prazo: data.prazo ? new Date(data.prazo) : null,
           responsavel: data.responsavel || null,
           status: data.status || 'pending',
+          dados: data,
         },
       })
-      return NextResponse.json({ planoAcao })
+      return NextResponse.json({ planoAcao: strip(planoAcao) })
     }
 
     if (_type === 'kpi') {
@@ -134,21 +145,23 @@ export async function POST(request: Request) {
         where: { id: kId },
         create: {
           id: kId,
-          empresa: data.empresa,
-          indicador: data.indicador,
+          empresa: data.empresa || '',
+          indicador: data.indicador || data.nome || 'KPI',
           valor_atual: data.valorAtual ?? data.valor_atual ?? 0,
           valor_meta: data.valorMeta ?? data.valor_meta ?? 0,
           periodo: data.periodo ? new Date(data.periodo) : null,
+          dados: data,
         },
         update: {
           empresa: data.empresa,
-          indicador: data.indicador,
+          indicador: data.indicador || data.nome || 'KPI',
           valor_atual: data.valorAtual ?? data.valor_atual ?? 0,
           valor_meta: data.valorMeta ?? data.valor_meta ?? 0,
           periodo: data.periodo ? new Date(data.periodo) : null,
+          dados: data,
         },
       })
-      return NextResponse.json({ kpi })
+      return NextResponse.json({ kpi: strip(kpi) })
     }
 
     return NextResponse.json({ error: 'Invalid _type' }, { status: 400 })
@@ -165,6 +178,8 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
     if (_type === 'diagnostico' || !_type) {
+      const existing = await prisma.assessoria_diagnostics.findUnique({ where: { id } })
+      const dados = await mergeDados(existing, data)
       const diagnostico = await prisma.assessoria_diagnostics.update({
         where: { id },
         data: {
@@ -172,12 +187,15 @@ export async function PATCH(request: Request) {
           ...(data.data && { data: new Date(data.data) }),
           ...(data.status && { status: data.status }),
           ...(data.diagnostico !== undefined && { diagnostico: data.diagnostico }),
+          dados,
         },
       })
-      return NextResponse.json({ diagnostico })
+      return NextResponse.json({ diagnostico: strip(diagnostico) })
     }
 
     if (_type === 'okr') {
+      const existing = await prisma.assessoria_okrs.findUnique({ where: { id } })
+      const dados = await mergeDados(existing, data)
       const okr = await prisma.assessoria_okrs.update({
         where: { id },
         data: {
@@ -187,26 +205,32 @@ export async function PATCH(request: Request) {
           ...(data.keyResults !== undefined && { key_results: data.keyResults }),
           ...(data.key_results !== undefined && { key_results: data.key_results }),
           ...(data.status && { status: data.status }),
+          dados,
         },
       })
-      return NextResponse.json({ okr })
+      return NextResponse.json({ okr: strip(okr) })
     }
 
     if (_type === 'swot') {
+      const existing = await prisma.assessoria_swots.findUnique({ where: { id } })
+      const dados = await mergeDados(existing, data)
       const swot = await prisma.assessoria_swots.update({
         where: { id },
         data: {
           ...(data.empresa && { empresa: data.empresa }),
-          ...(data.forcas && { forcas: data.forcas }),
-          ...(data.fraquezas && { fraquezas: data.fraquezas }),
-          ...(data.oportunidades && { oportunidades: data.oportunidades }),
-          ...(data.ameacas && { ameacas: data.ameacas }),
+          ...(data.forcas !== undefined && { forcas: data.forcas }),
+          ...(data.fraquezas !== undefined && { fraquezas: data.fraquezas }),
+          ...(data.oportunidades !== undefined && { oportunidades: data.oportunidades }),
+          ...(data.ameacas !== undefined && { ameacas: data.ameacas }),
+          dados,
         },
       })
-      return NextResponse.json({ swot })
+      return NextResponse.json({ swot: strip(swot) })
     }
 
     if (_type === 'planoAcao') {
+      const existing = await prisma.assessoria_action_plans.findUnique({ where: { id } })
+      const dados = await mergeDados(existing, data)
       const planoAcao = await prisma.assessoria_action_plans.update({
         where: { id },
         data: {
@@ -215,12 +239,15 @@ export async function PATCH(request: Request) {
           ...(data.prazo && { prazo: new Date(data.prazo) }),
           ...(data.responsavel !== undefined && { responsavel: data.responsavel }),
           ...(data.status && { status: data.status }),
+          dados,
         },
       })
-      return NextResponse.json({ planoAcao })
+      return NextResponse.json({ planoAcao: strip(planoAcao) })
     }
 
     if (_type === 'kpi') {
+      const existing = await prisma.assessoria_kpis.findUnique({ where: { id } })
+      const dados = await mergeDados(existing, data)
       const kpi = await prisma.assessoria_kpis.update({
         where: { id },
         data: {
@@ -231,9 +258,10 @@ export async function PATCH(request: Request) {
           ...(data.valorMeta !== undefined && { valor_meta: data.valorMeta }),
           ...(data.valor_meta !== undefined && { valor_meta: data.valor_meta }),
           ...(data.periodo && { periodo: new Date(data.periodo) }),
+          dados,
         },
       })
-      return NextResponse.json({ kpi })
+      return NextResponse.json({ kpi: strip(kpi) })
     }
 
     return NextResponse.json({ error: 'Invalid _type' }, { status: 400 })

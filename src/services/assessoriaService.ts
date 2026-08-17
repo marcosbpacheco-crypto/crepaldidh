@@ -173,7 +173,9 @@ function md(r: any): Diagnostico {
     createdAt: r.created_at,
   }
 }
-function mo(r: any): Okr { return { ...r, keyResults: Array.isArray(r.key_results) ? r.key_results : [], ciclo: r.ciclo, createdAt: r.created_at } }
+function mo(r: any): Okr {
+  return { ...r, keyResults: Array.isArray(r.keyResults) ? r.keyResults : (Array.isArray(r.key_results) ? r.key_results : []), ciclo: r.ciclo, createdAt: r.created_at }
+}
 function ms(r: any): Swot {
   return {
     ...r,
