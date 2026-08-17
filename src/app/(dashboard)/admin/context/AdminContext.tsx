@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { userService } from '@/services/userService'
 import { safeArray } from '@/lib/safe-array'
 
-export type ModuleName = 'crm' | 'clients' | 'projects' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
+export type ModuleName = 'crm' | 'clients' | 'projects' | 'services' | 'nr01' | 'mentoring' | 'trainings' | 'financial' | 'calendar' | 'portal' | 'documents' | 'bi' | 'ai' | 'admin' | 'tasks' | 'alerts' | 'import' | 'assessoria'
 
 export interface Role {
   id: string
@@ -118,7 +118,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined)
 
 function gid(): string { return 'adm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6) }
 
-const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+const MODULES: ModuleName[] = ['crm', 'clients', 'projects', 'services', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
 
 const SEED_ROLES: Role[] = [
   { id: 'role-admin', name: 'admin', label: 'Administrador', description: 'Acesso total ao sistema', isExternal: false },
@@ -149,8 +149,8 @@ function buildSeedPermissions(): Permission[] {
     const isDho = role.name === 'dho'
     const isExternal = role.isExternal
     MODULES.forEach(mod => {
-      const assessoriaModules = ['crm', 'projects', 'mentoring', 'trainings', 'calendar', 'documents', 'tasks', 'alerts', 'portal', 'nr01', 'assessoria']
-      const coreModules = ['crm', 'projects', 'nr01', 'mentoring', 'trainings', 'documents', 'assessoria']
+      const assessoriaModules = ['crm', 'projects', 'services', 'mentoring', 'trainings', 'calendar', 'documents', 'tasks', 'alerts', 'portal', 'nr01', 'assessoria']
+      const coreModules = ['crm', 'projects', 'services', 'nr01', 'mentoring', 'trainings', 'documents', 'assessoria']
       const canView = isAdmin || isDirector || (isConsultant && coreModules.includes(mod)) || (isCommercial && ['crm', 'clients'].includes(mod)) || (isFinance && ['crm', 'financial'].includes(mod)) || (isRh && ['trainings', 'calendar', 'documents'].includes(mod)) || (isOperational && ['projects', 'nr01', 'documents'].includes(mod)) || (isDho && assessoriaModules.includes(mod)) || (isExternal && ['portal'].includes(mod))
       const canCreate = isAdmin || (coreModules.includes(mod) && (isAdmin || isDirector || isConsultant || isDho || (isCommercial && mod === 'crm') || (isFinance && mod === 'financial') || (isRh && ['trainings', 'calendar'].includes(mod))))
       result.push({

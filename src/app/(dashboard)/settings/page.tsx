@@ -26,7 +26,7 @@ const ALL_TABS = [
 ]
 
 const MODULE_LABELS: Record<ModuleName, string> = {
-  crm: 'CRM', clients: 'Clientes', projects: 'Projetos', nr01: 'NR-01',
+  crm: 'CRM', clients: 'Clientes', projects: 'Projetos', services: 'Serviços', nr01: 'NR-01',
   mentoring: 'Mentorias', trainings: 'Treinamentos', financial: 'Financeiro',
   calendar: 'Agenda', portal: 'Portal', documents: 'Documentos', bi: 'BI', ai: 'IA', admin: 'Admin',
   tasks: 'Tarefas', alerts: 'Alertas', import: 'Importação', assessoria: 'Assessoria Empresarial',
@@ -208,7 +208,7 @@ function ProfileViewPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
   const selectedRole = admin.roles.find(r => r.id === selectedRoleId)
   const rolePerms = admin.permissions.filter(p => p.roleId === selectedRoleId)
 
-  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'services', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
   const actions = ['view', 'create', 'edit', 'delete', 'export'] as const
   const fields: Record<string, string> = { view: 'canView', create: 'canCreate', edit: 'canEdit', delete: 'canDelete', export: 'canExport' }
 
@@ -1148,7 +1148,7 @@ function PermissionsPanel({ admin }: { admin: ReturnType<typeof useAdmin> }) {
   const isAdminUser = selectedUser?.roleName === 'Administrador'
   const canEdit = admin.currentUser?.roleName === 'Administrador' || admin.currentUser?.roleName === 'Diretor'
 
-  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
+  const moduleList: ModuleName[] = ['crm', 'clients', 'projects', 'services', 'nr01', 'mentoring', 'trainings', 'financial', 'calendar', 'portal', 'documents', 'bi', 'ai', 'admin', 'tasks', 'alerts', 'import', 'assessoria']
   const actions = ['view', 'create', 'edit', 'delete', 'export'] as const
   const fields: Record<string, string> = { view: 'canView', create: 'canCreate', edit: 'canEdit', delete: 'canDelete', export: 'canExport' }
 

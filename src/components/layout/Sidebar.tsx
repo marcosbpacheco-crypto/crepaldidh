@@ -20,7 +20,8 @@ import {
   Bell,
   Upload,
   Building2,
-  Key
+  Key,
+  Sparkles
 } from "lucide-react"
 
 interface MenuItem {
@@ -35,6 +36,7 @@ const menuItems: MenuItem[] = [
   { name: "Gestão Comercial", href: "/crm", icon: Users, module: 'crm' },
   { name: "Clientes", href: "/clients", icon: Users, module: 'clients' },
   { name: "Projetos", href: "/projects", icon: Briefcase, module: 'projects' },
+  { name: "Serviços", href: "/services", icon: Sparkles, module: 'services' },
   { name: "Tarefas", href: "/tasks", icon: CheckSquare, module: 'tasks' },
   { name: "Alertas", href: "/alerts", icon: Bell, module: 'alerts' },
   { name: "Assessoria Organizacional", href: "/assessoria", icon: Building2, module: 'assessoria' },
