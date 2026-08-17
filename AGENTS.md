@@ -1,3 +1,32 @@
+## Session 2026-07-15 — Módulo Serviços removido; serviços agora vêm do catálogo no cadastro de empresa/cliente
+
+### Objetivo
+O módulo standalone "Serviços" (CRUD próprio) foi removido. Os serviços agora aparecem apenas como **seleção no cadastro de nova empresa (CRM) e de novo cliente**, para vincular quais serviços serão prestados. A tabela `services` continua como catálogo.
+
+### Mudanças
+1. **Arquivos deletados**: `src/app/(dashboard)/services/` (page + context), `src/services/serviceService.ts`, `src/hooks/useServicesQuery.ts`, `src/types/services.ts`, `src/app/api/prisma/services/route.ts`
+2. **Nova API de catálogo** `src/app/api/services/route.ts` — GET-only, lê `services` ativos (`deleted_at IS NULL AND status = 'ativo'`), ordena por nome
+3. **Novo hook** `src/hooks/useServicesCatalog.ts` — `useQuery` para `/api/services`, retorna `{ services, isLoading, isError, refresh }`
+4. **Permissões**: `services` removido de `ModuleName` e `MODULES` no AdminContext; removido de `MODULE_LABELS` e `moduleList` (2×) no settings; item e import `Sparkles` removidos da Sidebar; `ServicesProvider` removido do Providers
+5. **Empresas (CRM)**:
+   - Migration `013_company_services.sql` — coluna `services jsonb default '[]'` em `crm_companies` (aplicada via DATABASE_URL)
+   - `schema.prisma` + `prisma generate`
+   - API `/api/prisma/crm` POST/PATCH agora persiste `services` (array `ClientService[]`)
+   - `CrmCompanies.tsx`: multi-select de serviços (chips do catálogo) nos modais Novo/Editar; exibição dos serviços no painel da empresa; helpers `toggleCompanyService`/`toggleEditCompanyService`/`servicesToClientServices`
+   - Interfaces `Company` (CrmContext + types/crm.ts) ganharam `services?: ClientService[]`; `mc` no crmService sanitiza com `Array.isArray`
+6. **Clientes**: `NewClientModal` trocou `serviceOptions` hardcoded pelo catálogo via `useServicesCatalog`
+
+### Formatos
+- `services` é armazenado como `ClientService[]` = `{ name, status: 'not_started'|'in_progress'|'completed'|'delayed', startDate, endDate, progress }`
+- `addCompany`/`updateCompany` no CrmContext passam services por spread (sem lógica extra necessária)
+
+### Catálogo atual (15 serviços)
+`Assessoria de Performance Organizacional`, `Avaliação Comportamental`, `Avaliação Psicológica`, `Consultorias`, `Desenvolvimento de Lideranças`, `Diagnóstico Organizacional`, `Mentorias`, `NR-1`, `Onboarding`, `Palestras`, `PCCS`, `Pesquisa de Clima`, `Recrutamento e Seleção`, `Treinamentos`, `Workshops`
+
+### Observação
+- A lista `SERVICES` hardcoded no `CrmContext.tsx` (filtro de pipeline/propostas) foi MANTIDA — é filtro de negócios (deals), não do módulo deletado
+- Build: limpo (rota `/services` removida da listagem); deploy `https://crepaldidh.vercel.app`
+
 ## Session 2026-07-15 — Check constraints fix + homologação operacional
 
 ### Problema
