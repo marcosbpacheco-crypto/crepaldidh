@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react'
 import { useCrm, Company, Contact } from '../context/CrmContext'
 import { useAdmin } from '../../admin/context/AdminContext'
 import { useServicesCatalog } from '@/hooks/useServicesCatalog'
+import { ServiceQuickAdd } from '@/components/services/ServiceQuickAdd'
 import type { ClientService } from '@/types/clients'
 import { 
   Building2, Users, Search, Plus, Mail, Phone, MapPin, 
@@ -777,7 +778,10 @@ export const CrmCompanies: React.FC = () => {
                 {catalog.isLoading ? (
                   <div className="text-xs text-slate-400 animate-pulse">Carregando catálogo de serviços...</div>
                 ) : catalogServices.length === 0 ? (
-                  <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                    <ServiceQuickAdd onCreated={name => toggleCompanyService(name)} />
+                  </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {catalogServices.map(service => {
@@ -797,6 +801,7 @@ export const CrmCompanies: React.FC = () => {
                         </button>
                       )
                     })}
+                    <ServiceQuickAdd onCreated={name => toggleCompanyService(name)} />
                   </div>
                 )}
               </div>
@@ -1019,7 +1024,10 @@ export const CrmCompanies: React.FC = () => {
                 {catalog.isLoading ? (
                   <div className="text-xs text-slate-400 animate-pulse">Carregando catálogo de serviços...</div>
                 ) : catalogServices.length === 0 ? (
-                  <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-slate-400">Nenhum serviço disponível no catálogo.</div>
+                    <ServiceQuickAdd onCreated={name => toggleEditCompanyService(name)} />
+                  </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {catalogServices.map(service => {
@@ -1039,6 +1047,7 @@ export const CrmCompanies: React.FC = () => {
                         </button>
                       )
                     })}
+                    <ServiceQuickAdd onCreated={name => toggleEditCompanyService(name)} />
                   </div>
                 )}
               </div>

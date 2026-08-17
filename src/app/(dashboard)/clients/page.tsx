@@ -8,6 +8,7 @@ import { useClientsRealtime } from '@/hooks/useClientsRealtime'
 import { useAdmin } from '@/app/(dashboard)/admin/context/AdminContext'
 import { useCalendar } from '@/app/(dashboard)/calendar/context/CalendarContext'
 import { useServicesCatalog } from '@/hooks/useServicesCatalog'
+import { ServiceQuickAdd } from '@/components/services/ServiceQuickAdd'
 import {
   Search, Plus, Building2, Phone, Mail, MapPin,
   Calendar, DollarSign, Tag, User, MessageSquare, FileText,
@@ -870,10 +871,11 @@ function NewClientModal({ onSave, onUpdate, onClose, formatCurrency, editData, h
 
           <div>
             <label className="text-xs font-bold text-slate-400 mb-2 block">Serviços</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               {serviceOptions.map(s => (
                 <button key={s} onClick={() => toggleService(s)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${form.services.includes(s) ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{s}</button>
               ))}
+              <ServiceQuickAdd onCreated={name => toggleService(name)} />
             </div>
           </div>
 
