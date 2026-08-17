@@ -35,11 +35,13 @@ export async function POST(request: Request) {
     if (_type === 'event' || !_type) {
       const eventId = id || crypto.randomUUID()
       const company_id = data.companyId || data.company_id || null
+      const company_name = data.companyName || data.company_name || null
       const event = await prisma.training_events.upsert({
         where: { id: eventId },
         create: {
           id: eventId,
           company_id,
+          company_name,
           project_id: data.projectId || data.project_id || null,
           sipat_program_id: data.sipatProgramId || data.sipat_program_id || null,
           training_type_id: data.trainingTypeId || data.training_type_id || null,
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
         },
         update: {
           company_id,
+          company_name,
           project_id: data.projectId || data.project_id || null,
           sipat_program_id: data.sipatProgramId || data.sipat_program_id || null,
           training_type_id: data.trainingTypeId || data.training_type_id || null,
@@ -211,6 +214,7 @@ export async function POST(request: Request) {
           organization: data.organization ?? null,
           nps: data.nps ?? null,
           comments: data.comments || null,
+          status: data.status || 'respondido',
         },
         update: {
           event_id: data.eventId || data.event_id,
@@ -222,6 +226,7 @@ export async function POST(request: Request) {
           organization: data.organization ?? null,
           nps: data.nps ?? null,
           comments: data.comments || null,
+          status: data.status || 'respondido',
         },
       })
       return NextResponse.json({ feedback })
@@ -235,12 +240,24 @@ export async function POST(request: Request) {
           id: certId,
           participant_id: data.participantId || data.participant_id,
           event_id: data.eventId || data.event_id,
+          participant_name: data.participantName || data.participant_name || null,
+          event_name: data.eventName || data.event_name || null,
+          client_name: data.clientName || data.client_name || null,
+          hours: data.hours ?? data.hours_duration ?? null,
+          facilitator: data.facilitator || null,
+          event_date: data.date || data.event_date ? new Date(data.date || data.event_date) : null,
           validation_code: data.validationCode || data.validation_code,
           pdf_url: data.pdfUrl || data.pdf_url || null,
         },
         update: {
           participant_id: data.participantId || data.participant_id,
           event_id: data.eventId || data.event_id,
+          participant_name: data.participantName || data.participant_name || null,
+          event_name: data.eventName || data.event_name || null,
+          client_name: data.clientName || data.client_name || null,
+          hours: data.hours ?? data.hours_duration ?? null,
+          facilitator: data.facilitator || null,
+          event_date: data.date || data.event_date ? new Date(data.date || data.event_date) : null,
           validation_code: data.validationCode || data.validation_code,
           pdf_url: data.pdfUrl || data.pdf_url || null,
         },
@@ -399,6 +416,7 @@ export async function PATCH(request: Request) {
         ...(data.targetType !== undefined && { target_type: data.targetType }),
         ...(data.trainingTypeId !== undefined && { training_type_id: data.trainingTypeId || null }),
         ...(data.companyId !== undefined && { company_id: data.companyId || null }),
+        ...(data.companyName !== undefined && { company_name: data.companyName || null }),
       },
     })
     return NextResponse.json({ event })

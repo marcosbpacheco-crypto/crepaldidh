@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useTrainings } from '../context/TrainingsContext'
-import { Star, TrendingUp, MessageSquare, BarChart3, Send, ThumbsUp } from 'lucide-react'
+import { Star, TrendingUp, MessageSquare, BarChart3, Send, ThumbsUp, QrCode, CheckCircle2, Clock } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 
 function RatingBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round((value / 5) * 100)
@@ -44,6 +45,7 @@ export default function FeedbacksPage() {
 
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || '')
   const [showForm, setShowForm] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const [form, setForm] = useState({
     ratingGeneral: 5,
     clarityContent: 5,
@@ -55,19 +57,25 @@ export default function FeedbacksPage() {
     participantId: ''
   })
 
+  const publicBase = typeof window !== 'undefined' ? window.location.origin : ''
+
   const eventFeedbacks = feedbacks.filter(f => f.eventId === selectedEventId)
+  const respondedFeedbacks = eventFeedbacks.filter(f => f.status !== 'pendente')
+  const pendingFeedbacks = eventFeedbacks.filter(f => f.status === 'pendente')
 
   const avg = (key: keyof typeof form) => {
-    if (eventFeedbacks.length === 0) return 0
-    return eventFeedbacks.reduce((acc, f) => acc + (f as any)[key], 0) / eventFeedbacks.length
+    if (respondedFeedbacks.length === 0) return 0
+    return respondedFeedbacks.reduce((acc, f) => acc + (f as any)[key], 0) / respondedFeedbacks.length
   }
 
   // NPS calculation (Net Promoter Score)
-  const promoters = eventFeedbacks.filter(f => f.nps >= 9).length
-  const detractors = eventFeedbacks.filter(f => f.nps <= 6).length
-  const npsScore = eventFeedbacks.length > 0
-    ? Math.round(((promoters - detractors) / eventFeedbacks.length) * 100)
+  const promoters = respondedFeedbacks.filter(f => f.nps >= 9).length
+  const detractors = respondedFeedbacks.filter(f => f.nps <= 6).length
+  const npsScore = respondedFeedbacks.length > 0
+    ? Math.round(((promoters - detractors) / respondedFeedbacks.length) * 100)
     : 0
+
+  const neutralCount = respondedFeedbacks.filter(f => f.nps >= 7 && f.nps <= 8).length
 
   const eventParticipants = participants.filter(p => p.eventId === selectedEventId)
 
@@ -96,12 +104,22 @@ export default function FeedbacksPage() {
           <h1 className="text-2xl font-bold text-slate-800">Avaliação de Reação & NPS</h1>
           <p className="text-slate-500 text-sm mt-0.5">Colete e analise feedback dos participantes sobre a qualidade dos eventos</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md shadow-violet-100 hover:opacity-90 transition-all"
-        >
-          <Star className="w-4 h-4" /> Nova Avaliação
-        </button>
+        <div className="flex gap-2">
+          {selectedEventId && (
+            <button
+              onClick={() => setShowQr(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all"
+            >
+              <QrCode className="w-4 h-4" /> QR do Formulário
+            </button>
+          )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-bold shadow-md shadow-violet-100 hover:opacity-90 transition-all"
+          >
+            <Star className="w-4 h-4" /> Nova Avaliação
+          </button>
+        </div>
       </div>
 
       {/* Event Selector */}
@@ -126,10 +144,10 @@ export default function FeedbacksPage() {
           <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-slate-800">Resultado das Avaliações</h3>
-              <span className="text-xs text-slate-400 font-medium">{eventFeedbacks.length} avaliação(ões)</span>
+              <span className="text-xs text-slate-400 font-medium">{respondedFeedbacks.length} avaliação(ões) respondida(s)</span>
             </div>
 
-            {eventFeedbacks.length === 0 ? (
+            {respondedFeedbacks.length === 0 ? (
               <div className="py-16 text-center text-slate-400">
                 <BarChart3 className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-sm font-medium">Nenhuma avaliação registrada</p>
@@ -146,12 +164,12 @@ export default function FeedbacksPage() {
             )}
 
             {/* Comments section */}
-            {eventFeedbacks.filter(f => f.comments).length > 0 && (
+            {eventFeedbacks.filter(f => f.comments && f.status !== 'pendente').length > 0 && (
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <MessageSquare className="w-3.5 h-3.5" /> Comentários dos Participantes
                 </h4>
-                {eventFeedbacks.filter(f => f.comments).map(f => (
+                {eventFeedbacks.filter(f => f.comments && f.status !== 'pendente').map(f => (
                   <div key={f.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 leading-relaxed">
                     <div className="flex items-center gap-1 mb-1.5">
                       {Array.from({ length: f.ratingGeneral }, (_, i) => (
@@ -171,7 +189,7 @@ export default function FeedbacksPage() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
             <h3 className="font-bold text-slate-800 text-sm">Net Promoter Score (NPS)</h3>
 
-            {eventFeedbacks.length === 0 ? (
+            {respondedFeedbacks.length === 0 ? (
               <div className="py-12 text-center text-slate-400">
                 <ThumbsUp className="w-10 h-10 text-slate-200 mx-auto mb-2" />
                 <p className="text-xs">Sem dados de NPS ainda</p>
@@ -185,7 +203,7 @@ export default function FeedbacksPage() {
                 <div className="space-y-2 pt-4 border-t border-slate-100">
                   {[
                     { label: 'Promotores (9-10)', count: promoters, color: 'emerald' },
-                    { label: 'Neutros (7-8)', count: eventFeedbacks.filter(f => f.nps >= 7 && f.nps <= 8).length, color: 'amber' },
+                    { label: 'Neutros (7-8)', count: neutralCount, color: 'amber' },
                     { label: 'Detratores (0-6)', count: detractors, color: 'red' },
                   ].map(row => (
                     <div key={row.label} className="flex items-center justify-between text-xs">
@@ -202,6 +220,69 @@ export default function FeedbacksPage() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Pending evaluations panel */}
+      {selectedEventId && pendingFeedbacks.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-500" /> Avaliações Pendentes ({pendingFeedbacks.length})
+            </h3>
+            <p className="text-[10px] text-slate-400">Participantes confirmados que ainda não responderam</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {pendingFeedbacks.map(f => {
+              const part = participants.find(p => p.id === f.participantId)
+              return (
+                <div key={f.id} className="flex items-center gap-2 px-3 py-2 bg-amber-50/60 border border-amber-100 rounded-xl">
+                  <div className="w-6 h-6 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[10px] font-black">
+                    {(part?.name || 'A').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">{part?.name || 'Anônimo'}</p>
+                    <p className="text-[10px] text-slate-400">{part?.companyName || '—'}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
+            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+            Quando responderem pelo QR Code ou formulário, entram automaticamente nos cálculos de NPS.
+          </p>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQr && selectedEventId && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowQr(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-slate-800">QR Code do Formulário de Avaliação</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Compartilhe para que os participantes avaliem o evento</p>
+            <div className="my-5 flex justify-center bg-white p-4 rounded-2xl border border-slate-100">
+              <QRCodeSVG value={`${publicBase}/publico/avaliacao/${selectedEventId}`} size={200} level="H" includeMargin />
+            </div>
+            <p className="text-xs font-bold text-slate-700">{events.find(e => e.id === selectedEventId)?.name}</p>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => window.open(`${publicBase}/publico/avaliacao/${selectedEventId}`, '_blank')}
+                className="flex-1 py-2.5 bg-violet-600 text-white rounded-xl text-xs font-bold hover:bg-violet-700 transition-colors"
+              >
+                Abrir Formulário
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(`${publicBase}/publico/avaliacao/${selectedEventId}`)
+                  alert('Link copiado para a área de transferência!')
+                }}
+                className="flex-1 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors"
+              >
+                Copiar Link
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

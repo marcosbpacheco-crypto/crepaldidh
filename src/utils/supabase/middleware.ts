@@ -54,9 +54,10 @@ export async function updateSession(request: NextRequest) {
   // Define protected routes that require authentication
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
   const isPortalRoute = request.nextUrl.pathname.startsWith('/portal')
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/publico')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
 
-  if (!user && !hasSession && !isAuthRoute && !isPortalRoute && !isApiRoute) {
+  if (!user && !hasSession && !isAuthRoute && !isPortalRoute && !isPublicRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

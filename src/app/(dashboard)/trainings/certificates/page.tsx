@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useTrainings } from '../context/TrainingsContext'
-import { Award, Download, CheckCircle, Users, Shield, Star, Loader2 } from 'lucide-react'
+import { Award, Download, CheckCircle, Users, Shield, Star, Loader2, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 
 type Cert = ReturnType<typeof useTrainings>['certificates'][0]
 
@@ -75,7 +76,10 @@ export default function CertificatesPage() {
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || '')
   const [previewCert, setPreviewCert] = useState<Cert | null>(certificates[0] || null)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [qrCert, setQrCert] = useState<Cert | null>(null)
   const certRef = useRef<HTMLDivElement>(null)
+
+  const publicBase = typeof window !== 'undefined' ? window.location.origin : ''
 
   const event = events.find(e => e.id === selectedEventId)
   const eventParts = participants.filter(p => p.eventId === selectedEventId && p.attendanceStatus === 'presente')
@@ -335,17 +339,47 @@ export default function CertificatesPage() {
                     <td className="py-3 px-4 text-slate-500">{cert.hours}h</td>
                     <td className="py-3 px-4 font-mono text-[10px] text-slate-500">{cert.validationCode}</td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setPreviewCert(cert)}
-                        className="px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg text-[10px] font-bold hover:bg-violet-100 transition-colors"
-                      >
-                        Visualizar
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setQrCert(cert)}
+                          className="px-2.5 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition-colors"
+                          title="QR Code de validação"
+                        >
+                          <QrCode className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" /> QR
+                        </button>
+                        <button
+                          onClick={() => setPreviewCert(cert)}
+                          className="px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg text-[10px] font-bold hover:bg-violet-100 transition-colors"
+                        >
+                          Visualizar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {qrCert && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setQrCert(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-slate-800">QR Code de Validação</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Escaneie para verificar a autenticidade do certificado</p>
+            <div className="my-5 flex justify-center bg-white p-4 rounded-2xl border border-slate-100">
+              <QRCodeSVG value={`${publicBase}/publico/certificado/${qrCert.validationCode}`} size={180} level="H" includeMargin />
+            </div>
+            <p className="text-xs font-bold text-slate-700">{qrCert.participantName}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{qrCert.eventName} · {qrCert.validationCode}</p>
+            <button
+              onClick={() => window.open(`${publicBase}/publico/certificado/${qrCert.validationCode}`, '_blank')}
+              className="mt-4 w-full py-2.5 bg-violet-600 text-white rounded-xl text-xs font-bold hover:bg-violet-700 transition-colors"
+            >
+              Abrir Página de Validação
+            </button>
           </div>
         </div>
       )}

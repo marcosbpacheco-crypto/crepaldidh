@@ -39,7 +39,7 @@ const menuItems: MenuItem[] = [
   { name: "Serviços", href: "/services", icon: Sparkles, module: 'services' },
   { name: "Tarefas", href: "/tasks", icon: CheckSquare, module: 'tasks' },
   { name: "Alertas", href: "/alerts", icon: Bell, module: 'alerts' },
-  { name: "Assessoria Organizacional", href: "/assessoria", icon: Building2, module: 'assessoria' },
+  { name: "Assessoria de Performance Organizacional", href: "/assessoria", icon: Building2, module: 'assessoria' },
   { name: "Acesso Temporário", href: "/acesso-temporario", icon: Key },
   { name: "Treinamentos, Palestras e Workshop", href: "/trainings", icon: GraduationCap, module: 'trainings' },
   { name: "Mentorias", href: "/mentoring", icon: Brain, module: 'mentoring' },

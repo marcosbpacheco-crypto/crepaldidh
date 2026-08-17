@@ -35,7 +35,7 @@ export interface TrainingCertificate {
 }
 export interface TrainingFeedback {
   id: string; eventId: string; participantId?: string; ratingGeneral: number; clarityContent: number
-  applicability: number; didactics: number; organization: number; nps: number; comments?: string; createdAt: string
+  applicability: number; didactics: number; organization: number; nps: number; comments?: string; status?: 'pendente' | 'respondido'; createdAt: string
 }
 export interface TrainingMaterial {
   id: string; eventId: string; name: string; type: 'slide' | 'apostila' | 'pdf' | 'foto' | 'video' | 'link' | 'dinamica' | 'checklist' | 'evidencia'

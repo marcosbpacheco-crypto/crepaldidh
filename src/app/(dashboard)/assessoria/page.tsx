@@ -39,7 +39,7 @@ export default function AssessoriaPage() {
             <Building2 className="w-6 h-6 text-brand-teal" />
             <span className="text-sm font-semibold text-brand-teal uppercase tracking-wider">Consultoria & Estratégia</span>
           </div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Assessoria Organizacional</h1>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Assessoria de Performance Organizacional</h1>
           <p className="text-slate-500 text-sm mt-0.5">Diagnósticos, OKRs, matriz SWOT, planos de ação e indicadores</p>
         </div>
         {showAddButton && (

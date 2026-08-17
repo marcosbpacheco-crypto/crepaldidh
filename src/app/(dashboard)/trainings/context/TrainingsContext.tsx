@@ -111,6 +111,7 @@ export interface TrainingFeedback {
   organization: number // 1-5
   nps: number // 0-10
   comments?: string
+  status?: 'pendente' | 'respondido'
   createdAt: string
 }
 
@@ -258,12 +259,13 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const certificatesIssued = certificates.length
 
   // NPS calculation (promoters - detractors)
-  const averageNps = feedbacks.length > 0
+  const respondedFeedbacks = feedbacks.filter(f => f.status !== 'pendente')
+  const averageNps = respondedFeedbacks.length > 0
     ? Math.round(
         (() => {
-          const promoters = feedbacks.filter(f => f.nps >= 9).length
-          const detractors = feedbacks.filter(f => f.nps <= 6).length
-          return ((promoters - detractors) / feedbacks.length) * 100
+          const promoters = respondedFeedbacks.filter(f => f.nps >= 9).length
+          const detractors = respondedFeedbacks.filter(f => f.nps <= 6).length
+          return ((promoters - detractors) / respondedFeedbacks.length) * 100
         })()
       )
     : 0
@@ -347,11 +349,44 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     newItems.forEach(item => addPartMut.mutate(item as any))
   }
 
+  const ensureCertificateFor = (participantId: string, eventId: string) => {
+    const part = participants.find(p => p.id === participantId)
+    const ev = events.find(e => e.id === eventId)
+    if (!part || !ev) return
+    const exists = certificates.some(c => c.participantId === participantId && c.eventId === eventId)
+    if (exists) return
+    const nc: TrainingCertificate = {
+      id: `tcert-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      participantId, participantName: part.name, eventId, eventName: ev.name,
+      clientName: ev.companyName || ev.targetAudience || '—', hours: ev.hoursDuration, facilitator: ev.facilitator, date: ev.eventDate,
+      validationCode: `VAL-CDH-${Date.now().toString().slice(-8)}`, issuedAt: new Date().toISOString()
+    }
+    updateCache(['trainings', 'certificates'], old => [nc, ...old])
+    addCertMut.mutate(nc as any)
+  }
+
+  const ensurePendingFeedback = (participantId: string, eventId: string) => {
+    const exists = feedbacks.some(f => f.participantId === participantId && f.eventId === eventId)
+    if (exists) return
+    const nf: TrainingFeedback = {
+      id: `tfb-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      eventId, participantId, ratingGeneral: 0, clarityContent: 0, applicability: 0,
+      didactics: 0, organization: 0, nps: 0, status: 'pendente', createdAt: new Date().toISOString()
+    }
+    updateCache(['trainings', 'feedbacks'], old => [nf, ...old])
+    addFbMut.mutate(nf as any)
+  }
+
   const confirmAttendance = (participantId: string, entryTime: string, signature: string) => {
     updateCache(['trainings', 'participants'], old => old.map((p: any) =>
       p.id === participantId ? { ...p, attendanceStatus: 'presente', entryTime, signatureSimple: signature, justification: undefined } : p
     ))
     updatePartMut.mutate({ id: participantId, attendanceStatus: 'presente', entryTime, signatureSimple: signature } as any)
+    const part = participants.find(p => p.id === participantId)
+    if (part) {
+      ensureCertificateFor(part.id, part.eventId)
+      ensurePendingFeedback(part.id, part.eventId)
+    }
   }
 
   const recordAbsenceJustification = (participantId: string, justification: string) => {
@@ -395,8 +430,20 @@ export const TrainingsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Feedbacks
   const addFeedback = (f: Omit<TrainingFeedback, 'id' | 'createdAt'>): TrainingFeedback => {
-    const nf: TrainingFeedback = { ...f, id: `tfb-${Date.now()}`, createdAt: new Date().toISOString() }
-    updateCache(['trainings', 'feedbacks'], old => [nf, ...old])
+    const existing = f.participantId
+      ? feedbacks.find(fb => fb.participantId === f.participantId && fb.eventId === f.eventId)
+      : undefined
+    const nf: TrainingFeedback = {
+      ...(existing || {}),
+      ...f,
+      id: existing?.id || `tfb-${Date.now()}`,
+      status: 'respondido',
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    }
+    updateCache(['trainings', 'feedbacks'], old => {
+      const rest = existing ? old.filter((x: any) => x.id !== nf.id) : old
+      return [nf, ...rest]
+    })
     addFbMut.mutate(nf as any)
     return nf
   }

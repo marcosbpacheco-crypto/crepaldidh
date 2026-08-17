@@ -2563,6 +2563,12 @@ model training_certificates {
   id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   participant_id        String                @db.Uuid
   event_id              String                @db.Uuid
+  participant_name      String?               @db.VarChar(255)
+  event_name            String?               @db.VarChar(255)
+  client_name           String?               @db.VarChar(255)
+  hours                 Decimal?              @db.Decimal(5, 2)
+  facilitator           String?               @db.VarChar(255)
+  event_date            DateTime?             @db.Date
   validation_code       String                @unique @db.VarChar(100)
   pdf_url               String?               @db.VarChar(255)
   issued_at             DateTime?             @default(now()) @db.Timestamptz(6)
@@ -2577,6 +2583,7 @@ model training_certificates {
 model training_events {
   id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   company_id            String?                 @db.Uuid
+  company_name          String?                 @db.VarChar(255)
   project_id            String?                 @db.Uuid
   sipat_program_id      String?                 @db.Uuid
   training_type_id      String?                 @db.Uuid
@@ -2640,6 +2647,7 @@ model training_feedbacks {
   organization          Int?
   nps                   Int?
   comments              String?
+  status                String?                @default("respondido") @db.VarChar(20)
   created_at            DateTime?              @default(now()) @db.Timestamptz(6)
   training_events       training_events        @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   training_participants training_participants? @relation(fields: [participant_id], references: [id], onUpdate: NoAction)
